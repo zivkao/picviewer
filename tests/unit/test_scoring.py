@@ -25,8 +25,28 @@ heif = HeifDecoder()
 def top(name: str, container: str) -> str:
     """Name of the decoder that would be tried first."""
     order = registry.candidates(Path(name), container)
-    assert order, "no decoder claimed " + name
+    assert order, "no decoder claimed {}{}".format(name, _why_nothing_claimed(container))
     return order[0].name
+
+
+def _why_nothing_claimed(container: str) -> str:
+    """Name the likely cause rather than leaving a bare 'nothing claimed it'.
+
+    A partial install (pip stopping early on Windows long paths, say) leaves
+    pillow-heif absent, the HEIF decoder unregistered, and HEIC silently
+    unsupported. Saying so beats reporting an empty candidate list.
+    """
+    if container in (sniff.HEIF, sniff.AVIF) and not registry.heif_available:
+        return " -- pillow-heif is not installed, so HEIC/AVIF are unsupported"
+    return ""
+
+
+def test_heif_support_is_actually_installed():
+    """pillow-heif is a hard requirement, not an optional extra."""
+    assert registry.heif_available, (
+        "pillow-heif failed to import; reinstall with "
+        "'pip install -r requirements.txt' and check for a partial install"
+    )
 
 
 # Every TIFF-based RAW: same magic bytes as an ordinary TIFF, told apart only by
