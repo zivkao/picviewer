@@ -1,0 +1,24 @@
+* text=auto
+
+# Image samples must never be line-ending normalised. PPM and PNM in particular
+# start with an ASCII header before the pixel data, so git can mistake them for
+# text and corrupt them on checkout.
+*.jpg  binary
+*.jpeg binary
+*.png  binary
+*.gif  binary
+*.bmp  binary
+*.tif  binary
+*.tiff binary
+*.webp binary
+*.avif binary
+*.heic binary
+*.heif binary
+*.ico  binary
+*.tga  binary
+*.ppm  binary
+*.pgm  binary
+*.pbm  binary
+*.pnm  binary
+*.dng  binary
+*.psd  binary
