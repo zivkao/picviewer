@@ -7,11 +7,30 @@ import logging
 import sys
 from pathlib import Path
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from . import __version__
 from .applog import setup_logging
 from .window import MainWindow
+
+ICON = Path(__file__).with_name("icon.ico")
+
+# Windows groups taskbar buttons by this id and takes the icon from whatever
+# owns it. Left unset, a Python app inherits the interpreter's id, so the
+# taskbar shows the Python logo no matter what icon the window carries.
+APP_ID = "zivkao.picviewer"
+
+
+def _claim_taskbar_identity() -> None:
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
+    except Exception:
+        logging.getLogger("picviewer").debug("could not set app id", exc_info=True)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -24,8 +43,14 @@ def main(argv: list[str] | None = None) -> int:
     log = logging.getLogger("picviewer")
     log.info("--- Pic Viewer %s starting, logging to %s ---", __version__, log_path)
 
+    _claim_taskbar_identity()
+
     app = QApplication(sys.argv[:1])
     app.setApplicationName("Pic Viewer")
+    if ICON.exists():
+        app.setWindowIcon(QIcon(str(ICON)))
+    else:
+        log.warning("icon missing at %s; run assets/make_icon.py", ICON)
 
     window = MainWindow()
     window.show()
