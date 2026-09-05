@@ -1,11 +1,19 @@
-"""Run every suite and summarise.
+"""Run both test layers.
 
-    .venv\\Scripts\\python.exe tests\\run_all.py
+    .venv\\Scripts\\python.exe tests\\run_all.py        both layers
+    .venv\\Scripts\\python.exe tests\\run_all.py -u     unit only (fast)
+    .venv\\Scripts\\python.exe tests\\run_all.py -v     show each suite's output
 
-Each suite prints its own findings; this reports which ones passed. A suite
-fails if it exits non-zero or prints one of the failure markers below -- the
-suites are assertion-light on purpose, since most of what they check is better
-read than asserted (which decoder won, how long a decode took).
+Unit tests (pytest, assertion-based) cover the pure logic: container sniffing,
+decoder ranking, cache eviction, playlist ordering, colour helpers. They need no
+files and no display.
+
+Functional suites drive the real thing end to end -- decoding actual files,
+building a real window, sending real drag and key events. They report by
+printing rather than asserting, because most of what they establish is better
+read than asserted: which decoder won, how long a decode took, what the status
+bar ended up saying. This runner therefore judges them on their exit code and on
+failure markers in their output.
 """
 
 from __future__ import annotations
@@ -17,12 +25,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORK = ROOT / ".testwork"
+FUNCTIONAL = ROOT / "tests" / "functional"
 
-# Ordered: samples must exist before anything reads them.
 SUITES = [
     ("formats", "test_formats.py", "13 formats decode, magic bytes beat extensions"),
     ("raw", "test_raw.py", "two-stage RAW, dispatch, cache eviction"),
-    ("color", "test_color.py", "ICC to sRGB, EXIF orientation"),
+    ("color", "test_color.py", "ICC to sRGB against real system profiles"),
     ("gui", "test_gui.py", "walk a folder, zoom, stale-result discard"),
     ("drop-routing", "test_drop_routing.py", "which widget receives drops"),
     ("dragdrop", "test_dragdrop.py", "single/multi/folder drops, rejection"),
@@ -35,12 +43,9 @@ FAILURE_MARKERS = [
     re.compile(r"\bTraceback\b"),
     re.compile(r"^\s*failures:\s*\[", re.M),
     re.compile(r"\bLEAKED\b"),
-    re.compile(r"\bFAIL\b"),
-    re.compile(r"failures out of", re.M),
+    re.compile(r"\bFAILED\b"),
+    re.compile(r"[1-9]\d* failures out of"),
 ]
-
-# "0 failures out of 13" is a pass; only a non-zero count is a failure.
-ZERO_FAILURES = re.compile(r"\b0 failures out of\b")
 
 
 def judge(output: str, code: int) -> tuple[bool, str]:
@@ -48,38 +53,47 @@ def judge(output: str, code: int) -> tuple[bool, str]:
         return False, "exit code " + str(code)
     for marker in FAILURE_MARKERS:
         hit = marker.search(output)
-        if not hit:
-            continue
-        if marker.pattern == "failures out of" and ZERO_FAILURES.search(output):
-            continue
-        if hit.group(0) == "FAIL" and "FAILED" not in output and "FAIL:" not in output:
-            continue
-        return False, "matched " + hit.group(0).strip()
+        if hit:
+            return False, "matched " + hit.group(0).strip()
     return True, ""
 
 
-def main() -> int:
-    WORK.mkdir(parents=True, exist_ok=True)
-    verbose = "-v" in sys.argv
+def run_unit(verbose: bool) -> bool:
+    print("== unit (pytest) ==")
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest"] + (["-v"] if verbose else []),
+        cwd=ROOT,
+        capture_output=not verbose,
+        text=True,
+    )
+    if not verbose:
+        tail = (proc.stdout + proc.stderr).strip().splitlines()
+        for line in tail[-6:] if proc.returncode else tail[-1:]:
+            print("  " + line)
+    print()
+    return proc.returncode == 0
 
-    print("running {} suites, work dir {}\n".format(len(SUITES), WORK))
+
+def run_functional(verbose: bool) -> list[tuple[str, bool, str]]:
+    print("== functional ==")
+    WORK.mkdir(parents=True, exist_ok=True)
 
     # test_formats.py writes the ordinary samples, but the synthetic RAW has its
     # own generator and test_raw.py expects it to be there already.
     setup = subprocess.run(
-        [sys.executable, str(ROOT / "tests" / "make_synthetic_dng.py"), str(WORK)],
+        [sys.executable, str(FUNCTIONAL / "make_synthetic_dng.py"), str(WORK)],
         capture_output=True,
         text=True,
     )
     if setup.returncode != 0:
         print("  SETUP FAILED: could not build the synthetic DNG")
         print(setup.stdout + setup.stderr)
-        return 1
+        return [("setup", False, "synthetic DNG")]
 
     results = []
     for label, script, blurb in SUITES:
         proc = subprocess.run(
-            [sys.executable, str(ROOT / "tests" / script), str(WORK)],
+            [sys.executable, str(FUNCTIONAL / script), str(WORK)],
             capture_output=True,
             text=True,
         )
@@ -92,12 +106,25 @@ def main() -> int:
         if verbose or not ok:
             for line in output.strip().splitlines()[-25:]:
                 print("        | " + line)
+    return results
 
+
+def main() -> int:
+    verbose = "-v" in sys.argv
+    unit_only = "-u" in sys.argv
+
+    unit_ok = run_unit(verbose)
+    if unit_only:
+        return 0 if unit_ok else 1
+
+    results = run_functional(verbose)
     failed = [label for label, ok, _ in results if not ok]
-    print("\n{}/{} suites passed".format(len(results) - len(failed), len(results)))
+
+    print("\nunit: {}   functional: {}/{}".format(
+        "pass" if unit_ok else "FAIL", len(results) - len(failed), len(results)))
     if failed:
-        print("failed: " + ", ".join(failed))
-    return 1 if failed else 0
+        print("failed suites: " + ", ".join(failed))
+    return 0 if unit_ok and not failed else 1
 
 
 if __name__ == "__main__":

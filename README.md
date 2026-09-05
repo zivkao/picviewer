@@ -58,18 +58,32 @@ all. `-v` adds debug detail and, when run through `python.exe`, console output.
 ## Tests
 
 ```
-.venv\Scripts\python.exe testsun_all.py
+.venv\Scripts\python.exe tests\run_all.py        both layers
+.venv\Scripts\python.exe tests\run_all.py -u     unit only, about a second
 ```
 
-Nine suites, all offscreen (`QT_QPA_PLATFORM=offscreen`), no display needed.
-They generate their own fixtures into `.testwork/` -- sample files in every
-writable format, a hand-built DNG so the RAW path can be exercised without a
-camera, and deny-read files that reproduce an unreadable-file failure. Add `-v`
-to see each suite's own output.
+**`tests/unit/`** -- 148 pytest cases over the pure logic: container sniffing,
+decoder ranking, cache eviction and its failure memory, playlist ordering, the
+colour helpers. Real assertions, no files, no display, under a second.
 
-The suites lean on printed findings rather than assertions, because most of what
-matters here is better read than asserted: which decoder won, how long a decode
-took, what the status bar ended up saying.
+Every bug found while building this lives here as a regression case. The worst
+one was in decoder ranking -- pure logic that a unit test catches instantly,
+found originally only by hand-building a DNG. Reintroducing each of those six
+defects turns the suite red, which is the only evidence that a green suite is
+worth anything.
+
+**`tests/functional/`** -- nine end-to-end suites that decode real files, build a
+real window, and send real drag and key events, all offscreen
+(`QT_QPA_PLATFORM=offscreen`). They generate their own fixtures into
+`.testwork/`: samples in every writable format, a hand-built DNG so the RAW path
+runs without a camera, and deny-read files reproducing an unreadable-file
+failure.
+
+These report by printing rather than asserting, because what they establish is
+mostly better read than asserted -- which decoder won, how long a decode took,
+what the status bar ended up saying. `run_all.py` judges them on exit code and
+failure markers, which is weaker than an assertion; treat them as instrumented
+walkthroughs, and put anything that can be pinned down exactly in `tests/unit/`.
 
 ## Formats
 

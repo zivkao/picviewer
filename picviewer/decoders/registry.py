@@ -26,9 +26,14 @@ class DecoderRegistry:
     def register(self, decoder: Decoder) -> None:
         self._decoders.append(decoder)
 
-    def candidates(self, path: Path) -> list[Decoder]:
-        """Decoders that might read *path*, most confident first."""
-        container = sniff.sniff(path)
+    def candidates(self, path: Path, container: str | None = None) -> list[Decoder]:
+        """Decoders that might read *path*, most confident first.
+
+        Pass *container* to rank without touching the disk; it is sniffed from
+        the file otherwise.
+        """
+        if container is None:
+            container = sniff.sniff(path)
         ranked = [(d.score(path, container), d) for d in self._decoders]
         ranked = [(s, d) for s, d in ranked if s > 0]
         ranked.sort(key=lambda pair: pair[0], reverse=True)
