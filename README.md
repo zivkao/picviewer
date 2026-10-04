@@ -19,7 +19,11 @@ py -3.13 -m venv .venv
 .venv\Scripts\python.exe -m picviewer D:\Photos  # opens a folder
 ```
 
-Or double-click `run.bat`.
+Or double-click `run.bat`, which works from any folder and takes the same
+arguments. The `-m picviewer` form above only works from the project folder,
+because `-m` puts the *current* directory on `sys.path` and nothing else;
+`run.bat` sets `PYTHONPATH` instead of changing directory, so a relative path
+argument still resolves against where you ran it.
 
 ## Keys
 
