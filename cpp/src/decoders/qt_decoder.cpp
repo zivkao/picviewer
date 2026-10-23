@@ -63,11 +63,31 @@ std::optional<DecodedImage> QtDecoder::loadFull(const QString &path,
     const QByteArray format = reader.format();
     const int frames = reader.imageCount();
 
-    const QSize full = color::orientedSize(reader);
+    QSize full = color::orientedSize(reader);
     if (!full.isValid()) {
         if (error)
             *error = reader.errorString();
         return std::nullopt;
+    }
+
+    // An .ico holds several sizes in one file and Qt starts on the first
+    // directory entry, which is usually the smallest -- a 16x16 icon where
+    // the file also carries 256x256. A viewer should show the largest.
+    if (format == "ico" && frames > 1) {
+        int bestFrame = 0;
+        qint64 bestPixels = 0;
+        for (int frame = 0; frame < frames; ++frame) {
+            if (!reader.jumpToImage(frame))
+                break;
+            const QSize size = reader.size();
+            const qint64 pixels = qint64(size.width()) * size.height();
+            if (pixels > bestPixels) {
+                bestPixels = pixels;
+                bestFrame = frame;
+                full = size;
+            }
+        }
+        reader.jumpToImage(bestFrame);
     }
 
     if (maxSize.isValid() && (full.width() > maxSize.width() || full.height() > maxSize.height())) {

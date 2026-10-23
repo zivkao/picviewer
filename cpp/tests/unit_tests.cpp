@@ -6,6 +6,11 @@
 
 #include <QtTest>
 
+#include <QRegularExpression>
+#include <QTemporaryFile>
+
+#include <cstdio>
+
 #include "cache.h"
 #include "decoders/qt_decoder.h"
 #include "decoders/raw_decoder.h"
@@ -411,20 +416,166 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// Format-level behaviour that only shows up against a real file.
+class DecodeTests : public QObject
+{
+    Q_OBJECT
+
+    static QString sample(const char *name)
+    {
+        return QStringLiteral(PICVIEWER_SAMPLES_DIR "/") + QLatin1String(name);
+    }
+
+    static std::optional<decoders::DecodedImage> load(const char *name)
+    {
+        decoders::DecodeError error;
+        return decoders::Registry::instance().loadFull(sample(name), QSize(), &error);
+    }
+
+private slots:
+    void initTestCase()
+    {
+        if (!QFileInfo::exists(sample("sample.jpg")))
+            QSKIP("sample files are not present next to the source tree");
+    }
+
+    void anIcoShowsItsLargestFrameNotItsFirst()
+    {
+        // Qt starts on the first directory entry, which is usually the
+        // smallest: a 16x16 icon out of a file that also holds 256x256.
+        const auto result = load("sample.ico");
+        QVERIFY(result.has_value());
+        QCOMPARE(result->image.size(), QSize(256, 256));
+    }
+
+    void exifRotationIsApplied()
+    {
+        // Stored 600x400 with orientation 6; it must come back transposed.
+        const auto result = load("rotated_exif.jpg");
+        QVERIFY(result.has_value());
+        QCOMPARE(result->image.size(), QSize(400, 600));
+        QCOMPARE(result->metadata.value(QStringLiteral("size")),
+                 QStringLiteral("400 x 600"));
+    }
+
+    void magicBytesBeatTheExtensionOnARealFile()
+    {
+        // actually_png.jpg is PNG data under a .jpg name.
+        const auto result = load("actually_png.jpg");
+        QVERIFY(result.has_value());
+        QCOMPARE(result->metadata.value(QStringLiteral("format")), QStringLiteral("PNG"));
+    }
+
+    void aTiffBasedRawReachesTheRawDecoder()
+    {
+        // The whole point of the scoring tie-break: decoded by "qt" this
+        // would succeed and return the 200x150 embedded preview.
+        const auto result = load("synthetic.dng");
+        QVERIFY(result.has_value());
+        QCOMPARE(result->metadata.value(QStringLiteral("decoder")), QStringLiteral("raw"));
+        QCOMPARE(result->image.size(), QSize(800, 600));
+    }
+
+    void rawOffersAnEmbeddedPreviewBeforeTheFullDecode()
+    {
+        const auto preview = decoders::Registry::instance().loadPreview(
+            sample("synthetic.dng"), QSize(3840, 3840));
+        QVERIFY(preview.has_value());
+        QVERIFY(preview->isPreview);
+        QCOMPARE(preview->image.size(), QSize(200, 150));
+    }
+
+    void heifAndAvifBothReachTheHeifDecoder()
+    {
+        for (const char *name : {"sample.heic", "sample.avif"}) {
+            const auto result = load(name);
+            QVERIFY2(result.has_value(), name);
+            QCOMPARE(result->metadata.value(QStringLiteral("decoder")),
+                     QStringLiteral("heif"));
+        }
+    }
+
+    void anUnreadableFileIsReportedAsUnreadableNotUnsupported()
+    {
+        decoders::DecodeError error;
+        const auto result = decoders::Registry::instance().loadFull(
+            sample("no_such_file.jpg"), QSize(), &error);
+        QVERIFY(!result.has_value());
+        QCOMPARE(error.kind, decoders::DecodeError::Kind::Unreadable);
+    }
+};
+
+// ---------------------------------------------------------------------------
+
+namespace {
+
+/// Run one suite and return its report.
+///
+/// Each suite gets its own file rather than the default stdout logger.
+/// QTest tears that logger down when a qExec returns, so with three suites in
+/// one binary a plain run printed nothing at all -- the tests ran, passed, and
+/// said so into a closed stream. Reading the reports back and printing them
+/// here is independent of that lifecycle.
+int runSuite(QObject *suite, const QString &name, int &passed, int &failed)
+{
+    QTemporaryFile report;
+    if (!report.open()) {
+        std::fprintf(stderr, "could not create a report file for %s\n", qPrintable(name));
+        return 1;
+    }
+    const QString path = report.fileName();
+    report.close();
+
+    const int result = QTest::qExec(
+        suite, QStringList{QCoreApplication::applicationFilePath(),
+                           QStringLiteral("-o"), path + QStringLiteral(",txt")});
+
+    QFile written(path);
+    if (written.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        const QString text = QString::fromUtf8(written.readAll());
+        for (const QString &line : text.split(QLatin1Char('\n'))) {
+            if (line.startsWith(QLatin1String("FAIL!")) || line.contains(QLatin1String("Totals:")))
+                std::printf("  %s\n", qPrintable(line.trimmed()));
+        }
+        static const QRegularExpression totals(
+            QStringLiteral("Totals: (\\d+) passed, (\\d+) failed"));
+        if (const auto match = totals.match(text); match.hasMatch()) {
+            passed += match.captured(1).toInt();
+            failed += match.captured(2).toInt();
+        }
+    }
+    return result;
+}
+
+} // namespace
+
 int main(int argc, char **argv)
 {
     qputenv("QT_QPA_PLATFORM", "offscreen");
     QGuiApplication app(argc, argv);     // QImage needs no app, QImageReader does
 
-    int failures = 0;
     SniffTests sniffTests;
     ScoringTests scoringTests;
     CacheTests cacheTests;
+    DecodeTests decodeTests;
 
-    failures += QTest::qExec(&sniffTests, argc, argv);
-    failures += QTest::qExec(&scoringTests, argc, argv);
-    failures += QTest::qExec(&cacheTests, argc, argv);
+    const QList<QPair<QObject *, QString>> suites = {
+        {&sniffTests, QStringLiteral("sniff")},
+        {&scoringTests, QStringLiteral("scoring")},
+        {&cacheTests, QStringLiteral("cache")},
+        {&decodeTests, QStringLiteral("decode")},
+    };
 
+    int failures = 0;
+    int passed = 0;
+    int failed = 0;
+    for (const auto &[suite, name] : suites) {
+        std::printf("== %s ==\n", qPrintable(name));
+        failures += runSuite(suite, name, passed, failed);
+    }
+
+    std::printf("\n%d passed, %d failed across %lld suites\n",
+                passed, failed, static_cast<long long>(suites.size()));
     return failures;
 }
 

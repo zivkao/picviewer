@@ -81,7 +81,7 @@ MainWindow::MainWindow(QWidget *parent)
     buildToolBar();
     showPlaceholder();
 
-    qCInfo(logWindow) << "window ready:" << m_extensions.size() << "extensions, decoders:"
+    qCInfo(logWindow).noquote() << "window ready:" << m_extensions.size() << "extensions, decoders:"
                       << decoders::Registry::instance().decoderNames().join(QLatin1Char(' '));
 }
 
@@ -266,7 +266,7 @@ void MainWindow::openFolderDialog()
 
 void MainWindow::openPath(const QString &path)
 {
-    qCInfo(logWindow) << "open" << path;
+    qCInfo(logWindow).noquote() << "open" << path;
     const QFileInfo info(path);
 
     if (info.isDir()) {
@@ -519,7 +519,7 @@ void MainWindow::deleteCurrent()
         warn(tr("Delete failed: %1").arg(file.errorString()));
         return;
     }
-    qCInfo(logWindow) << "deleted" << path;
+    qCInfo(logWindow).noquote() << "deleted" << path;
 
     m_playlist.removeAt(m_index);
     if (m_playlist.isEmpty())
@@ -533,7 +533,7 @@ void MainWindow::copyCurrent()
     if (!m_view->hasImage())
         return;
     QApplication::clipboard()->setPixmap(m_view->pixmap());
-    qCInfo(logWindow) << "copied" << QFileInfo(currentPath()).fileName() << "to clipboard";
+    qCInfo(logWindow).noquote() << "copied" << QFileInfo(currentPath()).fileName() << "to clipboard";
     statusBar()->showMessage(tr("Copied to clipboard"), 2000);
 }
 
@@ -542,7 +542,7 @@ void MainWindow::revealCurrent()
     const QString path = currentPath();
     if (path.isEmpty())
         return;
-    qCInfo(logWindow) << "reveal" << path;
+    qCInfo(logWindow).noquote() << "reveal" << path;
     QProcess::startDetached(QStringLiteral("explorer"),
                             {QStringLiteral("/select,") + QDir::toNativeSeparators(path)});
 }

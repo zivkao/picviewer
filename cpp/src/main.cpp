@@ -52,7 +52,7 @@ int main(int argc, char **argv)
     parser.process(app);
 
     applog::install(parser.isSet(verbose));
-    qCInfo(logApp) << "--- Pic Viewer" << Version << "(C++) starting, logging to"
+    qCInfo(logApp).noquote() << "--- Pic Viewer" << Version << "(C++) starting, logging to"
                    << applog::filePath() << "---";
 
     // Queued signals carry decoded images from the worker pool to the GUI

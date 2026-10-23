@@ -40,7 +40,7 @@ public:
         const auto &registry = decoders::Registry::instance();
 
         if (auto cached = m_loader->cache().get(key); cached && !cached->isPreview) {
-            qCDebug(logLoader) << "cache hit" << QFileInfo(m_path).fileName();
+            qCDebug(logLoader).noquote() << "cache hit" << QFileInfo(m_path).fileName();
             emitReady(*cached);
             return;
         }
@@ -60,10 +60,10 @@ public:
             // buries everything else in the log.
             const QString summary = error.message.section(QLatin1Char('\n'), 0, 0);
             if (m_cacheOnly) {
-                qCDebug(logLoader) << "prefetch failed for"
+                qCDebug(logLoader).noquote() << "prefetch failed for"
                                    << QFileInfo(m_path).fileName() << ":" << summary;
             } else {
-                qCCritical(logLoader) << "decode failed for"
+                qCCritical(logLoader).noquote() << "decode failed for"
                                       << QFileInfo(m_path).fileName() << ":" << summary;
                 QMetaObject::invokeMethod(
                     m_loader, "failed", Qt::QueuedConnection,
@@ -74,7 +74,7 @@ public:
         }
 
         m_loader->cache().put(key, *result);
-        qCInfo(logLoader).nospace()
+        qCInfo(logLoader).nospace().noquote()
             << "decoded " << QFileInfo(m_path).fileName()
             << " via " << result->metadata.value(QStringLiteral("decoder"), QStringLiteral("?"))
             << " in " << timer.elapsed() << "ms -> "
@@ -90,7 +90,7 @@ private:
         auto preview = registry.loadPreview(m_path, {PreviewMaxSide, PreviewMaxSide});
         if (!preview)
             return;
-        qCInfo(logLoader).nospace()
+        qCInfo(logLoader).nospace().noquote()
             << "preview for " << QFileInfo(m_path).fileName() << " -> "
             << preview->image.width() << "x" << preview->image.height();
         deliver(*preview);

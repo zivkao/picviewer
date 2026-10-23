@@ -179,6 +179,15 @@ of magnitude apart in memory.
 converted to sRGB. Without the first, phone photos are sideways; without the
 second, Adobe RGB and Display P3 files look washed out.
 
+## C++ port
+
+`cpp/` holds a port to C++ with Qt6, LibRaw and libheif, built against an
+isolated MSYS2 toolchain in `.msys64/` that is to this what `.venv` is to the
+Python version. The decoder architecture is the same; 98 assertions cover it
+and seven reintroduced defects all turn the suite red. See [cpp/README.md](cpp/README.md).
+
+The Python version remains the one that is packaged and installed.
+
 ## Not built yet
 
 Thumbnail strip (the disk-backed thumbnail cache it needs is the real work),
