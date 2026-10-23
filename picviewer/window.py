@@ -309,12 +309,15 @@ class MainWindow(QMainWindow):
         if not self._playlist:
             return
         count = len(self._playlist)
-        targets = [
+        targets = {
             self._playlist[(self._index + offset) % count]
             for offset in range(-PREFETCH_RADIUS, PREFETCH_RADIUS + 1)
             if offset != 0
-        ]
-        self.loader.prefetch(targets)
+        }
+        # With few files the wrap-around lands back on the current one, which
+        # would re-queue what was just decoded.
+        targets.discard(self._playlist[self._index])
+        self.loader.prefetch(sorted(targets))
 
     # -- results -----------------------------------------------------------
 

@@ -73,7 +73,30 @@ INFO  picviewer.window  copied actually_png.jpg to clipboard
 
 The file handler is not optional comfort: the app runs under `pythonw.exe`, which
 has no console, so stderr goes nowhere and an unlogged failure leaves no trace at
-all. `-v` adds debug detail and, when run through `python.exe`, console output.
+all.
+
+Every run opens with the environment, because decode bugs are routinely specific
+to a library version and a report without it cannot be reproduced:
+
+```
+--- Pic Viewer 0.1.0 starting, pid 429480 ---
+os      : Windows-11-10.0.26300-SP0 AMD64      pyside6 : 6.11.2
+python  : 3.13.13                              pil     : 12.3.0
+screen  : BenQ GW2381 1920x1200 @ 96 dpi, ratio 1.00
+```
+
+A failure says what the file was, what it was taken for, and what each decoder
+made of it:
+
+```
+dispatch broken.jpg: 4096 bytes, sniffed jpeg, candidates qt(100)
+decode failed for broken.jpg (4096 bytes, jpeg): Could not decode broken.jpg
+    qt: Unsupported image format
+```
+
+`-v` adds the dispatch detail and is what a bug report should carry. It applies
+only to this application's own loggers -- Pillow at debug level logs a line per
+plugin it imports, and a debug log nobody can read is worth no more than none.
 
 ## Installing
 

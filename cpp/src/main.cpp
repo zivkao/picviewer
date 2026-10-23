@@ -5,6 +5,8 @@
 #include <QIcon>
 #include <QLoggingCategory>
 
+#include <cstdio>
+
 #include "applog.h"
 #include "decoders/decoder.h"
 #include "window.h"
@@ -43,7 +45,14 @@ int main(int argc, char **argv)
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Image viewer"));
     parser.addHelpOption();
-    parser.addVersionOption();
+
+    // Not addVersionOption(): it claims -v, which collides with -v for verbose
+    // and made `picviewer -v file.jpg` print the version and exit -- producing
+    // no log at all, in exactly the situation someone asks for one. The Python
+    // build uses -v for verbose, so this one does too.
+    const QCommandLineOption versionOption(QStringLiteral("version"),
+                                           QStringLiteral("show the version and exit"));
+    parser.addOption(versionOption);
     const QCommandLineOption verbose({QStringLiteral("v"), QStringLiteral("verbose")},
                                      QStringLiteral("debug logging"));
     parser.addOption(verbose);
@@ -51,9 +60,18 @@ int main(int argc, char **argv)
                                  QStringLiteral("image file or folder to open"));
     parser.process(app);
 
+    if (parser.isSet(versionOption)) {
+        std::printf("Pic Viewer %s (C++, Qt %s)\n", Version, qVersion());
+        return 0;
+    }
+
     applog::install(parser.isSet(verbose));
-    qCInfo(logApp).noquote() << "--- Pic Viewer" << Version << "(C++) starting, logging to"
-                   << applog::filePath() << "---";
+    applog::installCrashHandler();
+    // The pid separates runs: the log is appended to, and two copies open at
+    // once interleave their lines indistinguishably without it.
+    qCInfo(logApp).noquote() << "--- Pic Viewer" << Version << "(C++) starting, pid"
+                             << QCoreApplication::applicationPid() << "---";
+    applog::logEnvironment();
 
     // Queued signals carry decoded images from the worker pool to the GUI
     // thread, and an unregistered type makes that connection fail silently.

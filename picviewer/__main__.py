@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from . import __version__
-from .applog import setup_logging
+from .applog import log_display, log_environment, setup_logging
 from .window import MainWindow
 
 ICON = Path(__file__).with_name("icon.ico")
@@ -41,7 +42,11 @@ def main(argv: list[str] | None = None) -> int:
 
     log_path = setup_logging(args.verbose)
     log = logging.getLogger("picviewer")
-    log.info("--- Pic Viewer %s starting, logging to %s ---", __version__, log_path)
+    # The pid separates runs: the log is appended to, and two copies open
+    # at once interleave their lines indistinguishably without it.
+    log.info("--- Pic Viewer %s starting, pid %s ---", __version__, os.getpid())
+    log.debug("logging to %s", log_path)
+    log_environment()
 
     _claim_taskbar_identity()
 
@@ -51,6 +56,8 @@ def main(argv: list[str] | None = None) -> int:
         app.setWindowIcon(QIcon(str(ICON)))
     else:
         log.warning("icon missing at %s; run assets/make_icon.py", ICON)
+
+    log_display(app)
 
     window = MainWindow()
     window.show()

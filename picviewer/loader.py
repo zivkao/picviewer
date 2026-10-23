@@ -9,6 +9,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 
 from .cache import ImageCache, cache_key
+from . import sniff
 from .decoders import DecodedImage, get_registry
 
 log = logging.getLogger(__name__)
@@ -70,11 +71,29 @@ class _LoadTask(QRunnable):
             if self.cache_only:
                 log.debug("prefetch failed for %s: %s", self.path.name, summary)
             else:
-                log.error("decode failed for %s: %s", self.path.name, summary)
+                size = self.path.stat().st_size if self.path.exists() else -1
+                log.error(
+                    "decode failed for %s (%s bytes, %s): %s",
+                    self.path.name, size, sniff.sniff(self.path), summary,
+                )
+                # Each decoder's own complaint. The summary above is what the
+                # user sees; this is what says which backend objected and why.
+                for line in str(exc).splitlines()[1:]:
+                    if ":" in line and not line.lstrip().startswith("-"):
+                        log.error("    %s", line.strip())
                 self.signals.failed.emit(self.path, str(exc), self.generation)
             return
 
+        before = self.cache.nbytes
         self.cache.put(key, result)
+        if self.cache.nbytes < before:
+            # Went down after an insert, so older entries were dropped. The
+            # only visible sign of memory pressure there is.
+            log.info(
+                "cache evicted %.0f MB, now %.0f of %.0f MB",
+                (before + result.nbytes() - self.cache.nbytes) / 1e6,
+                self.cache.nbytes / 1e6, self.cache.budget / 1e6,
+            )
         log.info(
             "decoded %s via %s in %.0fms -> %dx%d (%.1f MB)%s",
             self.path.name,

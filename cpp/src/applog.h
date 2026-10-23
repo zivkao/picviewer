@@ -19,6 +19,21 @@ QString filePath();
 /// Install the message handler. Call before anything that might log.
 void install(bool verbose);
 
+/// Record what this is running on and against.
+///
+/// Decode bugs are routinely specific to a library version, and a report
+/// without these cannot be reproduced. Called once the application object
+/// exists, since the screen details need it.
+void logEnvironment();
+
+/// Catch what would otherwise be a silent disappearance.
+///
+/// The decoding happens inside LibRaw and libheif, C libraries handed
+/// arbitrary files, so an access violation is the realistic failure -- and
+/// with no console and no handler it leaves nothing behind at all. The Python
+/// version has sys.excepthook for the same reason.
+void installCrashHandler();
+
 /// Flush and close. Called on the way out so the last lines are not lost.
 void shutdown();
 

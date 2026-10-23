@@ -8,8 +8,10 @@ no trace at all.
 
 from __future__ import annotations
 
+import importlib
 import logging
 import os
+import platform
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -57,8 +59,60 @@ def setup_logging(verbose: bool = False) -> Path:
         console.setLevel(logging.DEBUG if verbose else logging.WARNING)
         root.addHandler(console)
 
+    _quieten_third_parties(verbose)
     _install_exception_hook()
     return path
+
+
+# Libraries that are chatty at DEBUG. Pillow alone logs a line per plugin it
+# imports, which buries the application's own output in a verbose run -- and a
+# debug log nobody can read is worth no more than no log at all.
+NOISY = ("PIL", "PIL.Image", "PIL.PngImagePlugin", "PIL.TiffImagePlugin",
+         "matplotlib", "urllib3", "asyncio")
+
+
+def _quieten_third_parties(verbose: bool) -> None:
+    for name in NOISY:
+        logging.getLogger(name).setLevel(logging.WARNING)
+    if verbose:
+        # Only this application's own loggers follow -v down to DEBUG.
+        logging.getLogger("picviewer").setLevel(logging.DEBUG)
+
+
+def log_environment() -> None:
+    """Record what this is running on and against.
+
+    Decode bugs are routinely specific to a library version, and a report
+    without these cannot be reproduced.
+    """
+    log = logging.getLogger("picviewer.env")
+    log.info("os      : %s %s", platform.platform(), platform.machine())
+    log.info("python  : %s", sys.version.split()[0])
+
+    for name in ("PySide6", "PIL", "pillow_heif", "rawpy", "numpy"):
+        try:
+            module = importlib.import_module(name)
+            version = getattr(module, "__version__", None) or getattr(
+                module, "version", "?")
+        except Exception as exc:
+            version = f"unavailable ({exc})"
+        log.info("%-8s: %s", name.lower(), version)
+
+
+def log_display(app) -> None:
+    """Screen geometry and scaling, once the application exists.
+
+    Nothing in the viewer accounts for devicePixelRatio, so a scaled display
+    is the first thing to suspect when "100%" does not look like 1:1.
+    """
+    log = logging.getLogger("picviewer.env")
+    for screen in app.screens():
+        size = screen.geometry()
+        log.info(
+            "screen  : %s %dx%d @ %.0f dpi, ratio %.2f",
+            screen.name(), size.width(), size.height(),
+            screen.logicalDotsPerInch(), screen.devicePixelRatio(),
+        )
 
 
 def _install_exception_hook() -> None:

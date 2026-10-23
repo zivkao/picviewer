@@ -7,6 +7,7 @@
 #include <QThread>
 
 #include "decoders/registry.h"
+#include "sniff.h"
 
 Q_LOGGING_CATEGORY(logLoader, "picviewer.loader")
 
@@ -63,8 +64,19 @@ public:
                 qCDebug(logLoader).noquote() << "prefetch failed for"
                                    << QFileInfo(m_path).fileName() << ":" << summary;
             } else {
-                qCCritical(logLoader).noquote() << "decode failed for"
-                                      << QFileInfo(m_path).fileName() << ":" << summary;
+                const QFileInfo info(m_path);
+                qCCritical(logLoader).noquote().nospace()
+                    << "decode failed for " << info.fileName()
+                    << " (" << info.size() << " bytes, "
+                    << sniff::name(sniff::of(m_path)) << "): " << summary;
+                // Each decoder's own complaint, one per line. The single-line
+                // summary above is what the user sees; this is what says which
+                // backend objected and to what.
+                for (const QString &line : error.message.split(QLatin1Char('\n'))) {
+                    if (line.contains(QLatin1Char(':')) && !line.trimmed().isEmpty()
+                        && !line.startsWith(QLatin1String("  -")))
+                        qCCritical(logLoader).noquote() << "   " << line.trimmed();
+                }
                 QMetaObject::invokeMethod(
                     m_loader, "failed", Qt::QueuedConnection,
                     Q_ARG(QString, m_path), Q_ARG(QString, error.message),
@@ -73,7 +85,17 @@ public:
             return;
         }
 
-        m_loader->cache().put(key, *result);
+        ImageCache &cache = m_loader->cache();
+        const qint64 before = cache.nbytes();
+        cache.put(key, *result);
+        if (cache.nbytes() < before) {
+            // Went down after an insert, so older entries were dropped. The
+            // only visible sign of memory pressure there is.
+            qCInfo(logLoader).nospace()
+                << "cache evicted " << (before + result->nbytes() - cache.nbytes()) / 1000000
+                << " MB, now " << cache.nbytes() / 1000000 << " of "
+                << cache.budget() / 1000000 << " MB";
+        }
         qCInfo(logLoader).nospace().noquote()
             << "decoded " << QFileInfo(m_path).fileName()
             << " via " << result->metadata.value(QStringLiteral("decoder"), QStringLiteral("?"))

@@ -381,7 +381,11 @@ void MainWindow::prefetchNeighbours()
     for (int offset = -PrefetchRadius; offset <= PrefetchRadius; ++offset) {
         if (offset == 0)
             continue;
-        targets << m_playlist.at(((m_index + offset) % count + count) % count);
+        const QString &candidate = m_playlist.at(((m_index + offset) % count + count) % count);
+        // With few files the wrap-around lands back on the current one, which
+        // would re-queue what was just decoded.
+        if (candidate != m_playlist.at(m_index) && !targets.contains(candidate))
+            targets << candidate;
     }
     m_loader->prefetch(targets);
 }

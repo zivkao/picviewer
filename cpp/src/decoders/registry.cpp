@@ -76,6 +76,22 @@ std::optional<DecodedImage> Registry::loadFull(const QString &path,
 
     const sniff::Container container = sniff::of(path);
     const std::vector<const Decoder *> ranked = candidates(path, container);
+
+    // Everything needed to reason about a failure before it happens: what the
+    // file looked like on disk, what it was taken for, and who was going to
+    // be asked. Logged at debug so a normal session stays readable, but -v
+    // turns it on and that is what a bug report should carry.
+    if (logRegistry().isDebugEnabled()) {
+        QStringList names;
+        for (const Decoder *decoder : ranked)
+            names << QStringLiteral("%1(%2)").arg(decoder->name()).arg(
+                decoder->score(path, container));
+        qCDebug(logRegistry).noquote().nospace()
+            << "dispatch " << QFileInfo(path).fileName()
+            << ": " << QFileInfo(path).size() << " bytes, sniffed "
+            << sniff::name(container) << ", candidates " << names.join(QLatin1Char(' '));
+    }
+
     if (ranked.empty()) {
         if (error)
             *error = {DecodeError::Kind::Unsupported,
@@ -88,13 +104,21 @@ std::optional<DecodedImage> Registry::loadFull(const QString &path,
     for (const Decoder *decoder : ranked) {
         QString why;
         if (auto result = decoder->loadFull(path, container, maxSize, &why)) {
+            if (decoder != ranked.front()) {
+                // The preferred decoder lost. Worth a line of its own: it
+                // means the ranking disagreed with reality for this file.
+                qCInfo(logRegistry).noquote()
+                    << "fell through to" << decoder->name() << "for"
+                    << QFileInfo(path).fileName()
+                    << "after" << ranked.front()->name() << "declined";
+            }
             // Which decoder won matters when diagnosing a wrong-looking image:
             // a TIFF-based RAW handled by "qt" means the small embedded
             // preview got through instead of the photograph.
             result->metadata.insert(QStringLiteral("decoder"), decoder->name());
             return result;
         }
-        qCWarning(logRegistry) << decoder->name() << "failed on"
+        qCWarning(logRegistry).noquote() << decoder->name() << "failed on"
                                << QFileInfo(path).fileName() << ":" << why;
         failures << QStringLiteral("%1: %2").arg(decoder->name(), why);
     }
