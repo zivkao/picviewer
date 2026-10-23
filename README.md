@@ -75,6 +75,29 @@ The file handler is not optional comfort: the app runs under `pythonw.exe`, whic
 has no console, so stderr goes nowhere and an unlogged failure leaves no trace at
 all. `-v` adds debug detail and, when run through `python.exe`, console output.
 
+## Installing
+
+```
+.venv\Scripts\python.exe -m pip install pyinstaller
+.venv\Scripts\python.exe -m PyInstaller packaging/picviewer.spec --noconfirm
+powershell -ExecutionPolicy Bypass -File packaging\install.ps1 -DesktopShortcut
+```
+
+Installs per-user into `%LOCALAPPDATA%\Programs\PicViewer`: no administrator
+prompt, a Start Menu shortcut, an entry under Settings > Apps, and registration
+under "Open with" for 24 formats. Remove it from Settings > Apps, or with
+`install.ps1 -Uninstall`, which leaves nothing behind but the log folder.
+
+Windows will not let an installer claim a file type as the *default* handler --
+that is deliberate, to stop programs fighting over associations. Right-click an
+image, Open with, Choose another app, tick Always.
+
+The build is one folder, 177 MB, not one file: a `--onefile` build unpacks
+itself to a temp directory on every launch, which is seconds of delay each time
+you double-click an image. PyInstaller is pointed at `packaging/launcher.py`
+rather than `picviewer/__main__.py`, because it runs its target as a top-level
+script and the relative imports in `__main__.py` need a real package.
+
 ## Tests
 
 ```
@@ -159,5 +182,10 @@ second, Adobe RGB and Display P3 files look washed out.
 ## Not built yet
 
 Thumbnail strip (the disk-backed thumbnail cache it needs is the real work),
-animated GIF/WebP playback (frame 0 is shown), Windows file associations,
-slideshow, EXIF detail panel, rotate/flip, copy to clipboard.
+animated GIF/WebP playback (frame 0 is shown), slideshow, EXIF detail panel,
+rotate/flip, and any settings at all -- the cache budget and zoom limits are
+constants in the source.
+
+Untested rather than missing: high-DPI displays. Nothing in the code accounts
+for `devicePixelRatio`, so on a scaled display "100%" almost certainly does not
+mean one image pixel per screen pixel. It has only ever run at 100% scaling.

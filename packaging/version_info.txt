@@ -1,0 +1,33 @@
+# Windows version resource. Explorer reads this for the file's Details tab,
+# and an unsigned executable with no version information looks more suspicious
+# to SmartScreen than one without.
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(0, 1, 0, 0),
+    prodvers=(0, 1, 0, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0),
+  ),
+  kids=[
+    StringFileInfo([
+      StringTable(
+        "040904B0",
+        [
+          StringStruct("CompanyName", "ZivKao"),
+          StringStruct("FileDescription", "Pic Viewer"),
+          StringStruct("FileVersion", "0.1.0"),
+          StringStruct("InternalName", "PicViewer"),
+          StringStruct("LegalCopyright", "MIT Licence"),
+          StringStruct("OriginalFilename", "PicViewer.exe"),
+          StringStruct("ProductName", "Pic Viewer"),
+          StringStruct("ProductVersion", "0.1.0"),
+        ],
+      )
+    ]),
+    VarFileInfo([VarStruct("Translation", [0x409, 1200])]),
+  ],
+)
