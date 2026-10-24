@@ -209,7 +209,14 @@ isolated MSYS2 toolchain in `.msys64/` that is to this what `.venv` is to the
 Python version. The decoder architecture is the same; 98 assertions cover it
 and seven reintroduced defects all turn the suite red. See [cpp/README.md](cpp/README.md).
 
-The Python version remains the one that is packaged and installed.
+Both are now packaged and install side by side, into separate directories with
+separate Start Menu entries, so neither disturbs the other. The C++ build is
+139 MB against 177 MB and opens a window in 698 ms against 1433 ms; on a real
+19 MB Canon CR2 it is 1293 ms against 2376 ms.
+
+The first real camera RAW and phone HEIC either build has seen both decode
+correctly -- see [cpp/README.md](cpp/README.md) for what that proved about the
+decoder ranking.
 
 ## Not built yet
 

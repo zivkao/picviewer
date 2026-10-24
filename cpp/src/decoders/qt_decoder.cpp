@@ -58,6 +58,14 @@ std::optional<DecodedImage> QtDecoder::loadFull(const QString &path,
     QImageReader reader(path);
     reader.setAutoTransform(true);      // apply EXIF orientation while decoding
 
+    // Qt refuses any image whose pixels would exceed 256 MB, which is a
+    // reasonable default for a program that did not expect one and a wrong
+    // one here: a 101-megapixel photograph needs 305 MB and is an ordinary
+    // thing to open in a viewer. The real guard is the caller's maxSize,
+    // derived from MaxDecodePixels, which this is raised to match rather
+    // than disabled outright.
+    reader.setAllocationLimit(AllocationLimitMb);
+
     // Read these before read(): QImageReader resets format() and imageCount()
     // once the stream has been consumed, so asking afterwards gives nothing.
     const QByteArray format = reader.format();

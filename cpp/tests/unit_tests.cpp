@@ -495,6 +495,24 @@ private slots:
         }
     }
 
+    void aVeryLargeJpegIsNotRefusedForItsSize()
+    {
+        // Qt declines anything over 256 MB of pixels by default. A 101
+        // megapixel photograph needs 305 MB and is an ordinary thing to open,
+        // so the limit is raised to match the loader's own cap. The first
+        // real-world file this project ever saw failed on exactly this.
+        const QString path = QStringLiteral(PICVIEWER_SAMPLES_DIR
+                                            "/../image_example/"
+                                            "jonatan-pie-Y19Sstu3_DI-unsplash.jpg");
+        if (!QFileInfo::exists(path))
+            QSKIP("the large sample is not present");
+
+        decoders::DecodeError error;
+        const auto result = decoders::Registry::instance().loadFull(path, QSize(), &error);
+        QVERIFY2(result.has_value(), qPrintable(error.message));
+        QVERIFY(qint64(result->image.width()) * result->image.height() > 100'000'000);
+    }
+
     void anUnreadableFileIsReportedAsUnreadableNotUnsupported()
     {
         decoders::DecodeError error;

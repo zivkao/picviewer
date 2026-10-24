@@ -14,6 +14,11 @@
 
 namespace decoders {
 
+// Qt's own ceiling on decoded pixels, in megabytes. Raised from its 256 MB
+// default to cover the loader's MaxDecodePixels (200 MP, four bytes each), so
+// that one policy decides what is too large rather than two disagreeing.
+inline constexpr int AllocationLimitMb = 1024;
+
 class QtDecoder : public Decoder {
 public:
     QString name() const override { return QStringLiteral("qt"); }
