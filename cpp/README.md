@@ -120,13 +120,30 @@ means rebuilding Qt or libheif from source.
 
 ## Measured against the Python build
 
-| | Python | C++ |
-|---|---|---|
-| Launch to a window | 1433 ms | **698 ms** |
-| Real Canon CR2, 19 MB | 2376 ms | **1293 ms** |
-| Real HEIC, 12 MP | 981 ms | **352 ms** |
-| 101 MP JPEG | 4505 ms | **1886 ms** |
-| Installed size | 177 MB | **139 MB** |
+Recorded by `tools/benchmark.ps1`, which writes `tools/baseline.json` so a
+later run can be diffed against this one rather than against a prose table.
+
+| Decode | Python | C++ | |
+|---|---|---|---|
+| JPEG, 640x480 | 9 ms | **1 ms** | 9x |
+| PNG, 640x480 | 17 ms | **3 ms** | 6x |
+| TIFF, 640x480 | 16 ms | **2 ms** | 8x |
+| AVIF, 640x480 | 37 ms | **6 ms** | 6x |
+| Real HEIC, 12 MP | 1161 ms | **357 ms** | 3.3x |
+| Real Canon CR2, 19 MB | 2444 ms | **1420 ms** | 1.7x |
+| Installed size | 177 MB | **139 MB** | |
+
+The gap is widest on small files and narrowest on large ones, which is what it
+should be: a 1 ms JPEG is almost entirely per-operation overhead, where an
+interpreter costs the most, while a 19 MB RAW is dominated by LibRaw doing the
+same demosaic in both builds.
+
+**Startup is not a difference.** An earlier measurement put Python at 1433 ms
+against 698 ms and that was wrong -- it compared a cold file cache against a
+warm one. Measured properly the two are 705-826 ms and 736-748 ms, which is to
+say the same, and the figure moves more with what Windows has cached than with
+which build is running. The benchmark records it anyway, because a change that
+makes startup genuinely worse should still show up.
 
 One cost rather than a saving: Qt decodes to RGB32 where Pillow gave RGB888, so
 the same 101 MP photograph occupies 407 MB here against 305 MB there.
@@ -148,6 +165,18 @@ magic bytes from a scanned document. That is the ambiguity the scoring
 tie-break exists for, and `raw(100) qt(60)` is it working on a real file:
 without it the general-purpose decoder wins, succeeds, and shows the embedded
 preview as though it were the photograph.
+
+## Keeping a record
+
+`tools/benchmark.ps1` writes `tools/baseline.json`, so a later run reports
+deltas against this one rather than against a table somebody has to read and
+remember. `cpp/tools/` holds the probe that separates a library problem from a
+build-system problem, the toolchain report, and the mutation harness. See
+[tools/README.md](../tools/README.md).
+
+The runtime log is not this record: it rotates at 1 MB and describes one
+session's operations, not what was measured or decided. That belongs in the
+baseline, the commit messages and these files.
 
 ## Not done
 

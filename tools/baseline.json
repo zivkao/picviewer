@@ -1,0 +1,101 @@
+﻿{
+    "recorded":  "2026-10-24 21:45",
+    "machine":  {
+                    "os":  "Microsoft Windows 11 家用版",
+                    "cores":  8
+                },
+    "builds":  {
+                   "python":  {
+                                  "startup_ms":  705,
+                                  "size_mb":  177,
+                                  "decode":  {
+                                                 "jpeg":  {
+                                                              "size":  "640x480",
+                                                              "via":  "pillow",
+                                                              "ms":  9
+                                                          },
+                                                 "png":  {
+                                                             "size":  "640x480",
+                                                             "via":  "pillow",
+                                                             "ms":  17
+                                                         },
+                                                 "tiff":  {
+                                                              "size":  "640x480",
+                                                              "via":  "pillow",
+                                                              "ms":  16
+                                                          },
+                                                 "avif":  {
+                                                              "size":  "640x480",
+                                                              "via":  "heif",
+                                                              "ms":  37
+                                                          },
+                                                 "heif":  {
+                                                              "size":  "640x480",
+                                                              "via":  "heif",
+                                                              "ms":  15
+                                                          },
+                                                 "raw_synthetic":  {
+                                                                       "size":  "800x600",
+                                                                       "via":  "raw",
+                                                                       "ms":  98
+                                                                   },
+                                                 "heif_real":  {
+                                                                   "size":  "4032x3024",
+                                                                   "via":  "heif",
+                                                                   "ms":  1161
+                                                               },
+                                                 "raw_real":  {
+                                                                  "size":  "3178x4770",
+                                                                  "via":  "raw",
+                                                                  "ms":  2444
+                                                              }
+                                             }
+                              },
+                   "cpp":  {
+                               "startup_ms":  736,
+                               "size_mb":  139,
+                               "decode":  {
+                                              "jpeg":  {
+                                                           "size":  "640x480",
+                                                           "via":  "qt",
+                                                           "ms":  1
+                                                       },
+                                              "png":  {
+                                                          "size":  "640x480",
+                                                          "via":  "qt",
+                                                          "ms":  3
+                                                      },
+                                              "tiff":  {
+                                                           "size":  "640x480",
+                                                           "via":  "qt",
+                                                           "ms":  2
+                                                       },
+                                              "avif":  {
+                                                           "size":  "640x480",
+                                                           "via":  "heif",
+                                                           "ms":  6
+                                                       },
+                                              "heif":  {
+                                                           "size":  "640x480",
+                                                           "via":  "heif",
+                                                           "ms":  10
+                                                       },
+                                              "raw_synthetic":  {
+                                                                    "size":  "800x600",
+                                                                    "via":  "raw",
+                                                                    "ms":  68
+                                                                },
+                                              "heif_real":  {
+                                                                "size":  "4032x3024",
+                                                                "via":  "heif",
+                                                                "ms":  357
+                                                            },
+                                              "raw_real":  {
+                                                               "size":  "3178x4770",
+                                                               "via":  "raw",
+                                                               "ms":  1420
+                                                           }
+                                          }
+                           }
+               }
+}

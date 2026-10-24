@@ -15,6 +15,7 @@
 #include "decoders/qt_decoder.h"
 #include "decoders/raw_decoder.h"
 #include "decoders/registry.h"
+#include "loader.h"
 #include "sniff.h"
 
 using sniff::Container;
@@ -493,6 +494,20 @@ private slots:
             QCOMPARE(result->metadata.value(QStringLiteral("decoder")),
                      QStringLiteral("heif"));
         }
+    }
+
+    void qtsAllocationLimitCoversTheLoadersOwnCap()
+    {
+        // Qt refuses an image whose pixels exceed its allocation limit before
+        // the loader's MaxDecodePixels is ever consulted, so if the two
+        // disagree the smaller silently decides and the larger is decoration.
+        // This runs always; the decode below needs a large file to be present.
+        const qint64 capBytes = qint64(MaxDecodePixels) * 4;    // Qt decodes to RGB32
+        const qint64 limitBytes = qint64(decoders::AllocationLimitMb) * 1024 * 1024;
+        QVERIFY2(limitBytes >= capBytes,
+                 qPrintable(QStringLiteral("Qt would refuse at %1 MB, below the "
+                                           "loader's own cap of %2 MB")
+                                .arg(limitBytes / 1048576).arg(capBytes / 1048576)));
     }
 
     void aVeryLargeJpegIsNotRefusedForItsSize()
