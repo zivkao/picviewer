@@ -46,45 +46,40 @@ does too, and a test holds it there.
 ## Tests
 
 ```
-cpp\env.cmd test
+cpp\env.cmd test                          unit
+cpp\build\tests\functional_tests.exe      end to end
 ```
 
-98 assertions across four suites: container sniffing, decoder ranking, the
-byte-budgeted cache, and format-level behaviour against the real sample files.
-All run offscreen, so no display is needed.
+**`unit_tests`** -- 100 passing test functions over the pure logic: container sniffing,
+decoder ranking, the byte-budgeted cache, and format behaviour against the
+sample files. No display, under a second.
+
+**`functional_tests`** -- 48 passing test functions driving a real `MainWindow` offscreen:
+drag and drop sent to actual widgets, keystrokes through `QTest::keyClick`,
+menu and toolbar state read off the real objects, fullscreen, and a fixture of
+deny-read files that reproduces an unreadable-file failure.
+
+These assert rather than print, which is the one deliberate change from the
+Python suites they were ported from. Those printed observations and left a
+runner to grep the output; almost everything they established turned out to be
+pinnable after all -- which widget received a drop, whether a modal appeared,
+what the toolbar's enabled state was.
 
 Each suite writes its own report file rather than using QTest's default stdout
 logger. QTest tears that logger down when a `qExec` returns, so with several
 suites in one binary a plain run printed *nothing at all* -- the tests ran,
 passed, and said so into a closed stream.
 
-Reintroducing each of seven defects the Python version earned its fixes for
-turns the suite red, which is the only thing that makes a green suite worth
-anything:
-
-| Defect put back | Caught |
-|---|---|
-| Qt decoder wins on a container match alone | 25 failures |
-| RAW decoder ranks below Qt on TIFF | 2 failures |
-| Cache evicts by entry count, not bytes | 2 failures |
-| Cache forgets failures immediately | 2 failures |
-| Sniffing ignores magic bytes | 21 failures |
-| RW2 read as plain TIFF | 2 failures |
-| ICO takes the first frame | 1 failure |
-
-## Verified against the samples
-
-Every file in `samples/` opened with the built executable, read back from the
-app's own log:
+### The suites can fail
 
 ```
-qt   : 12 files      heif : 2 files       raw  : 3 files
-rotated_exif.jpg  ->  400x600   EXIF applied
-sample.ico        ->  256x256   largest frame
-actually_png.jpg  ->  decoded as PNG despite the .jpg name
-synthetic.dng     ->  preview 200x150 first, then 800x600 at 65ms
-errors: none                              15 of 15 decoded
+.msys64\usr\bin\bash -lc "bash cpp/tools/mutate.sh"
 ```
+
+Reintroduces fourteen defects this project has fixed and checks the suites go
+red for each. A green suite says nothing until it can fail, and this has twice
+caught tests that were passing for the wrong reason. The full table is in
+[docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
 
 ## Packaging
 
@@ -165,6 +160,15 @@ magic bytes from a scanned document. That is the ambiguity the scoring
 tie-break exists for, and `raw(100) qt(60)` is it working on a real file:
 without it the general-purpose decoder wins, succeeds, and shows the embedded
 preview as though it were the photograph.
+
+## Documentation
+
+- [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md) — build, test, measure,
+  package; the design decisions; and every defect found so far with its cause.
+- [docs/TASKS.md](../docs/TASKS.md) — what is done, what is outstanding, and
+  the decisions taken so they are not relitigated.
+- [docs/CHANGELOG.md](../docs/CHANGELOG.md) — what was done, when, and what
+  each round turned up.
 
 ## Keeping a record
 

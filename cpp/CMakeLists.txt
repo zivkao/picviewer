@@ -18,44 +18,53 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBRAW REQUIRED libraw)
 pkg_check_modules(LIBHEIF REQUIRED libheif)
 
-add_executable(picviewer WIN32
-    src/main.cpp
+# Everything but the entry point, so the application and both test binaries
+# link one library rather than compiling the same sources three times -- and
+# so a test can drive the real MainWindow instead of a copy of it.
+add_library(picviewer_core STATIC
     src/sniff.cpp
     src/color.cpp
     src/cache.cpp
+    src/applog.cpp
     src/loader.cpp
     src/viewer.cpp
     src/window.cpp
-    src/applog.cpp
     src/decoders/registry.cpp
     src/decoders/qt_decoder.cpp
     src/decoders/heif_decoder.cpp
     src/decoders/raw_decoder.cpp
-    resources.qrc
 )
 
-target_include_directories(picviewer PRIVATE
+target_include_directories(picviewer_core PUBLIC
     src
     ${LIBRAW_INCLUDE_DIRS}
     ${LIBHEIF_INCLUDE_DIRS}
 )
 
-target_link_libraries(picviewer PRIVATE
+target_link_libraries(picviewer_core PUBLIC
     Qt6::Core Qt6::Gui Qt6::Widgets
     ${LIBRAW_LIBRARIES}
     ${LIBHEIF_LIBRARIES}
 )
 
-target_link_directories(picviewer PRIVATE
+target_link_directories(picviewer_core PUBLIC
     ${LIBRAW_LIBRARY_DIRS}
     ${LIBHEIF_LIBRARY_DIRS}
 )
 
-target_compile_options(picviewer PRIVATE
+target_compile_options(picviewer_core PRIVATE
     -Wall -Wextra -Wpedantic
     ${LIBRAW_CFLAGS_OTHER}
     ${LIBHEIF_CFLAGS_OTHER}
 )
+
+add_executable(picviewer WIN32
+    src/main.cpp
+    resources.qrc
+)
+
+target_link_libraries(picviewer PRIVATE picviewer_core)
+target_compile_options(picviewer PRIVATE -Wall -Wextra -Wpedantic)
 
 # ---------------------------------------------------------------------------
 # Tests. The same split as the Python version: assertion-based unit tests over
@@ -63,21 +72,5 @@ target_compile_options(picviewer PRIVATE
 # ---------------------------------------------------------------------------
 
 enable_testing()
-
-add_library(picviewer_core STATIC
-    src/sniff.cpp
-    src/color.cpp
-    src/cache.cpp
-    src/decoders/registry.cpp
-    src/decoders/qt_decoder.cpp
-    src/decoders/heif_decoder.cpp
-    src/decoders/raw_decoder.cpp
-)
-target_include_directories(picviewer_core PUBLIC
-    src ${LIBRAW_INCLUDE_DIRS} ${LIBHEIF_INCLUDE_DIRS})
-target_link_libraries(picviewer_core PUBLIC
-    Qt6::Core Qt6::Gui ${LIBRAW_LIBRARIES} ${LIBHEIF_LIBRARIES})
-target_link_directories(picviewer_core PUBLIC
-    ${LIBRAW_LIBRARY_DIRS} ${LIBHEIF_LIBRARY_DIRS})
 
 add_subdirectory(tests)

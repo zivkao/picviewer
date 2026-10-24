@@ -510,22 +510,25 @@ private slots:
                                 .arg(limitBytes / 1048576).arg(capBytes / 1048576)));
     }
 
-    void aVeryLargeJpegIsNotRefusedForItsSize()
+    void anImagePastQtsDefaultLimitStillDecodes()
     {
-        // Qt declines anything over 256 MB of pixels by default. A 101
-        // megapixel photograph needs 305 MB and is an ordinary thing to open,
-        // so the limit is raised to match the loader's own cap. The first
-        // real-world file this project ever saw failed on exactly this.
-        const QString path = QStringLiteral(PICVIEWER_SAMPLES_DIR
-                                            "/../image_example/"
-                                            "jonatan-pie-Y19Sstu3_DI-unsplash.jpg");
-        if (!QFileInfo::exists(path))
-            QSKIP("the large sample is not present");
+        // Qt declines anything over 256 MiB of pixels by default. The first
+        // real photograph this project ever saw -- 101 megapixels, 305 MB --
+        // failed on exactly that, and the limit is now raised to match the
+        // loader's own cap.
+        //
+        // The test for it used to read that photograph, which is untracked;
+        // when it was removed the test silently became a skip and a mutation
+        // putting the default back survived. The fixture is committed instead:
+        // 249 KiB on disk, 309 MiB once decoded to RGB32.
+        const QString path = QStringLiteral(PICVIEWER_FIXTURES_DIR "/large_9000x9000.png");
+        QVERIFY2(QFileInfo::exists(path),
+                 "fixture missing; regenerate with cpp/tests/fixtures/make_large.py");
 
         decoders::DecodeError error;
         const auto result = decoders::Registry::instance().loadFull(path, QSize(), &error);
         QVERIFY2(result.has_value(), qPrintable(error.message));
-        QVERIFY(qint64(result->image.width()) * result->image.height() > 100'000'000);
+        QCOMPARE(result->image.size(), QSize(9000, 9000));
     }
 
     void anUnreadableFileIsReportedAsUnreadableNotUnsupported()

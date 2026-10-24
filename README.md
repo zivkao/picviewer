@@ -202,6 +202,13 @@ of magnitude apart in memory.
 converted to sRGB. Without the first, phone photos are sideways; without the
 second, Adobe RGB and Display P3 files look washed out.
 
+## Documentation
+
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) covers building, testing, measuring
+and packaging the C++ build, the design decisions, and every defect found so
+far with its cause. [docs/TASKS.md](docs/TASKS.md) is the status board, and
+[docs/CHANGELOG.md](docs/CHANGELOG.md) records what was done and when.
+
 ## C++ port
 
 `cpp/` holds a port to C++ with Qt6, LibRaw and libheif, built against an
