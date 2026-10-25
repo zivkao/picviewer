@@ -33,6 +33,11 @@ Two cautions that the numbers themselves will not tell you:
   it holds personal photographs and 25-30 MB RAW samples -- so `raw_cr2`,
   `raw_nef`, `real_heic` and the like appear only on a machine that has them.
   Their absence is not a regression.
+- **Decode times are for one file alone.** Each is copied into a folder of its
+  own before opening. Opened in place the viewer prefetches its neighbours in
+  parallel, and a RAW among four other RAWs competes with them: the same CR2
+  measured 1.2 s alone and 4.3 s in company. The times `verify_package.ps1`
+  prints are the in-company kind and are not a benchmark.
 
 ## Checking a package
 

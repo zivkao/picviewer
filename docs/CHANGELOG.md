@@ -32,8 +32,15 @@ each entry to the full reasoning in its commit message.
   Z 6 NEF (lossless compressed), Sony A7 III ARW (compressed), Fujifilm X-T30
   RAF (X-Trans). All decode. NEF and ARW carry TIFF magic bytes like the CR2,
   so the decoder ranking is now confirmed on three makers' real files.
-- Fujifilm X-Trans takes 7.7 s to demosaic, two to three times any Bayer RAW,
-  and Sony's embedded preview is only 1616x1080. Both recorded in `TASKS.md`.
+- Fujifilm X-Trans takes 5.5 s to demosaic, about four times a Bayer RAW, and
+  Sony's embedded preview is only 1616x1080. Both recorded in `TASKS.md`.
+- **Corrected:** X-Trans was first recorded at 7.7 s and a CR2 at 4.3 s. Both
+  were measured with the other RAWs in the folder being prefetched alongside,
+  competing for the CPU. The benchmark now opens each file from a folder of
+  its own; alone they are 5.5 s and 1.3 s.
+- The benchmark flagged a JPEG going from 1 ms to 2 ms as "+100%, WORSE". A
+  change is now flagged only when it clears both a relative and an absolute
+  threshold -- 15% and 5 ms for decodes, 30% and 100 ms for startup.
 - The benchmark gave every real RAW the same id, so four makers' files
   overwrote each other and only the last survived. One id per format now.
 

@@ -130,7 +130,14 @@ so they exclude startup and are the figure that moves when a decoder changes.
 **Startup time is cache-sensitive and should not be read closely.** The same
 build measures 700 ms or 1400 ms depending on what Windows has paged in. This
 project once concluded the C++ build started twice as fast on exactly that
-mistake. Treat a startup delta under about 30% as noise.
+mistake. Treat a startup delta under about 30% as noise; the script itself only
+flags a change that clears both a relative and an absolute threshold.
+
+**Decode times are for one file alone.** The benchmark copies each into a
+folder of its own before opening it, because the viewer prefetches a file's
+neighbours in parallel. Opened among four other RAWs, a CR2 that decodes in
+1.3 s alone measured 4.3 s, and X-Trans 7.7 s instead of 5.5 s — figures
+that were briefly written down here as fact.
 
 ---
 

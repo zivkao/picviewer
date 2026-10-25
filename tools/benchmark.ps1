@@ -101,7 +101,16 @@ function Measure-Decode($build, $case) {
     Stop-Build $build.proc
     if (Test-Path $build.log) { Clear-Content $build.log }
 
-    Start-Process $build.exe -ArgumentList "`"$($case.path)`"" | Out-Null
+    # Each file is opened from a folder of its own. Opened in place, the viewer
+    # prefetches its neighbours in parallel, so a RAW measured among four
+    # other RAWs competed with them for the CPU: the same CR2 read 1.2 s alone
+    # and 4.3 s in company. A benchmark has to measure the file, not the folder.
+    $isolated = Join-Path ([IO.Path]::GetTempPath()) ("picviewer-bench-" + [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $isolated | Out-Null
+    $target = Join-Path $isolated (Split-Path $case.path -Leaf)
+    Copy-Item $case.path $target
+
+    Start-Process $build.exe -ArgumentList "`"$target`"" | Out-Null
     $name = Split-Path $case.path -Leaf
     $sw = [Diagnostics.Stopwatch]::StartNew()
     $ms = $null; $via = $null; $size = $null
@@ -114,6 +123,7 @@ function Measure-Decode($build, $case) {
         if ($text -match "decode failed") { break }
     }
     Stop-Build $build.proc
+    Remove-Item $isolated -Recurse -Force -ErrorAction SilentlyContinue
     if ($null -eq $ms) { return $null }
     @{ ms = $ms; via = $via; size = $size }
 }
@@ -154,7 +164,10 @@ foreach ($build in $Builds) {
 
 # ---------------------------------------------------------------------------
 
-function Show-Delta($label, $now, $was, $unit, $lowerIsBetter = $true) {
+function Show-Delta($label, $now, $was, $unit, $minPercent = 10, $minAbsolute = 0) {
+    # A change is flagged only when it clears BOTH a relative and an absolute
+    # threshold. Relative alone cried wolf: a JPEG going from 1 ms to 2 ms is
+    # "+100%, WORSE" and is timer noise.
     if ($null -eq $now) { return }
     if ($null -eq $was) {
         "  {0,-22} {1,8} {2}" -f $label, $now, $unit
@@ -162,9 +175,8 @@ function Show-Delta($label, $now, $was, $unit, $lowerIsBetter = $true) {
     }
     $delta = $now - $was
     $pct = if ($was -ne 0) { [math]::Round(100 * $delta / $was) } else { 0 }
-    $mark = if ([math]::Abs($pct) -lt 10) { "" }
-            elseif (($delta -lt 0) -eq $lowerIsBetter) { "  better" }
-            else { "  WORSE" }
+    $real = ([math]::Abs($pct) -ge $minPercent) -and ([math]::Abs($delta) -ge $minAbsolute)
+    $mark = if (-not $real) { "" } elseif ($delta -lt 0) { "  better" } else { "  WORSE" }
     "  {0,-22} {1,8} {2}   was {3}{4} ({5:+#;-#;0}%){6}" -f $label, $now, $unit, $was, $unit, $pct, $mark
 }
 
@@ -175,10 +187,10 @@ foreach ($name in $result.builds.Keys) {
     $now = $result.builds[$name]
     $was = if ($baseline) { $baseline.builds.$name } else { $null }
 
-    Show-Delta "launch to window" $now.startup_ms $(if ($was) { $was.startup_ms }) "ms"
-    Show-Delta "installed size"   $now.size_mb    $(if ($was) { $was.size_mb })    "MB"
+    Show-Delta "launch to window" $now.startup_ms $(if ($was) { $was.startup_ms }) "ms" 30 100
+    Show-Delta "installed size"   $now.size_mb    $(if ($was) { $was.size_mb })    "MB" 5 2
     foreach ($id in $now.decode.Keys) {
-        Show-Delta "decode $id" $now.decode[$id].ms $(if ($was -and $was.decode.$id) { $was.decode.$id.ms }) "ms"
+        Show-Delta "decode $id" $now.decode[$id].ms $(if ($was -and $was.decode.$id) { $was.decode.$id.ms }) "ms" 15 5
     }
 }
 

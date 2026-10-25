@@ -124,9 +124,16 @@ later run can be diffed against this one rather than against a prose table.
 | PNG, 640x480 | 17 ms | **3 ms** | 6x |
 | TIFF, 640x480 | 16 ms | **2 ms** | 8x |
 | AVIF, 640x480 | 37 ms | **6 ms** | 6x |
-| Real HEIC, 12 MP | 1161 ms | **357 ms** | 3.3x |
-| Real Canon CR2, 19 MB | 2444 ms | **1420 ms** | 1.7x |
+| Real HEIC, 12 MP | 1354 ms | **279 ms** | 4.9x |
+| Canon CR2, 19 MB | 3296 ms | **1297 ms** | 2.5x |
+| Nikon Z 6 NEF, lossless compressed | 4863 ms | **1549 ms** | 3.1x |
+| Sony A7 III ARW, compressed | 4245 ms | **1283 ms** | 3.3x |
+| Fujifilm X-T30 RAF, X-Trans | 23372 ms | **5542 ms** | 4.2x |
 | Installed size | 177 MB | **139 MB** | |
+
+Each file is decoded alone, copied into a folder of its own, so that the
+viewer's neighbour prefetching does not compete with it. Measured in place
+among four other RAWs, the same CR2 took 4.3 s.
 
 The gap is widest on small files and narrowest on large ones, which is what it
 should be: a 1 ms JPEG is almost entirely per-operation overhead, where an

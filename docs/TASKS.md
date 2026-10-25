@@ -84,14 +84,16 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
 - [ ] **No CI.** Everything runs on one machine when somebody remembers.
 
 ### Performance
-- [ ] **Fujifilm X-Trans takes 7.7 s to demosaic**, two to three times any
-      Bayer RAW of similar size. X-Trans uses a 6x6 colour filter rather than
-      2x2, and LibRaw's default quality runs the 3-pass Markesteijn algorithm.
-      The 1-pass variant should be roughly three times faster at a small cost
-      in fine detail. The embedded preview shows meanwhile, so the screen is
-      never empty, but it is a long wait for full quality.
+- [ ] **Fujifilm X-Trans takes 5.5 s to demosaic**, about four times a Bayer
+      RAW of similar size (1.3-1.5 s for the CR2, NEF and ARW). X-Trans uses a
+      6x6 colour filter rather than 2x2, and LibRaw's default quality runs the
+      3-pass Markesteijn algorithm; the 1-pass variant should be roughly three
+      times faster at a small cost in fine detail. The embedded preview shows
+      meanwhile, so the screen is never empty. The Python build takes 23 s.
+      (First recorded here as 7.7 s, measured with four other RAWs being
+      prefetched alongside it.)
 - [ ] **Sony's embedded preview is 1616x1080.** On a large screen that is
-      visibly soft for the 2.5 s the full decode takes. Nothing to fix in the
+      visibly soft for the 1.3 s the full decode takes. Nothing to fix in the
       decoder -- it is what the camera wrote -- but a half-size demosaic as a
       middle stage would bridge it.
 
