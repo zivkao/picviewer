@@ -3,7 +3,7 @@
 Status of the C++ viewer. The Python build is feature-frozen; see the root
 README for what it is.
 
-Last reviewed: 2026-10-24
+Last reviewed: 2026-10-25
 
 ---
 
@@ -20,7 +20,8 @@ Last reviewed: 2026-10-24
 - [x] Asynchronous decoding, generation-stamped results, neighbour prefetch
 
 ### Interface
-- [x] Zoom, pan, fit, actual size; nearest-neighbour past 400%
+- [x] Zoom, pan, fit, actual size; nearest-neighbour past 400% and at 1:1
+- [x] Zoom measured in screen pixels, so 1:1 is 1:1 on scaled displays too
 - [x] Checkerboard behind images with alpha
 - [x] Drag and drop: single file, several files, folders, with hover feedback
 - [x] Menu bar, toolbar and shortcuts over one set of actions
@@ -38,8 +39,9 @@ Last reviewed: 2026-10-24
 
 ### Verification
 - [x] 100 unit tests over the pure logic, none skipped
-- [x] 48 functional tests driving a real window offscreen
-- [x] Mutation harness covering 14 reintroduced defects
+- [x] 56 functional tests driving a real window offscreen, run at 1x and 2x
+      display scaling
+- [x] Mutation harness covering 16 reintroduced defects
 - [x] `tools/benchmark.ps1` with a committed baseline
 - [x] `tools/verify_package.ps1` — the installed copy, with no toolchain on PATH
 
@@ -47,7 +49,9 @@ Last reviewed: 2026-10-24
 - [x] `deploy.sh` walks the dependency tree including plugins
 - [x] `trim.sh` removes only what verifies clean afterwards
 - [x] Per-user installer, side by side with the Python build, clean uninstall
-- [x] Verified on a real Canon CR2 and a real phone HEIC
+- [x] Verified on real RAW from four makers -- Canon CR2, Nikon NEF (lossless
+      compressed), Sony ARW (compressed), Fujifilm RAF (X-Trans) -- and a real
+      phone HEIC
 
 ---
 
@@ -67,16 +71,29 @@ The installed *Python* package predates its prefetch fix, so it still does the
 redundant work until it is rebuilt. That is a stale install, not a defect.
 
 ### Gaps in what is verified
-- [ ] **One camera, one phone.** A Canon CR2 and one HEIC. Nikon, Sony and
-      Fujifilm RAW each carry their own compression and colour filter layout,
-      and none has been seen.
-- [ ] **One machine, one display configuration.** Everything has run on one
-      Windows 11 install at 100% scaling.
-- [ ] **High-DPI is untested and probably wrong.** Nothing accounts for
-      `devicePixelRatio`, so on a scaled display "100%" almost certainly does
-      not mean one image pixel per screen pixel. The log records the ratio so
-      a report will at least say which display it was.
+- [ ] **Four makers, one file each.** Canon, Nikon, Sony and Fujifilm all
+      decode, but one body and one setting per maker. Olympus, Panasonic,
+      Pentax and Leica are unseen, as are older bodies with different
+      compression.
+- [ ] **One machine.** Display scaling is now tested at 1x, 1.5x and 2x via
+      `QT_SCALE_FACTOR`, but on one Windows 11 install and one GPU.
+- [ ] **Moving between screens with different scaling is untested.** The
+      canvas handles `DevicePixelRatioChange` by recomputing the transform so
+      the chosen zoom survives, but no test changes the ratio of a running
+      window -- that needs two real displays at different scaling.
 - [ ] **No CI.** Everything runs on one machine when somebody remembers.
+
+### Performance
+- [ ] **Fujifilm X-Trans takes 7.7 s to demosaic**, two to three times any
+      Bayer RAW of similar size. X-Trans uses a 6x6 colour filter rather than
+      2x2, and LibRaw's default quality runs the 3-pass Markesteijn algorithm.
+      The 1-pass variant should be roughly three times faster at a small cost
+      in fine detail. The embedded preview shows meanwhile, so the screen is
+      never empty, but it is a long wait for full quality.
+- [ ] **Sony's embedded preview is 1616x1080.** On a large screen that is
+      visibly soft for the 2.5 s the full decode takes. Nothing to fix in the
+      decoder -- it is what the camera wrote -- but a half-size demosaic as a
+      middle stage would bridge it.
 
 ### Features
 - [ ] Thumbnail strip. The disk-backed thumbnail cache it needs is the real

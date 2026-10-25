@@ -34,24 +34,31 @@ build_both() {
     return 0
 }
 
-# Echoes: <unit failures> <functional failures>, or the sentinel twice.
+# Echoes: <unit> <functional> <functional at 2x> failure counts, or the
+# sentinel three times.
+#
+# The functional suite runs twice, the second time as though on a display
+# scaled to 200%. At a ratio of 1 a defect in display-scaling handling is a
+# no-op, so a single run at 1x would let every such mutation survive.
 run_suites() {
     if ! build_both; then
-        echo "$BUILD_FAILED $BUILD_FAILED"
+        echo "$BUILD_FAILED $BUILD_FAILED $BUILD_FAILED"
         return
     fi
     "$BUILD/tests/unit_tests.exe" > /tmp/unit.log 2>&1
     local unit=$?
     "$BUILD/tests/functional_tests.exe" > /tmp/func.log 2>&1
     local func=$?
-    echo "$unit $func"
+    "$BUILD/tests/functional_tests.exe" --scale 2 > /tmp/func2.log 2>&1
+    local func2=$?
+    echo "$unit $func $func2"
 }
 
 echo "baseline"
-read -r base_unit base_func <<< "$(run_suites)"
-printf '  unit: %s   functional: %s\n' \
-    "$(tail -1 /tmp/unit.log)" "$(tail -1 /tmp/func.log)"
-if [ "$base_unit" != "0" ] || [ "$base_func" != "0" ]; then
+read -r base_unit base_func base_func2 <<< "$(run_suites)"
+printf '  unit: %s\n  functional: %s\n  functional at 2x: %s\n' \
+    "$(tail -1 /tmp/unit.log)" "$(tail -1 /tmp/func.log)" "$(tail -1 /tmp/func2.log)"
+if [ "$base_unit" != "0" ] || [ "$base_func" != "0" ] || [ "$base_func2" != "0" ]; then
     echo "  baseline is not green; fix that before trusting anything below"
     tail -6 /tmp/build.log | sed 's/^/    /'
     exit 1
@@ -85,8 +92,8 @@ p.write_text(s.replace(os.environ['FROM'], os.environ['TO'], 1), encoding='utf-8
         return
     fi
 
-    local unit func
-    read -r unit func <<< "$(run_suites)"
+    local unit func func2
+    read -r unit func func2 <<< "$(run_suites)"
     cp /tmp/orig.bak "$path"
 
     if [ "$unit" = "$BUILD_FAILED" ]; then
@@ -98,6 +105,7 @@ p.write_text(s.replace(os.environ['FROM'], os.environ['TO'], 1), encoding='utf-8
     local by=""
     [ "$unit" != "0" ] && by="unit($unit)"
     [ "$func" != "0" ] && by="${by:+$by }functional($func)"
+    [ "$func2" != "0" ] && by="${by:+$by }at-2x($func2)"
     if [ -z "$by" ]; then
         printf '%-46s SURVIVED\n' "$label"
         problems=$((problems + 1))
@@ -170,16 +178,26 @@ mutate "actions never grey out" "window.cpp" \
     "    m_actDelete->setEnabled(hasFile);" \
     "    m_actDelete->setEnabled(true);"
 
+# -- display scaling ---------------------------------------------------------
+# No-ops at a ratio of 1, so only the 2x run can catch these.
+
+mutate "1:1 ignores display scaling" "viewer.cpp"     '    return QTransform::fromScale(1.0 / ratio, 1.0 / ratio);'     '    return QTransform();'
+
+mutate "fit compares logical size, not physical" "viewer.cpp"     '    const QSizeF screen = QSizeF(viewport()->size()) * ratio;'     '    const QSizeF screen = QSizeF(viewport()->size());'
+
 mutate "stale decodes allowed on screen" "window.cpp" \
     '        return;     // the user moved on while this was decoding' \
     '        {}          // the user moved on while this was decoding'
 
 echo
 echo "restoring and re-checking baseline"
-read -r unit func <<< "$(run_suites)"
-printf '  unit: %s   functional: %s\n' \
-    "$(tail -1 /tmp/unit.log)" "$(tail -1 /tmp/func.log)"
-if [ "$unit" != "0" ] || [ "$func" != "0" ]; then
+# All three results, read the same way as at the start. Reading two names from
+# three words leaves "0 0" in the second -- which is not "0" -- and once
+# reported a green baseline as broken.
+read -r unit func func2 <<< "$(run_suites)"
+printf '  unit: %s\n  functional: %s\n  functional at 2x: %s\n' \
+    "$(tail -1 /tmp/unit.log)" "$(tail -1 /tmp/func.log)" "$(tail -1 /tmp/func2.log)"
+if [ "$unit" != "0" ] || [ "$func" != "0" ] || [ "$func2" != "0" ]; then
     echo "  BASELINE BROKEN -- a mutation was not restored; check git diff cpp/src"
     exit 2
 fi

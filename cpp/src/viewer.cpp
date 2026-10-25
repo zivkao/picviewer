@@ -116,10 +116,17 @@ void ImageView::fit()
     m_fitMode = true;
     resetTransform();
 
+    // Both sides in physical pixels. "Fits" means the image's pixels fit the
+    // screen's pixels: on a display scaled to 200%, a 1000-pixel image fits a
+    // viewport 600 logical pixels wide, because that viewport is 1200 real
+    // pixels across. Comparing against the logical size would shrink it.
     const QRectF rect = m_scene->sceneRect();
-    const QRect view = viewport()->rect();
-    if (rect.width() > view.width() || rect.height() > view.height())
+    const qreal ratio = pixelRatio();
+    const QSizeF screen = QSizeF(viewport()->size()) * ratio;
+    if (rect.width() > screen.width() || rect.height() > screen.height())
         fitInView(rect, Qt::KeepAspectRatio);
+    else
+        setTransform(oneToOne());
 
     centerOn(rect.center());
     afterZoom();
@@ -130,8 +137,24 @@ void ImageView::zoomToActual()
     if (!hasImage())
         return;
     m_fitMode = false;
-    resetTransform();
+    setTransform(oneToOne());
     afterZoom();
+}
+
+QTransform ImageView::oneToOne() const
+{
+    // One image pixel per screen pixel. The transform is in logical pixels, so
+    // on a scaled display that is a scale of 1/ratio, not the identity.
+    const qreal ratio = pixelRatio();
+    return QTransform::fromScale(1.0 / ratio, 1.0 / ratio);
+}
+
+void ImageView::applyZoom(qreal zoom)
+{
+    const QPointF centre = mapToScene(viewport()->rect().center());
+    const qreal ratio = pixelRatio();
+    setTransform(QTransform::fromScale(zoom / ratio, zoom / ratio));
+    centerOn(centre);
 }
 
 void ImageView::toggleFit()
@@ -160,15 +183,39 @@ void ImageView::zoomBy(qreal factor)
 
 void ImageView::afterZoom()
 {
+    m_ratioAtZoom = pixelRatio();
     applyTransformationMode();
     emit scaleChanged(scaleFactor());
 }
 
 void ImageView::applyTransformationMode()
 {
-    m_item->setTransformationMode(scaleFactor() >= CrispThreshold
+    // Nearest-neighbour when zoomed far in, so pixels being inspected stay
+    // pixels -- and at exactly 1:1, where there is nothing to resample and
+    // smoothing could only blur, if the image lands half a pixel off the
+    // device grid.
+    const qreal zoom = scaleFactor();
+    const bool exact = qAbs(zoom - 1.0) < 1e-6;
+    m_item->setTransformationMode(zoom >= CrispThreshold || exact
                                       ? Qt::FastTransformation
                                       : Qt::SmoothTransformation);
+}
+
+bool ImageView::event(QEvent *event)
+{
+    // Dragged to a screen with different scaling. The transform was computed
+    // for the old ratio, so the same transform now means a different zoom;
+    // recompute it so the user's zoom survives the move.
+    if (event->type() == QEvent::DevicePixelRatioChange && hasImage()) {
+        const qreal zoom = transform().m11() * m_ratioAtZoom;
+        if (m_fitMode)
+            fit();
+        else {
+            applyZoom(zoom);
+            afterZoom();
+        }
+    }
+    return QGraphicsView::event(event);
 }
 
 // -- events ----------------------------------------------------------------

@@ -34,7 +34,14 @@ public:
     /// mean dismissing one modal per image.
     void setMessage(const QString &text);
 
-    qreal scaleFactor() const { return transform().m11(); }
+    /// Zoom as the user means it: screen pixels per image pixel, so 1.0 is a
+    /// true 1:1 on any display.
+    ///
+    /// Not transform().m11() alone. The view's transform maps the scene to
+    /// *logical* pixels, and on a display scaled to 150% each logical pixel is
+    /// 1.5 physical ones -- so an untouched transform shows the image at 150%
+    /// while calling it 100%, and upsamples it on the way.
+    qreal scaleFactor() const { return transform().m11() * pixelRatio(); }
     const QPixmap pixmap() const { return m_item->pixmap(); }
 
 public slots:
@@ -48,6 +55,7 @@ signals:
     void filesDropped(const QStringList &paths);
 
 protected:
+    bool event(QEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
@@ -68,7 +76,20 @@ private:
     QGraphicsPixmapItem *m_item;
     QPixmap m_checker;
     QString m_message;
+    /// Physical pixels per logical pixel on the screen the canvas is on.
+    qreal pixelRatio() const { return viewport()->devicePixelRatio(); }
+
+    /// Set the transform for a zoom in screen pixels per image pixel,
+    /// keeping whatever scene point was at the centre of the view there.
+    void applyZoom(qreal zoom);
+
+    /// The transform that shows one image pixel per screen pixel.
+    QTransform oneToOne() const;
+
     bool m_fitMode = true;
+    /// The ratio the current transform was computed for. Kept so a move to a
+    /// screen with different scaling can preserve the zoom the user chose.
+    qreal m_ratioAtZoom = 1.0;
     bool m_hasAlpha = false;
     bool m_dragHover = false;
 };

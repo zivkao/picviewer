@@ -29,9 +29,10 @@ Two cautions that the numbers themselves will not tell you:
   project concluded the C++ build started twice as fast; it had compared a
   cold cache against a warm one, and the two are in fact the same. Treat a
   startup delta under about 30% as noise.
-- **Real-world files are not committed.** `image_example/` holds personal
-  photographs and is untracked, so `raw_real` and `heif_real` appear only on
-  a machine that has them. Their absence is not a regression.
+- **Real-world files are not committed.** `image_example/` is untracked --
+  it holds personal photographs and 25-30 MB RAW samples -- so `raw_cr2`,
+  `raw_nef`, `real_heic` and the like appear only on a machine that has them.
+  Their absence is not a regression.
 
 ## Checking a package
 

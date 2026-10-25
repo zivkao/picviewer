@@ -7,6 +7,36 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-10-25 — display scaling, and RAW from three more makers
+
+- **"100%" was not 1:1 on a scaled display.** A `QGraphicsView` transform is
+  in logical pixels; at 200% scaling each image pixel became a 2x2 block of
+  screen pixels while the status bar said 100%. Zoom is now measured in screen
+  pixels, fit compares against the canvas's physical size, and a move to a
+  screen with different scaling recomputes the transform.
+- `functional_tests --scale N` runs the whole suite as on a display scaled by
+  N. A new high-DPI suite renders a one-pixel checkerboard and reads the
+  pixels back: with the fix reverted it reports "20 of 40 neighbouring screen
+  pixels alternate". All 56 functional tests pass at 1x, 1.5x and 2x.
+- Two of the new tests passed with the fix reverted. They asked
+  `scaleFactor()` whether the zoom was 1:1, and its definition had been
+  reverted too. Rewritten to measure the transform and ratio directly.
+- The mutation harness now runs the functional suite a second time at 2x,
+  since a display-scaling defect is a no-op at a ratio of 1. All 16 mutations
+  applied and caught; the two scaling ones only by the 2x run.
+- The harness then reported a green baseline as broken. It now reads three
+  results, and its closing check still read two, leaving "0 0" in one name.
+  The results above stand; only the closing check was wrong.
+- Downloaded three CC0 samples from raw.pixls.us after confirming the licence
+  in the site's own data, each checked against its published SHA-256: Nikon
+  Z 6 NEF (lossless compressed), Sony A7 III ARW (compressed), Fujifilm X-T30
+  RAF (X-Trans). All decode. NEF and ARW carry TIFF magic bytes like the CR2,
+  so the decoder ranking is now confirmed on three makers' real files.
+- Fujifilm X-Trans takes 7.7 s to demosaic, two to three times any Bayer RAW,
+  and Sony's embedded preview is only 1616x1080. Both recorded in `TASKS.md`.
+- The benchmark gave every real RAW the same id, so four makers' files
+  overwrote each other and only the last survived. One id per format now.
+
 ## 2026-10-24 — C++ functional tests, development docs
 
 - Ported the GUI-level suites to C++: drop routing, drag and drop, navigation,

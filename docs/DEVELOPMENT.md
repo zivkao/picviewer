@@ -41,8 +41,9 @@ before a long afternoon of CMake errors.
 Two layers, deliberately different in kind.
 
 ```
-cpp\build\tests\unit_tests.exe          100 tests, no display, about a second
-cpp\build\tests\functional_tests.exe    48 tests, a real window, offscreen
+cpp\build\tests\unit_tests.exe                     100 tests, no display, about a second
+cpp\build\tests\functional_tests.exe               56 tests, a real window, offscreen
+cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
 
 **Unit tests** cover pure logic: container sniffing, decoder ranking, the
@@ -54,6 +55,17 @@ state read off the real objects. The Python versions of these printed
 observations and left a runner to grep the output; these assert instead,
 because almost everything they establish turned out to be pinnable after all.
 
+`--scale` sets `QT_SCALE_FACTOR` before the application starts, so the whole
+suite runs as it would on a scaled display, and the first high-DPI test checks
+the ratio actually took effect. Run it at 1.5 and 2 as well as 1: display
+scaling defects are invisible at a ratio of 1, so a suite run only there
+cannot see them at all.
+
+High-DPI assertions measure what reaches the screen — the transform times the
+ratio, or the rendered pixels themselves — never `scaleFactor()`. That method
+is the code's own account of the zoom, and a test that asks the code whether
+it is right will agree with the code when it is wrong.
+
 ### Proving the tests are worth having
 
 ```
@@ -64,28 +76,33 @@ Reintroduces every defect this project has fixed and checks the suites go red
 for it. A green suite says nothing until it can fail, and this has twice caught
 tests that passed for the wrong reason.
 
-Last run, 2026-10-24 — every mutation applied and caught:
+Last run, 2026-10-25 — all 16 applied and caught. The suite runs three times
+per mutation: unit, functional at 1x, functional at 2x display scaling.
 
-| Defect put back | Caught by |
-|---|---|
-| Qt decoder wins on a container match alone | unit (25), functional (1) |
-| RAW decoder ranks below Qt on TIFF | unit (2) |
-| Sniffing ignores magic bytes | unit (21) |
-| RW2 read as plain TIFF | unit (2) |
-| ICO takes the first frame | unit (1) |
-| Qt allocation limit left at its 256 MiB default | unit (1) |
-| Cache evicts by entry count, not bytes | unit (2) |
-| Cache forgets failures immediately | unit (2) |
-| Drops handled on the window, not the canvas | functional (4) |
-| `dragMoveEvent` refuses, so drags stall | functional (1) |
-| Failures raised as modal dialogs again | functional (2) |
-| Fullscreen leaves the chrome on screen | functional (1) |
-| Actions never grey out | functional (1) |
-| Stale decodes allowed on screen | functional (1) |
+| Defect put back | Unit | Functional 1x | Functional 2x |
+|---|---|---|---|
+| Qt decoder wins on a container match alone | 25 | 1 | 1 |
+| RAW decoder ranks below Qt on TIFF | 2 | | |
+| Sniffing ignores magic bytes | 21 | | |
+| RW2 read as plain TIFF | 2 | | |
+| ICO takes the first frame | 1 | | |
+| Qt allocation limit left at its 256 MiB default | 1 | | |
+| Cache evicts by entry count, not bytes | 2 | | |
+| Cache forgets failures immediately | 2 | | |
+| Drops handled on the window, not the canvas | | 4 | 4 |
+| `dragMoveEvent` refuses, so drags stall | | 1 | 1 |
+| Failures raised as modal dialogs again | | 2 | 2 |
+| Fullscreen leaves the chrome on screen | | 1 | 1 |
+| Actions never grey out | | 1 | 1 |
+| Stale decodes allowed on screen | | 1 | 1 |
+| 1:1 ignores display scaling | | | **7** |
+| Fit compares logical size, not physical | | | **1** |
 
-The split is the useful part: the decoding and cache defects are caught by the
-unit suite in about a second, and the window and canvas defects only by the
-functional suite. Neither layer covers what the other does.
+The split is the useful part. Decoding and cache defects fall to the unit
+suite in about a second; window and canvas defects only to the functional
+suite; and the two display-scaling defects *only* to the run at 2x — at a
+ratio of 1 they change nothing, so a suite run only there would pass with both
+of them in. Neither layer, nor either scale, covers what the others do.
 
 Add a mutation whenever a defect is fixed. If the suites stay green with the
 bug back in, the test that was supposed to guard it does not. A mutation whose
@@ -158,6 +175,14 @@ magnitude apart in memory.
 the event handled either way. The canvas covers the window, so the cursor is
 always over the viewport and a window-level handler never fires.
 
+**Zoom is measured in screen pixels.** 100% means one image pixel per physical
+screen pixel, as in any viewer used for inspecting detail. A `QGraphicsView`
+transform works in logical pixels, and on a display scaled to 150% each of
+those is 1.5 physical ones, so the transform for 1:1 is a scale of `1/ratio`,
+not the identity — and fit decides whether an image fits by comparing it with
+the canvas's physical size. If the window moves to a screen with different
+scaling, the transform is recomputed so the chosen zoom survives.
+
 **Failures are drawn on the canvas, not raised as dialogs.** Stepping through a
 folder of unreadable files would otherwise mean dismissing one modal per image.
 
@@ -188,14 +213,21 @@ of these are the kind of mistake that is easy to make twice.
 | A regression test quietly became a skip | It depended on a file in the untracked `image_example/` that was later removed | a committed fixture, `cpp/tests/fixtures/large_9000x9000.png` — 249 KiB on disk, 309 MiB decoded |
 | The allocation-limit fix could be undone without any test noticing | The replacement check asserted the *constant* was large enough, not that the call used it. A mutation hard-coding `setAllocationLimit(256)` survived | `anImagePastQtsDefaultLimitStillDecodes`, which decodes the fixture |
 | The stale-result test passed with the generation check deleted | It navigated quickly and waited, and the last sample in the folder happens to be the slowest to decode — so it landed last whether or not stale results were discarded. The test was passing by luck of file order | `aResultFromAnEarlierGenerationIsDiscarded`, which delivers an old-generation result directly |
+| "100%" was not 1:1 on a scaled display | The view's transform is in logical pixels. At 200% scaling each image pixel became a 2x2 block of screen pixels — enlarged and resampled while the status bar said 100% | `HighDpiTests`, which reads the rendered pixels back, and the 2x pass in `mutate.sh` |
+| Two of the high-DPI tests passed with the fix reverted | They asked `scaleFactor()` whether the zoom was 1:1, and its definition was reverted along with the fix. The code's idea of 1:1 and its transform agreed with each other, and both disagreed with the screen | assertions on the transform times the ratio, never on `scaleFactor()` |
+| A correct 640-pixel width measured as 642 at 1.5x | `mapFromScene` returns an integer polygon whose inclusive bounding rect is a pixel wider, then multiplied by 1.5. A measurement defect, not a rendering one — but it failed a correct build | `transform().mapRect`, which does not round |
+| A green baseline reported as broken | The harness was changed to return three results and its closing check still read two; bash put "0 0" into the second name, which is not "0" | the closing check reads all three, the same way the opening one does |
 | Three mutations reported SKIP and tested nothing | Their anchors spanned lines, and inside bash double quotes `\n` is a backslash and an n. The harness printed SKIP and carried on as though that were neutral | single-line anchors; SKIP now fails the run like a survivor does |
 
 The pattern worth noticing: more than half were found by *running* the thing and
 reading its output, not by reading the code. Several passed every test at the
 time.
 
-And a second pattern, in the last four rows: the defects were in the *tests*.
+And a second pattern: a growing share of the rows are defects in the *tests*.
 A test that skips, one that checks a constant instead of its use, one that
-passes because of file order, a harness that treats "nothing happened" as
-neutral — each looks like coverage and is not. Only the mutation run exposed
-them, which is the argument for running it rather than trusting a green suite.
+passes because of file order, two that asked the code under test whether it
+was right, a measurement that rounded a correct answer into a failure, a
+harness that treats "nothing happened" as neutral — each looks like coverage
+and is not. Reverting the fix, or running the mutation harness, exposed every
+one of them, which is the argument for doing that rather than trusting a green
+suite.

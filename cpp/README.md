@@ -54,7 +54,7 @@ cpp\build\tests\functional_tests.exe      end to end
 decoder ranking, the byte-budgeted cache, and format behaviour against the
 sample files. No display, under a second.
 
-**`functional_tests`** -- 48 passing test functions driving a real `MainWindow` offscreen:
+**`functional_tests`** -- 56 passing test functions driving a real `MainWindow` offscreen:
 drag and drop sent to actual widgets, keystrokes through `QTest::keyClick`,
 menu and toolbar state read off the real objects, fullscreen, and a fixture of
 deny-read files that reproduces an unreadable-file failure.
@@ -76,7 +76,7 @@ passed, and said so into a closed stream.
 .msys64\usr\bin\bash -lc "bash cpp/tools/mutate.sh"
 ```
 
-Reintroduces fourteen defects this project has fixed and checks the suites go
+Reintroduces sixteen defects this project has fixed and checks the suites go
 red for each. A green suite says nothing until it can fail, and this has twice
 caught tests that were passing for the wrong reason. The full table is in
 [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
@@ -188,6 +188,5 @@ The nine functional suites from the Python version are not ported -- drag and
 drop routing, keyboard shortcuts, menu and toolbar state, fullscreen chrome and
 the unreadable-file handling are implemented but only exercised by hand.
 
-A real RAW has now been decoded, but only one, from one camera. Nikon, Sony and
-Fujifilm files remain unseen, and each carries its own compression and colour
-filter layout.
+Real RAW from four makers decodes -- Canon, Nikon, Sony, Fujifilm -- but one
+file each. Olympus, Panasonic, Pentax and Leica are unseen.

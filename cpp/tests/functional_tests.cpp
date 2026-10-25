@@ -282,7 +282,9 @@ private slots:
     void fitShrinksALargeImageAndLeavesASmallOneAlone()
     {
         MainWindow window;
-        window.resize(400, 300);        // smaller than the 640x480 samples
+        // Small enough that a 640x480 image overflows the canvas in physical
+        // pixels even at 2x display scaling, where 400x300 would not.
+        window.resize(300, 220);        // smaller than the 640x480 samples
         window.show();
         window.openPath(sample("sample.png"));
         QVERIFY(waitForImage(window));
@@ -433,7 +435,9 @@ private slots:
     void oneRestoresActualSizeAndZeroFits()
     {
         MainWindow window;
-        window.resize(400, 300);
+        // Small enough that a 640x480 image overflows the canvas in physical
+        // pixels even at 2x display scaling, where 400x300 would not.
+        window.resize(300, 220);
         window.show();
         window.openPath(sample("sample.png"));
         QVERIFY(waitForImage(window));
@@ -644,6 +648,184 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// Display scaling. Run with --scale 1.5 or --scale 2 to mean anything.
+///
+/// The transform a QGraphicsView applies is in logical pixels, and on a
+/// display scaled to 150% each of those is 1.5 physical ones. Without
+/// correcting for that, "100%" showed the image at 150% and resampled it on
+/// the way -- the one thing a "1:1" view exists not to do.
+class HighDpiTests : public QObject
+{
+    Q_OBJECT
+
+    /// One-pixel checkerboard: at true 1:1 every adjacent screen pixel
+    /// differs; scaled it comes out in blocks, smoothed it comes out grey.
+    static QImage pixelCheckerboard(int size)
+    {
+        QImage image(size, size, QImage::Format_RGB32);
+        for (int y = 0; y < size; ++y) {
+            auto *line = reinterpret_cast<QRgb *>(image.scanLine(y));
+            for (int x = 0; x < size; ++x)
+                line[x] = ((x + y) % 2) ? qRgb(0, 0, 0) : qRgb(255, 255, 255);
+        }
+        return image;
+    }
+
+    static qreal requestedScale()
+    {
+        return qEnvironmentVariable("QT_SCALE_FACTOR", QStringLiteral("1")).toDouble();
+    }
+
+    /// Width the image actually occupies on screen, in physical pixels.
+    ///
+    /// Measured from the transform and the display ratio directly, never via
+    /// scaleFactor(). The first version of these tests asked scaleFactor()
+    /// whether the zoom was 1:1, and with the fix reverted -- scaleFactor()
+    /// included -- the code's own idea of 1:1 and its transform agreed with
+    /// each other and both disagreed with the screen. Two tests passed on the
+    /// bug they were written for.
+    static qreal physicalWidthOnScreen(const ImageView &view)
+    {
+        // transform().mapRect rather than mapFromScene: the latter returns an
+        // integer polygon whose inclusive bounding rect is a pixel wider, and
+        // at 1.5x that rounding alone read a correct 640 as 642.
+        const QRectF logical = view.transform().mapRect(view.sceneRect());
+        return logical.width() * view.viewport()->devicePixelRatio();
+    }
+
+private slots:
+    void theRequestedScaleIsTheScaleInEffect()
+    {
+        // If the platform ignored QT_SCALE_FACTOR, everything below would run
+        // at ratio 1 and prove nothing about scaled displays.
+        ImageView view;
+        view.resize(400, 300);
+        view.show();
+        QTest::qWait(30);
+        QCOMPARE(view.viewport()->devicePixelRatio(), requestedScale());
+    }
+
+    void actualSizeIsOneScreenPixelPerImagePixel()
+    {
+        ImageView view;
+        view.resize(400, 300);
+        view.show();
+        view.setImage(pixelCheckerboard(96));
+        view.zoomToActual();
+        QTest::qWait(30);
+        QCOMPARE(view.scaleFactor(), 1.0);
+
+        // Render the canvas at its true device resolution and read the pixels
+        // back, rather than trusting the arithmetic that set the transform.
+        const QImage shot = view.viewport()->grab().toImage();
+        const int cx = shot.width() / 2;
+        const int cy = shot.height() / 2;
+        const int span = 20;
+
+        int alternations = 0;
+        for (int i = -span; i < span; ++i) {
+            const int a = qGray(shot.pixel(cx + i, cy));
+            const int b = qGray(shot.pixel(cx + i + 1, cy));
+            QVERIFY2(a < 24 || a > 231,
+                     qPrintable(QStringLiteral("grey value %1 at 1:1 -- the image was resampled")
+                                    .arg(a)));
+            if ((a > 127) != (b > 127))
+                ++alternations;
+        }
+        QVERIFY2(alternations == 2 * span,
+                 qPrintable(QStringLiteral("%1 of %2 neighbouring screen pixels alternate; "
+                                           "at true 1:1 every one does")
+                                .arg(alternations).arg(2 * span)));
+    }
+
+    void aSmallImageFitsAtOneToOneNotEnlarged()
+    {
+        // 200x150 in a 400x300 canvas fits whatever the scaling, so fit
+        // leaves it at 1:1 -- one image pixel per screen pixel, not one per
+        // logical pixel, which on a scaled display is an enlargement.
+        ImageView view;
+        view.resize(400, 300);
+        view.show();
+        view.setImage(pixelCheckerboard(150).scaled(200, 150));
+        view.fit();
+        QTest::qWait(30);
+
+        QVERIFY2(qAbs(physicalWidthOnScreen(view) - 200.0) < 0.5,
+                 qPrintable(QStringLiteral("a 200-pixel image occupies %1 screen pixels after fit")
+                                .arg(physicalWidthOnScreen(view))));
+        QCOMPARE(view.scaleFactor(), 1.0);
+    }
+
+    void fitJudgesSizeInScreenPixelsNotLogicalOnes()
+    {
+        // 600x450 in a 400x300 canvas. At 1x it overflows and is shrunk. At 2x
+        // the canvas is 800x600 real pixels, the image fits, and it should be
+        // shown 1:1 -- comparing against the logical 400x300 instead would
+        // call it too big and fit it to 400 logical pixels, which at 2x is 800
+        // real ones: an enlargement, from the command meant to shrink.
+        ImageView view;
+        view.resize(400, 300);
+        view.show();
+        QImage image(600, 450, QImage::Format_RGB32);
+        image.fill(Qt::darkMagenta);
+        view.setImage(image);
+        view.fit();
+        QTest::qWait(30);
+
+        const qreal ratio = view.viewport()->devicePixelRatio();
+        const QSizeF screen = QSizeF(view.viewport()->size()) * ratio;
+        const qreal width = physicalWidthOnScreen(view);
+        if (600 <= screen.width() && 450 <= screen.height())
+            QVERIFY2(qAbs(width - 600.0) < 0.5,
+                     qPrintable(QStringLiteral("fits in %1x%2 screen pixels but was drawn "
+                                               "%3 wide").arg(screen.width()).arg(screen.height())
+                                    .arg(width)));
+        else
+            QVERIFY2(width < 600.0, "an image too big for the screen was not shrunk");
+    }
+
+    void aLargeImageFitsInsideTheViewport()
+    {
+        ImageView view;
+        view.resize(400, 300);
+        view.show();
+        QImage large(3000, 2000, QImage::Format_RGB32);
+        large.fill(Qt::darkCyan);
+        view.setImage(large);
+        view.fit();
+        QTest::qWait(30);
+
+        const QRect onScreen = view.mapFromScene(view.sceneRect()).boundingRect();
+        QVERIFY2(onScreen.width() <= view.viewport()->width() + 1
+                     && onScreen.height() <= view.viewport()->height() + 1,
+                 "a fitted image overflows the canvas");
+        QVERIFY(view.scaleFactor() < 1.0);
+    }
+
+    void theStatusBarSaysOneHundredPercentAtOneToOne()
+    {
+        MainWindow window;
+        window.resize(900, 600);
+        window.show();
+        window.openPath(sample("sample.png"));
+        QVERIFY(waitForImage(window));
+        QTest::keyClick(&window, Qt::Key_1);
+        QTest::qWait(40);
+        QVERIFY2(window.statusText().contains(QStringLiteral("100%")),
+                 qPrintable("status bar reads: " + window.statusText()));
+
+        // And the label has to be true. Before the fix it said 100% at every
+        // display scale, consistent with the transform and wrong about the
+        // screen: the 640-pixel sample was 1280 screen pixels wide at 2x.
+        const qreal onScreen = physicalWidthOnScreen(*window.view());
+        QVERIFY2(qAbs(onScreen - 640.0) < 0.5,
+                 qPrintable(QStringLiteral("status says 100%, but the 640-pixel image is "
+                                           "%1 screen pixels wide").arg(onScreen)));
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 namespace {
 
 int runSuite(QObject *suite, const QString &name, int &passed, int &failed)
@@ -681,9 +863,20 @@ int runSuite(QObject *suite, const QString &name, int &passed, int &failed)
 
 int main(int argc, char **argv)
 {
+    // --scale N runs every suite as though on a display scaled by N. It has
+    // to be in the environment before the application object exists, which
+    // is why it is read from argv by hand rather than through QTest.
+    QByteArray scale = "1";
+    for (int i = 1; i + 1 < argc; ++i) {
+        if (qstrcmp(argv[i], "--scale") == 0)
+            scale = argv[i + 1];
+    }
+    qputenv("QT_SCALE_FACTOR", scale);
     qputenv("QT_QPA_PLATFORM", "offscreen");
+
     QApplication app(argc, argv);       // widgets, so QApplication not QGuiApplication
     applog::install(false);
+    std::printf("display scale %s\n\n", scale.constData());
 
     DropRoutingTests dropRouting;
     DragDropTests dragDrop;
@@ -691,6 +884,7 @@ int main(int argc, char **argv)
     ShortcutTests shortcuts;
     ChromeTests chrome;
     FailureTests failures;
+    HighDpiTests highDpi;
 
     const QList<QPair<QObject *, QString>> suites = {
         {&dropRouting, QStringLiteral("drop-routing")},
@@ -699,6 +893,7 @@ int main(int argc, char **argv)
         {&shortcuts, QStringLiteral("shortcuts")},
         {&chrome, QStringLiteral("chrome")},
         {&failures, QStringLiteral("failures")},
+        {&highDpi, QStringLiteral("high-dpi")},
     };
 
     int exitCode = 0;

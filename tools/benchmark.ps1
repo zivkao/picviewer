@@ -58,10 +58,14 @@ $Cases = @(
 )
 foreach ($f in (Get-ChildItem (Join-Path $Root "image_example") -File -ErrorAction SilentlyContinue)) {
     if ($f.Extension -eq ".md") { continue }
-    $id = switch -Regex ($f.Extension) {
-        '\.(cr2|cr3|nef|arw|dng|orf|rw2|raf)$' { "raw_real" }
-        '\.(heic|heif)$'                       { "heif_real" }
-        default                                { "large_" + $f.Extension.TrimStart('.') }
+    # One id per format, not one for "real RAW": with four makers' files
+    # present a shared id let each overwrite the last, and the baseline kept
+    # whichever happened to be listed last.
+    $ext = $f.Extension.TrimStart('.').ToLower()
+    $id = switch -Regex ($ext) {
+        '^(cr2|cr3|nef|arw|dng|orf|rw2|raf|pef|srw)$' { "raw_$ext" }
+        '^(heic|heif|avif)$'                          { "real_$ext" }
+        default                                       { "large_$ext" }
     }
     $Cases += @{ id = $id; path = $f.FullName; untracked = $true }
 }
