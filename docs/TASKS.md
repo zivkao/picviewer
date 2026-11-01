@@ -27,7 +27,10 @@ Last reviewed: 2026-11-01
 - [x] Drag and drop: single file, several files, folders, with hover feedback
 - [x] Menu bar, toolbar and shortcuts over one set of actions
 - [x] Actions grey out when they cannot act
-- [x] Fullscreen hides the chrome; Escape leaves it rather than quitting
+- [x] Fullscreen hides the chrome; Escape leaves it rather than quitting,
+      and a window maximized before goes back to maximized
+- [x] Slideshow (F5): fullscreen, loops, each image's interval counted from
+      when it lands so a slow RAW is not skipped; Escape, F5 or F11 ends it
 - [x] Copy to clipboard, reveal in Explorer, delete to the Recycle Bin
 - [x] Rotate and flip for viewing (R / L / H / V); the file is never
       rewritten, and copy hands over the image as shown
@@ -49,7 +52,7 @@ Last reviewed: 2026-11-01
 ### Verification
 - [x] 169 unit tests over the pure logic; those reading the real camera
       files skip where those untracked files are absent, as on CI
-- [x] 89 functional tests driving a real window offscreen, run at 1x, 1.5x
+- [x] 97 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
 - [x] Mutation harness covering 34 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
@@ -126,7 +129,6 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
       naively it re-encodes a JPEG and loses quality on every save. It wants
       lossless JPEG transforms (jpegtran-style, on whole MCU blocks) or an
       EXIF orientation edit, and neither applies to RAW or HEIC.
-- [ ] Slideshow.
 - [ ] Info panel, what it does not read yet: EXIF in TIFF, PNG and WebP;
       GPS position.
 

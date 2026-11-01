@@ -39,6 +39,7 @@ argument still resolves against where you ran it.
 | `H` `V` | flip horizontal / vertical (C++ build) |
 | `I` | info panel: camera, lens, exposure, date (C++ build) |
 | `Ctrl+,` | settings (C++ build) |
+| `F5` | slideshow, fullscreen; `Esc` ends it (C++ build) |
 | `F11` | fullscreen |
 | `Del` | move to Recycle Bin |
 | `Esc` `Ctrl+Q` | leave fullscreen / quit |

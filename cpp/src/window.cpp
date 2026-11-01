@@ -85,6 +85,10 @@ MainWindow::MainWindow(QWidget *parent)
     buildToolBar();
     showPlaceholder();
 
+    m_slideshowTimer = new QTimer(this);
+    m_slideshowTimer->setSingleShot(true);
+    connect(m_slideshowTimer, &QTimer::timeout, this, [this] { step(1); });
+
     applyPreferences(settings::load());
     // Size, position, and which panels were open. Restored after the chrome
     // exists, since the dock layout refers to it by object name.
@@ -212,6 +216,10 @@ void MainWindow::buildActions()
     m_actFlipV = makeAction(tr("Flip &Vertical"), keys({"V"}),
                             orient(&ImageView::flipVertically), SP::SP_FileIcon, false);
 
+    m_actSlideshow = makeAction(tr("Slide&show"), keys({"F5"}),
+                                [this] { toggleSlideshow(); }, SP::SP_FileIcon, false,
+                                tr("Start or stop the slideshow"));
+
     m_actFullscreen = makeAction(tr("F&ullscreen"), keys({"F11"}),
                                  [this] { toggleFullscreen(); }, SP::SP_TitleBarMaxButton, true);
 
@@ -261,6 +269,7 @@ void MainWindow::buildMenus()
     view->addAction(m_actFlipV);
     view->addSeparator();
     view->addAction(m_actInfo);
+    view->addAction(m_actSlideshow);
     view->addAction(m_actFullscreen);
 
     QMenu *help = menuBar()->addMenu(tr("&Help"));
@@ -307,7 +316,7 @@ void MainWindow::buildToolBar()
         {m_actRotateRight, QStringLiteral("↻")},
     });
     m_toolBar->addSeparator();
-    addTextButtons({{m_actInfo, QStringLiteral("Info")}});
+    addTextButtons({{m_actInfo, QStringLiteral("Info")}, {m_actSlideshow, QStringLiteral("▶")}});
 
     m_toolBar->addSeparator();
     m_toolBar->addAction(m_actFullscreen);
@@ -475,6 +484,7 @@ QStringList MainWindow::prefetchTargets() const
 void MainWindow::applyPreferences(const Preferences &preferences)
 {
     m_prefs = preferences;
+    m_slideshowMs = m_prefs.slideshowSeconds * 1000;
     m_loader->cache().setBudget(qint64(m_prefs.cacheMb) * 1024 * 1024);
     qCInfo(logWindow).nospace() << "preferences: cache " << m_prefs.cacheMb << " MB, prefetch "
                                 << m_prefs.prefetchRadius << ", slideshow "
@@ -510,6 +520,8 @@ void MainWindow::display(const decoders::DecodedImage &image, bool keepView)
     m_view->setImage(image.image, keepView);
     m_info->showImage(currentPath(), image);
     updateStatus();
+    if (!image.isPreview)
+        scheduleSlideshowStep();
 }
 
 void MainWindow::onFailed(const QString &path, const QString &message, quint64 generation)
@@ -519,6 +531,7 @@ void MainWindow::onFailed(const QString &path, const QString &message, quint64 g
     qCDebug(logWindow) << "showing failure for" << QFileInfo(path).fileName();
     m_view->clearImage();
     m_info->showFailure(path);
+    scheduleSlideshowStep();    // an unreadable file is passed over, not stopped at
     m_view->setMessage(tr("Could not open %1\n\n%2").arg(QFileInfo(path).fileName(), message));
     m_statusRight->setText(tr("Failed"));
     updateActionState();
@@ -555,6 +568,7 @@ void MainWindow::updateStatus()
 void MainWindow::showPlaceholder()
 {
     m_index = -1;
+    stopSlideshow();
     m_view->clearImage();
     m_info->clear();
     m_view->setMessage(tr("Drop an image here, or press Ctrl+O to open one"));
@@ -574,7 +588,7 @@ void MainWindow::updateActionState()
     m_actDelete->setEnabled(hasFile);
     m_actReveal->setEnabled(hasFile);
     m_actCopy->setEnabled(hasImage);
-    for (QAction *action : {m_actPrev, m_actNext, m_actFirst, m_actLast})
+    for (QAction *action : {m_actPrev, m_actNext, m_actFirst, m_actLast, m_actSlideshow})
         action->setEnabled(many);
     for (QAction *action : {m_actZoomIn, m_actZoomOut, m_actFit, m_actActual,
                             m_actRotateRight, m_actRotateLeft, m_actFlipH, m_actFlipV})
@@ -594,6 +608,12 @@ void MainWindow::toggleFullscreen()
 {
     const bool entering = !isFullScreen();
     qCInfo(logWindow) << "fullscreen" << (entering ? "on" : "off");
+    // A slideshow is a fullscreen thing; leaving fullscreen ends it.
+    if (!entering && m_slideshowRunning) {
+        m_slideshowRunning = false;
+        m_slideshowTimer->stop();
+        qCInfo(logWindow) << "slideshow stopped";
+    }
     statusBar()->setVisible(!entering);
     menuBar()->setVisible(!entering);
     m_toolBar->setVisible(!entering);
@@ -605,14 +625,53 @@ void MainWindow::toggleFullscreen()
     } else {
         m_infoDock->setVisible(m_infoBeforeFullscreen);
     }
-    if (entering)
+    if (entering) {
+        m_maximizedBeforeFullscreen = isMaximized();
         showFullScreen();
-    else
+    } else if (m_maximizedBeforeFullscreen) {
+        showMaximized();
+    } else {
         showNormal();
+    }
+}
+
+void MainWindow::toggleSlideshow()
+{
+    if (m_slideshowRunning) {
+        stopSlideshow();
+        return;
+    }
+    if (m_playlist.size() < 2)
+        return;
+    m_slideshowRunning = true;
+    m_slideshowEnteredFullscreen = !isFullScreen();
+    if (m_slideshowEnteredFullscreen)
+        toggleFullscreen();
+    qCInfo(logWindow) << "slideshow started," << m_slideshowMs << "ms per image";
+    scheduleSlideshowStep();
+}
+
+void MainWindow::stopSlideshow()
+{
+    if (!m_slideshowRunning)
+        return;
+    m_slideshowRunning = false;
+    m_slideshowTimer->stop();
+    qCInfo(logWindow) << "slideshow stopped";
+    if (m_slideshowEnteredFullscreen && isFullScreen())
+        toggleFullscreen();
+}
+
+void MainWindow::scheduleSlideshowStep()
+{
+    if (m_slideshowRunning)
+        m_slideshowTimer->start(m_slideshowMs);
 }
 
 void MainWindow::closeOrLeaveFullscreen()
 {
+    // A slideshow is always fullscreen, and leaving fullscreen ends it, so
+    // Escape during one lands here and never closes the window.
     if (isFullScreen())
         toggleFullscreen();
     else

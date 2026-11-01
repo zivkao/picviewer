@@ -282,6 +282,32 @@ mutate "fullscreen leaves the panel up" "window.cpp" \
     '        m_infoDock->hide();' \
     '        {}'
 
+# -- slideshow -----------------------------------------------------------------
+
+mutate "slideshow: never advances" "window.cpp" \
+    '    connect(m_slideshowTimer, &QTimer::timeout, this, [this] { step(1); });' \
+    '    connect(m_slideshowTimer, &QTimer::timeout, this, [] {});'
+
+mutate "slideshow: leaving fullscreen leaves it running" "window.cpp" \
+    '    if (!entering && m_slideshowRunning) {' \
+    '    if (false) {'
+
+mutate "slideshow: the slot starts one with a single image" "window.cpp" \
+    '    if (m_playlist.size() < 2)' \
+    '    if (false)'
+
+mutate "slideshow: the action is live with a single image" "window.cpp" \
+    '    for (QAction *action : {m_actPrev, m_actNext, m_actFirst, m_actLast, m_actSlideshow})' \
+    '    for (QAction *action : {m_actPrev, m_actNext, m_actFirst, m_actLast})'
+
+mutate "slideshow: stopping leaves a fullscreen the user chose" "window.cpp" \
+    '    m_slideshowEnteredFullscreen = !isFullScreen();' \
+    '    m_slideshowEnteredFullscreen = true;'
+
+mutate "slideshow: fullscreen forgets the window was maximized" "window.cpp" \
+    '    } else if (m_maximizedBeforeFullscreen) {' \
+    '    } else if (false) {'
+
 # -- settings ------------------------------------------------------------------
 
 mutate "settings: window layout not saved on close" "window.cpp" \

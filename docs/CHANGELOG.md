@@ -7,6 +7,22 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-02 — slideshow
+
+- `F5` starts a slideshow, fullscreen, looping through the folder. Each
+  image's interval runs from when it lands rather than from the step, so a
+  RAW that takes a second and a half to decode still gets its full turn; an
+  unreadable file is passed over after the interval rather than stopping it.
+  `Escape`, `F5` again or `F11` ends it. Started from fullscreen, stopping
+  leaves the window fullscreen; started from a window, it goes back to one.
+- **Fixed:** leaving fullscreen always called `showNormal()`, so a window
+  maximized before `F11` came back un-maximized.
+- Writing the mutations showed two redundancies. Escape had its own slideshow
+  branch, but leaving fullscreen already ends a slideshow, so the branch
+  went. And a single image is refused twice -- the action greys out, and the
+  slot checks again -- so the test now checks each on its own; otherwise
+  removing either guard would have passed. Six mutations, all caught.
+
 ## 2026-11-02 — settings
 
 - File > Settings (`Ctrl+,`): memory cache size, how many images to decode

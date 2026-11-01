@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <QStringList>
+#include <QTimer>
 #include <QToolBar>
 
 #include "decoders/decoder.h"
@@ -52,6 +53,11 @@ public:
     /// the slideshow interval from its next step. Does not save them.
     void applyPreferences(const Preferences &preferences);
 
+    bool slideshowRunning() const { return m_slideshowRunning; }
+    /// Milliseconds between images; the setting is whole seconds, which is
+    /// too slow for a test to wait through.
+    void setSlideshowInterval(int ms) { m_slideshowMs = ms; }
+
 public slots:
     void openDialog();
     void openFolderDialog();
@@ -65,6 +71,7 @@ public slots:
     void openLogFolder();
     void showAbout();
     void openSettings();
+    void toggleSlideshow();
 
 private slots:
     void onReady(const QString &path, const decoders::DecodedImage &image, quint64 generation);
@@ -113,6 +120,19 @@ private:
     QMap<QString, QString> m_currentMeta;
     Preferences m_prefs;
 
+    void stopSlideshow();
+    /// Wait out the interval, then step. Started when an image lands, not
+    /// when the step is taken, so a slow RAW still gets its full turn.
+    void scheduleSlideshowStep();
+    QTimer *m_slideshowTimer = nullptr;
+    bool m_slideshowRunning = false;
+    int m_slideshowMs = 0;
+    /// Whether the slideshow put the window in fullscreen, so stopping it
+    /// takes it out only then.
+    bool m_slideshowEnteredFullscreen = false;
+    /// Maximized before fullscreen, so leaving it goes back to maximized.
+    bool m_maximizedBeforeFullscreen = false;
+
     QAction *m_actOpen = nullptr;
     QAction *m_actOpenFolder = nullptr;
     QAction *m_actReveal = nullptr;
@@ -134,6 +154,7 @@ private:
     QAction *m_actFlipV = nullptr;
     QAction *m_actInfo = nullptr;
     QAction *m_actFullscreen = nullptr;
+    QAction *m_actSlideshow = nullptr;
     QAction *m_actLog = nullptr;
     QAction *m_actAbout = nullptr;
 };

@@ -1376,6 +1376,126 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// F5: a fullscreen slideshow that advances, loops, and stops cleanly.
+class SlideshowTests : public QObject
+{
+    Q_OBJECT
+
+    QTemporaryDir m_three;
+    QTemporaryDir m_one;
+
+    static bool place(const char *sampleName, const QString &to)
+    {
+        QFile::remove(to);
+        return QFile::copy(sample(sampleName), to);
+    }
+
+    /// A window on the three-image folder, active, with a short interval.
+    static void startOn(MainWindow &window, const QString &folder)
+    {
+        window.show();
+        window.openPath(folder);
+        QVERIFY(waitForImage(window));
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        window.setSlideshowInterval(80);
+    }
+
+private slots:
+    void initTestCase()
+    {
+        QVERIFY(m_three.isValid() && m_one.isValid());
+        QVERIFY(place("sample.png", m_three.filePath(QStringLiteral("a.png"))));
+        QVERIFY(place("sample.jpg", m_three.filePath(QStringLiteral("b.jpg"))));
+        QVERIFY(place("sample.bmp", m_three.filePath(QStringLiteral("c.bmp"))));
+        QVERIFY(place("sample.png", m_one.filePath(QStringLiteral("only.png"))));
+    }
+
+    void f5GoesFullscreenAdvancesAndLoops()
+    {
+        MainWindow window;
+        startOn(window, m_three.path());
+        const int first = window.index();
+        QTest::keyClick(&window, Qt::Key_F5);
+        QVERIFY(window.slideshowRunning());
+        QVERIFY2(window.isFullScreen(), "a slideshow should take the whole screen");
+        QVERIFY2(waitFor([&] { return window.index() != first; }, 5000), "it never advanced");
+        QVERIFY2(waitFor([&] { return window.index() == first; }, 5000),
+                 "it did not come round to the first image again");
+    }
+
+    void escapeStopsItWithoutClosingTheWindow()
+    {
+        MainWindow window;
+        startOn(window, m_three.path());
+        QTest::keyClick(&window, Qt::Key_F5);
+        QVERIFY(window.slideshowRunning());
+        QTest::keyClick(&window, Qt::Key_Escape);
+        QVERIFY(!window.slideshowRunning());
+        QVERIFY(!window.isFullScreen());
+        QVERIFY2(window.isVisible(), "Escape closed the window instead of ending the slideshow");
+        const int stoppedAt = window.index();
+        QTest::qWait(400);      // five intervals
+        QCOMPARE(window.index(), stoppedAt);
+    }
+
+    void f5AgainOrF11StopsIt()
+    {
+        MainWindow window;
+        startOn(window, m_three.path());
+        QTest::keyClick(&window, Qt::Key_F5);
+        QTest::keyClick(&window, Qt::Key_F5);
+        QVERIFY(!window.slideshowRunning());
+        QVERIFY(!window.isFullScreen());
+
+        QTest::keyClick(&window, Qt::Key_F5);
+        QTest::keyClick(&window, Qt::Key_F11);
+        QVERIFY2(!window.slideshowRunning(), "leaving fullscreen left the slideshow running");
+        QVERIFY(!window.isFullScreen());
+    }
+
+    void startedInFullscreenItStaysThere()
+    {
+        MainWindow window;
+        startOn(window, m_three.path());
+        window.toggleFullscreen();
+        QTest::keyClick(&window, Qt::Key_F5);
+        QTest::keyClick(&window, Qt::Key_F5);
+        QVERIFY(!window.slideshowRunning());
+        QVERIFY2(window.isFullScreen(),
+                 "stopping took the window out of a fullscreen the user had chosen");
+    }
+
+    void oneImageIsNotASlideshow()
+    {
+        // Two guards, each checked on its own: the action greys out, and the
+        // slot refuses even if reached some other way.
+        MainWindow window;
+        startOn(window, m_one.path());
+        for (QAction *action : window.actions()) {
+            if (action->text() == QStringLiteral("Slide&show"))
+                QVERIFY2(!action->isEnabled(), "the slideshow action is live with one image");
+        }
+        window.toggleSlideshow();
+        QVERIFY(!window.slideshowRunning());
+        QVERIFY(!window.isFullScreen());
+    }
+
+    void fullscreenFromMaximizedReturnsToMaximized()
+    {
+        MainWindow window;
+        window.showMaximized();
+        QVERIFY(QTest::qWaitForWindowExposed(&window));
+        QVERIFY(window.isMaximized());
+        window.toggleFullscreen();
+        QTest::qWait(50);
+        window.toggleFullscreen();
+        QTest::qWait(50);
+        QVERIFY2(window.isMaximized(), "left fullscreen as a normal window, not maximized");
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 namespace {
 
 int runSuite(QObject *suite, const QString &name, int &passed, int &failed)
@@ -1444,6 +1564,7 @@ int main(int argc, char **argv)
     OrientationTests orientation;
     InfoPanelTests infoPanel;
     PersistenceTests persistence;
+    SlideshowTests slideshow;
 
     const QList<QPair<QObject *, QString>> suites = {
         {&dropRouting, QStringLiteral("drop-routing")},
@@ -1456,6 +1577,7 @@ int main(int argc, char **argv)
         {&orientation, QStringLiteral("orientation")},
         {&infoPanel, QStringLiteral("info-panel")},
         {&persistence, QStringLiteral("persistence")},
+        {&slideshow, QStringLiteral("slideshow")},
     };
 
     int exitCode = 0;
