@@ -182,6 +182,8 @@ preview as though it were the photograph.
   package; the design decisions; and every defect found so far with its cause.
 - [docs/TASKS.md](../docs/TASKS.md) — what is done, what is outstanding, and
   the decisions taken so they are not relitigated.
+- [progress.md](../progress.md) — a one-page summary of the same, in
+  Traditional Chinese.
 - [docs/CHANGELOG.md](../docs/CHANGELOG.md) — what was done, when, and what
   each round turned up.
 

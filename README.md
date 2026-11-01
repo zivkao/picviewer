@@ -214,6 +214,8 @@ second, Adobe RGB and Display P3 files look washed out.
 and packaging the C++ build, the design decisions, and every defect found so
 far with its cause. [docs/TASKS.md](docs/TASKS.md) is the status board, and
 [docs/CHANGELOG.md](docs/CHANGELOG.md) records what was done and when.
+[progress.md](progress.md) summarises done and outstanding on one page, in
+Traditional Chinese.
 
 ## C++ port
 
