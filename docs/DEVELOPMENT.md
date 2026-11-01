@@ -21,6 +21,22 @@ cpp\env.cmd build       configure and build
 cpp\env.cmd test        build and run the unit tests
 ```
 
+The `.msys64\usr\bin\bash -lc "bash cpp/..."` lines in this file and in
+`cpp/README.md` take paths relative to the project root, and an MSYS2 login
+shell changes to `$HOME` first unless `CHERE_INVOKING` is set. Where Windows
+itself defines `HOME`, as it does on the development machine, that is nowhere
+near the project, and every one of them fails with "No such file or
+directory". Set it once per console, from the project root:
+
+```
+set CHERE_INVOKING=1                 cmd
+$env:CHERE_INVOKING = 1              PowerShell
+```
+
+`env.cmd` sets it too. Start these from cmd or PowerShell rather than Git
+Bash: launched from another MSYS runtime, MSYS2's bash loses `USERNAME`, and
+the failures suite needs it.
+
 When a build fails in a way that makes no sense, check the toolchain before the
 code:
 

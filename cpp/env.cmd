@@ -12,6 +12,9 @@ rem   cpp\env.cmd test        build and run the unit tests
 set "MSYS_ROOT=%~dp0..\.msys64"
 set "PATH=%MSYS_ROOT%\mingw64\bin;%MSYS_ROOT%\usr\bin;%PATH%"
 set "PKG_CONFIG_PATH=%MSYS_ROOT%\mingw64\lib\pkgconfig"
+rem Keep `bash -lc` in the current directory. Without this a login shell
+rem changes to $HOME, which is wherever Windows says HOME is, if it says.
+set "CHERE_INVOKING=1"
 
 if not exist "%MSYS_ROOT%\mingw64\bin\g++.exe" (
     echo The toolchain is missing from %MSYS_ROOT%.

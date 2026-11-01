@@ -34,6 +34,11 @@ each entry to the full reasoning in its commit message.
   on. All 25 now applied and caught; baseline green before and after.
 - `cpp/README.md` no longer claims the functional suites are unported; they
   were ported on 2026-10-24.
+- The documented `.msys64\usr\bin\bash -lc "bash cpp/..."` commands failed
+  with "No such file or directory" when repackaging. An MSYS2 login shell
+  changes to `$HOME` unless `CHERE_INVOKING` is set, and this machine's
+  Windows environment defines `HOME` elsewhere. The docs now say to set it,
+  and `env.cmd` does.
 
 ## 2026-10-25 — display scaling, and RAW from three more makers
 

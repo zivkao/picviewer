@@ -15,6 +15,12 @@ cpp\env.cmd build       configure and build
 cpp\env.cmd test        build and run the unit tests
 ```
 
+The `.msys64\usr\bin\bash -lc "bash cpp/..."` commands below are run from the
+project root with `CHERE_INVOKING=1` set (`set CHERE_INVOKING=1` in cmd,
+`$env:CHERE_INVOKING = 1` in PowerShell; `env.cmd` sets it). Without it an
+MSYS2 login shell changes to `$HOME`, which on a machine where Windows defines
+`HOME` is somewhere else entirely, and the relative paths are not found.
+
 To recreate it from nothing: download `msys2-base-x86_64-*.tar.xz` from
 repo.msys2.org, extract it to `.msys64` in the project root, then
 

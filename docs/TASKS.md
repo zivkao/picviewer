@@ -113,7 +113,7 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
       are constants in the source.
 
 ### Packaging
-- [ ] 140 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never
+- [ ] 139 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never
       calls. They cannot simply be deleted — libheif imports them at load time
       and will not load without them — so this needs libheif rebuilt without
       them, or a build that loads codecs as plugins.
