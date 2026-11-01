@@ -1,6 +1,7 @@
 #include "heif_decoder.h"
 
 #include <QColorSpace>
+#include <QFile>
 #include <QFileInfo>
 
 #include <libheif/heif.h>
@@ -89,6 +90,27 @@ std::optional<DecodedImage> HeifDecoder::loadFull(const QString &path,
                                                   QSize maxSize,
                                                   QString *error) const
 {
+    // libheif is handed the bytes, not the path. Its read_from_file takes a
+    // char* and reads it as UTF-8; this used to pass toLocal8Bit(), so any
+    // non-ASCII character anywhere in the path -- a folder called 照片 --
+    // failed the open. QFile reaches any path Windows can name, and mapping
+    // rather than reading leaves the paging to the system. Declared before
+    // the context, so it outlives everything libheif does with the bytes.
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) {
+        if (error)
+            *error = file.errorString();
+        return std::nullopt;
+    }
+    const qint64 size = file.size();
+    const uchar *bytes = size > 0 ? file.map(0, size) : nullptr;
+    QByteArray copy;
+    if (!bytes) {
+        // Some filesystems will not map; read it instead.
+        copy = file.readAll();
+        bytes = reinterpret_cast<const uchar *>(copy.constData());
+    }
+
     const Context ctx(heif_context_alloc());
     if (!ctx) {
         if (error)
@@ -96,8 +118,8 @@ std::optional<DecodedImage> HeifDecoder::loadFull(const QString &path,
         return std::nullopt;
     }
 
-    heif_error status = heif_context_read_from_file(
-        ctx.get(), path.toLocal8Bit().constData(), nullptr);
+    heif_error status = heif_context_read_from_memory_without_copy(
+        ctx.get(), bytes, static_cast<size_t>(size), nullptr);
     if (status.code != heif_error_Ok) {
         if (error)
             *error = QString::fromUtf8(status.message);

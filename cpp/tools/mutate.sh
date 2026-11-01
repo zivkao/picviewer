@@ -194,6 +194,16 @@ mutate "log lines buffered, not flushed" "applog.cpp" \
     '             << message << '"'"'\n'"'"';' \
     '             << message << '"'"'\n'"'"'; if (false)'
 
+# Both shipped until 2026-11-01. The comma expression in the second keeps the
+# continuation line that follows the anchor compiling.
+mutate "RAW opened by its ANSI path again" "decoders/raw_decoder.cpp" \
+    '    return raw.open_file(native.c_str());' \
+    '    return raw.open_file(path.toLocal8Bit().constData());'
+
+mutate "HEIF opened by its ANSI path again" "decoders/heif_decoder.cpp" \
+    '    heif_error status = heif_context_read_from_memory_without_copy(' \
+    '    heif_error status = heif_context_read_from_file(ctx.get(), path.toLocal8Bit().constData(), nullptr); (void)('
+
 mutate "stale decodes allowed on screen" "window.cpp" \
     '        return;     // the user moved on while this was decoding' \
     '        {}          // the user moved on while this was decoding'

@@ -7,6 +7,34 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-01 — paths outside the code page
+
+- **Found while reading the decoders for the info panel, then confirmed on
+  the installed build** by opening copies of the samples under other names.
+  On this machine (code page 950, Big5):
+
+  | Path | RAW (DNG) | HEIC |
+  |---|---|---|
+  | ASCII | decoded | decoded |
+  | Traditional Chinese name | decoded | **failed** |
+  | ASCII name in a folder called 照片 | decoded | **failed** |
+  | Simplified Chinese or emoji name | **200x150 thumbnail, via Qt** | **failed** |
+
+- Cause: both libraries were given `path.toLocal8Bit()`. libheif reads a
+  `char*` path as UTF-8, so every non-ASCII character broke it. LibRaw's
+  `char*` open goes through the ANSI code page, so only characters outside it
+  did -- and then the Qt decoder, next in line, opened the same file and
+  returned the thumbnail from its first TIFF directory, with nothing on
+  screen to say so.
+- Fix: LibRaw is opened through its UTF-16 overload; libheif is given the
+  file's bytes, mapped through QFile, and never sees a path.
+- `UnicodePathTests`: nine names in two formats, each required to decode
+  through the right decoder at full size, and a RAW preview under an emoji
+  name. All six that mattered failed before the fix, in exactly the pattern
+  above. Two mutations put the old open calls back.
+- Every sample, fixture and real file in the project had an ASCII name, which
+  is why nothing caught this before.
+
 ## 2026-11-01 — info panel
 
 - `I` opens a side panel with what the camera recorded -- body, lens, focal

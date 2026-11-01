@@ -44,11 +44,11 @@ Last reviewed: 2026-11-01
 - [x] Cache eviction logged, so memory pressure leaves a trace
 
 ### Verification
-- [x] 141 unit tests over the pure logic; one reads the real CR2 and skips
+- [x] 153 unit tests over the pure logic; one reads the real CR2 and skips
       where that untracked file is absent, as on CI
 - [x] 83 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
-- [x] Mutation harness covering 32 reintroduced defects
+- [x] Mutation harness covering 34 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
       display scales on every push
 - [x] `tools/benchmark.ps1` with a committed baseline
@@ -68,15 +68,13 @@ Last reviewed: 2026-11-01
 
 ### Defects
 
-- [ ] **Paths outside the ANSI code page.** Found 2026-11-01, by opening
-      copies of the samples under different names with the installed build.
-      HEIC fails for *any* non-ASCII character in the path -- a Traditional
-      Chinese file name, or a plain name inside a folder called 照片. RAW
-      fails for characters outside Big5 (Simplified Chinese, emoji), and
-      worse, does so silently: the Qt decoder takes over and shows the
-      200x150 thumbnail from the file's first TIFF directory. The paths go to
-      LibRaw and libheif as `toLocal8Bit()`; libheif expects UTF-8, and
-      LibRaw's `char*` open goes through the ANSI code page.
+None known in the C++ source.
+
+Fixed 2026-11-01, the same day it was found: **paths outside the ANSI code
+page.** HEIC failed for any non-ASCII character in the path -- a Traditional
+Chinese file name, or a plain one inside a folder called 照片 -- and RAW, for
+names outside Big5, silently showed the 200x150 thumbnail from the file's
+first TIFF directory. See `CHANGELOG.md`.
 
 Two were listed here on first writing and both were already fixed — checked
 rather than assumed, which is the only reason to keep a list like this at all:

@@ -57,7 +57,7 @@ before a long afternoon of CMake errors.
 Two layers, deliberately different in kind.
 
 ```
-cpp\build\tests\unit_tests.exe                     141 tests, no display, about a second
+cpp\build\tests\unit_tests.exe                     153 tests, no display, about a second
 cpp\build\tests\functional_tests.exe               83 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
@@ -108,7 +108,7 @@ Reintroduces every defect this project has fixed and checks the suites go red
 for it. A green suite says nothing until it can fail, and this has twice caught
 tests that passed for the wrong reason.
 
-Last run, 2026-11-01 — all 32 applied and caught. The suite runs three times
+Last run, 2026-11-01 — all 34 applied and caught. The suite runs three times
 per mutation: unit, functional at 1x, functional at 2x display scaling.
 
 | Defect put back | Unit | Functional 1x | Functional 2x |
@@ -128,6 +128,8 @@ per mutation: unit, functional at 1x, functional at 2x display scaling.
 | Actions never grey out | | 1 | 1 |
 | Stale decodes allowed on screen | | 1 | 1 |
 | Log lines buffered, not flushed | | 1 | 1 |
+| RAW opened by its ANSI path again | 3 | | |
+| HEIF opened by its ANSI path again | 3 | | |
 | 1:1 ignores display scaling | | | **8** |
 | Fit compares logical size, not physical | | | **1** |
 | A turn rotates the view, not the image | | 13 | 13 |
@@ -305,6 +307,7 @@ of these are the kind of mistake that is easy to make twice.
 | A correct 640-pixel width measured as 642 at 1.5x | `mapFromScene` returns an integer polygon whose inclusive bounding rect is a pixel wider, then multiplied by 1.5. A measurement defect, not a rendering one — but it failed a correct build | `transform().mapRect`, which does not round |
 | A green baseline reported as broken | The harness was changed to return three results and its closing check still read two; bash put "0 0" into the second name, which is not "0" | the closing check reads all three, the same way the opening one does |
 | The log test passed on stale content, and the log was not written during tests at all | It checked only that the log file was not empty, and the development machine's log held every earlier session. Inside `qExec`, QTest installs its own message handler, which keeps messages for the report and forwards none, so nothing a test logs reaches the file. The first CI run, on a machine with no earlier session, found the file empty | `main()` logs a marker unique to the run before any suite starts, and the test reads the file back for it; a mutation that stops flushing each line now fails it |
+| A HEIC in a folder called 照片 would not open; a RAW named in Simplified Chinese opened at 200x150 | Paths went to LibRaw and libheif as `toLocal8Bit()`. libheif reads its `char*` as UTF-8, so any non-ASCII character failed; LibRaw's goes through the ANSI code page, so characters outside it failed -- and then the Qt decoder succeeded on the same file by returning the thumbnail in its first TIFF directory. Every sample and test file had an ASCII name, so nothing had ever exercised it | LibRaw opened through its UTF-16 overload, libheif given the mapped bytes; `UnicodePathTests`, nine names in two formats, which on a CI runner's code page 1252 are all outside it |
 | Three mutations reported SKIP and tested nothing | Their anchors spanned lines, and inside bash double quotes `\n` is a backslash and an n. The harness printed SKIP and carried on as though that were neutral | single-line anchors; SKIP now fails the run like a survivor does |
 
 The pattern worth noticing: more than half were found by *running* the thing and

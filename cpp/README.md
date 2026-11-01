@@ -61,7 +61,7 @@ cpp\env.cmd test                          unit
 cpp\build\tests\functional_tests.exe      end to end
 ```
 
-**`unit_tests`** -- 141 passing test functions over the pure logic: container
+**`unit_tests`** -- 153 passing test functions over the pure logic: container
 sniffing, decoder ranking, the byte-budgeted cache, format behaviour against
 the sample files, and reading and wording the camera's EXIF record. No
 display, under a second.
@@ -90,7 +90,7 @@ passed, and said so into a closed stream.
 .msys64\usr\bin\bash -lc "bash cpp/tools/mutate.sh"
 ```
 
-Reintroduces sixteen defects this project has fixed, and sixteen likely
+Reintroduces eighteen defects this project has fixed, and sixteen likely
 mistakes in the newer work, and checks the suites go red for each. A green suite says nothing until it can fail, and this has twice
 caught tests that were passing for the wrong reason. The full table is in
 [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).

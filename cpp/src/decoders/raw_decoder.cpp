@@ -1,11 +1,13 @@
 #include "raw_decoder.h"
 
+#include <QDir>
 #include <QFileInfo>
 
 #include <libraw/libraw.h>
 
 #include <cstring>
 #include <memory>
+#include <string>
 
 namespace decoders {
 namespace {
@@ -31,6 +33,18 @@ QImage toQImage(const libraw_processed_image_t &source)
     for (int y = 0; y < source.height; ++y)
         std::memcpy(image.scanLine(y), source.data + static_cast<qsizetype>(y) * stride, stride);
     return image;
+}
+
+/// Open by the UTF-16 path, through LibRaw's Windows overload. The char*
+/// overload goes through the ANSI code page, and this used to pass
+/// toLocal8Bit(): a name outside Big5 here (Simplified Chinese, an emoji)
+/// failed to open, and the Qt decoder then succeeded on the same file by
+/// returning the 200x150 thumbnail from its first TIFF directory -- a RAW
+/// shown at thumbnail size with nothing to say why.
+int openRaw(LibRaw &raw, const QString &path)
+{
+    const std::wstring native = QDir::toNativeSeparators(path).toStdWString();
+    return raw.open_file(native.c_str());
 }
 
 /// What LibRaw read from the file's own metadata when it opened it. RAW
@@ -116,7 +130,7 @@ std::optional<DecodedImage> RawDecoder::loadPreview(const QString &path,
     Q_UNUSED(container);
 
     LibRaw raw;
-    if (raw.open_file(path.toLocal8Bit().constData()) != LIBRAW_SUCCESS)
+    if (openRaw(raw, path) != LIBRAW_SUCCESS)
         return std::nullopt;
 
     const QSize full(raw.imgdata.sizes.width, raw.imgdata.sizes.height);
@@ -172,7 +186,7 @@ std::optional<DecodedImage> RawDecoder::loadFull(const QString &path,
     Q_UNUSED(container);
 
     LibRaw raw;
-    int status = raw.open_file(path.toLocal8Bit().constData());
+    int status = openRaw(raw, path);
     if (status != LIBRAW_SUCCESS) {
         if (error)
             *error = QString::fromLatin1(LibRaw::strerror(status));

@@ -8,6 +8,7 @@
 
 #include <QRegularExpression>
 #include <QtEndian>
+#include <QTemporaryDir>
 #include <QTemporaryFile>
 
 #include <cstdio>
@@ -547,6 +548,84 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// Paths Windows can name but the ANSI code page cannot.
+///
+/// LibRaw and libheif were handed `toLocal8Bit()`. A HEIC anywhere under a
+/// folder called 照片 would not open, and a RAW named in Simplified Chinese
+/// opened as the 200x150 thumbnail from its first TIFF directory, because
+/// when the RAW decoder failed the Qt decoder took over and succeeded. These
+/// copy the samples to such names and require the right decoder and the
+/// full size. On CI the code page is 1252, so every row below is outside it.
+class UnicodePathTests : public QObject
+{
+    Q_OBJECT
+
+    QTemporaryDir m_dir;
+
+    static QString sample(const char *name)
+    {
+        return QStringLiteral(PICVIEWER_SAMPLES_DIR "/") + QLatin1String(name);
+    }
+
+private slots:
+    void initTestCase() { QVERIFY(m_dir.isValid()); }
+
+    void decodesUnderAnyName_data()
+    {
+        QTest::addColumn<QString>("source");
+        QTest::addColumn<QString>("name");
+        QTest::addColumn<QString>("decoder");
+        QTest::addColumn<QSize>("size");
+        const QSize raw(800, 600), heif(640, 480);
+        QTest::newRow("RAW, ASCII") << "synthetic.dng" << "plain.dng" << "raw" << raw;
+        QTest::newRow("RAW, Traditional Chinese")
+            << "synthetic.dng" << QStringLiteral("繁體測試.dng") << "raw" << raw;
+        QTest::newRow("RAW, Simplified Chinese")
+            << "synthetic.dng" << QStringLiteral("简体们.dng") << "raw" << raw;
+        QTest::newRow("RAW, emoji") << "synthetic.dng" << QStringLiteral("emoji😀.dng") << "raw" << raw;
+        QTest::newRow("RAW, in a Chinese folder")
+            << "synthetic.dng" << QStringLiteral("照片/inside.dng") << "raw" << raw;
+        QTest::newRow("HEIC, ASCII") << "sample.heic" << "plain.heic" << "heif" << heif;
+        QTest::newRow("HEIC, Traditional Chinese")
+            << "sample.heic" << QStringLiteral("繁體測試.heic") << "heif" << heif;
+        QTest::newRow("HEIC, Simplified Chinese")
+            << "sample.heic" << QStringLiteral("简体们.heic") << "heif" << heif;
+        QTest::newRow("HEIC, in a Chinese folder")
+            << "sample.heic" << QStringLiteral("照片/inside.heic") << "heif" << heif;
+    }
+
+    void decodesUnderAnyName()
+    {
+        QFETCH(QString, source);
+        QFETCH(QString, name);
+        QFETCH(QString, decoder);
+        QFETCH(QSize, size);
+
+        const QString path = m_dir.filePath(name);
+        QDir().mkpath(QFileInfo(path).absolutePath());
+        QFile::remove(path);
+        QVERIFY(QFile::copy(sample(source.toLatin1().constData()), path));
+
+        decoders::DecodeError error;
+        const auto image = decoders::Registry::instance().loadFull(path, QSize(), &error);
+        QVERIFY2(image, qPrintable("did not decode: " + error.message));
+        QCOMPARE(image->metadata.value(QStringLiteral("decoder")), decoder);
+        QCOMPARE(image->fullSize, size);
+    }
+
+    void aRawPreviewOpensUnderAnyName()
+    {
+        const QString path = m_dir.filePath(QStringLiteral("预览😀.dng"));
+        QFile::remove(path);
+        QVERIFY(QFile::copy(sample("synthetic.dng"), path));
+        const auto plain = decoders::Registry::instance().loadPreview(sample("synthetic.dng"), QSize(512, 512));
+        const auto preview = decoders::Registry::instance().loadPreview(path, QSize(512, 512));
+        QCOMPARE(preview.has_value(), plain.has_value());
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 /// What the camera recorded: reading it, and putting it into words.
 class PhotoInfoTests : public QObject
 {
@@ -944,6 +1023,7 @@ int main(int argc, char **argv)
     ScoringTests scoringTests;
     CacheTests cacheTests;
     DecodeTests decodeTests;
+    UnicodePathTests unicodePathTests;
     PhotoInfoTests photoInfoTests;
 
     const QList<QPair<QObject *, QString>> suites = {
@@ -951,6 +1031,7 @@ int main(int argc, char **argv)
         {&scoringTests, QStringLiteral("scoring")},
         {&cacheTests, QStringLiteral("cache")},
         {&decodeTests, QStringLiteral("decode")},
+        {&unicodePathTests, QStringLiteral("unicode-paths")},
         {&photoInfoTests, QStringLiteral("photo-info")},
     };
 
