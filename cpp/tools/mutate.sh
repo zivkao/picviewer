@@ -188,6 +188,12 @@ mutate "1:1 ignores display scaling" "viewer.cpp"     '    return QTransform::fr
 
 mutate "fit compares logical size, not physical" "viewer.cpp"     '    const QSizeF screen = QSizeF(viewport()->size()) * ratio;'     '    const QSizeF screen = QSizeF(viewport()->size());'
 
+# Lines held in the stream's buffer are what a crash takes with it, and the
+# last lines before a crash are the ones worth having.
+mutate "log lines buffered, not flushed" "applog.cpp" \
+    '             << message << '"'"'\n'"'"';' \
+    '             << message << '"'"'\n'"'"'; if (false)'
+
 mutate "stale decodes allowed on screen" "window.cpp" \
     '        return;     // the user moved on while this was decoding' \
     '        {}          // the user moved on while this was decoding'

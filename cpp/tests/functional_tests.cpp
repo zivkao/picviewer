@@ -31,6 +31,17 @@
 namespace {
 
 QString samplesDir() { return QStringLiteral(PICVIEWER_SAMPLES_DIR); }
+
+/// Logged by main() before any suite runs, and looked for in the log file.
+/// It has to be then: inside qExec QTest installs its own message handler,
+/// which keeps every message for the test report and passes none on, so
+/// nothing a test logs reaches the application's log at all.
+const QString &startupMarker()
+{
+    static const QString marker = QStringLiteral("functional tests started, run %1")
+                                      .arg(QDateTime::currentMSecsSinceEpoch());
+    return marker;
+}
 QString sample(const char *name) { return samplesDir() + QLatin1Char('/') + QLatin1String(name); }
 
 /// Spin the event loop until *predicate* holds or the deadline passes.
@@ -554,9 +565,16 @@ private slots:
 
     void theLogIsBeingWritten()
     {
-        const QFileInfo log(applog::filePath());
-        QVERIFY2(log.exists(), qPrintable("no log at " + log.filePath()));
-        QVERIFY(log.size() > 0);
+        // Looks for the line main() logged at startup, unique to this run.
+        // This used to check only that the file was not empty, which on any
+        // machine with a log from an earlier session passed whether or not
+        // anything was written now. A fresh CI runner, with no earlier
+        // session, is what showed the file was in fact empty.
+        QFile log(applog::filePath());
+        QVERIFY2(log.open(QIODevice::ReadOnly), qPrintable("cannot read " + log.fileName()));
+        QVERIFY2(QString::fromUtf8(log.readAll()).contains(startupMarker()),
+                 "the line logged at startup is not in the file; it is still "
+                 "buffered, or the log is going somewhere else");
     }
 };
 
@@ -1157,6 +1175,7 @@ int main(int argc, char **argv)
 
     QApplication app(argc, argv);       // widgets, so QApplication not QGuiApplication
     applog::install(false);
+    qInfo().noquote() << startupMarker();
     std::printf("display scale %s\n\n", scale.constData());
 
     DropRoutingTests dropRouting;

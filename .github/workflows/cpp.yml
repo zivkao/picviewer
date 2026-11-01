@@ -28,8 +28,11 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
+      # MINGW64 draws a deprecation warning from this action, and MSYS2 has
+      # been thinning that repository out (exiv2, for one, is UCRT64 only).
+      # Left unsuppressed on purpose: moving to UCRT64 is in docs/TASKS.md.
       - uses: msys2/setup-msys2@v2
         id: msys2
         with:

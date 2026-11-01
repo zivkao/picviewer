@@ -44,7 +44,9 @@ Last reviewed: 2026-11-01
 - [x] 100 unit tests over the pure logic, none skipped
 - [x] 74 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
-- [x] Mutation harness covering 25 reintroduced defects
+- [x] Mutation harness covering 26 reintroduced defects
+- [x] CI: GitHub Actions builds from nothing and runs both layers at three
+      display scales on every push
 - [x] `tools/benchmark.ps1` with a committed baseline
 - [x] `tools/verify_package.ps1` — the installed copy, with no toolchain on PATH
 
@@ -84,7 +86,6 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
       canvas handles `DevicePixelRatioChange` by recomputing the transform so
       the chosen zoom survives, but no test changes the ratio of a running
       window -- that needs two real displays at different scaling.
-- [ ] **No CI.** Everything runs on one machine when somebody remembers.
 
 ### Performance
 - [ ] **Fujifilm X-Trans takes 5.5 s to demosaic**, about four times a Bayer
@@ -112,6 +113,14 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
 - [ ] EXIF detail panel.
 - [ ] Any settings at all. The cache budget, zoom limits and prefetch radius
       are constants in the source.
+
+### Toolchain
+- [ ] **Move from MINGW64 to UCRT64.** MSYS2 is thinning the MINGW64
+      repository out -- 1,648 packages against UCRT64's 3,945 when checked on
+      2026-11-01, with exiv2 among those already gone -- and the CI action
+      marks MINGW64 deprecated. Everything this project uses is still there
+      today. Moving means a new `.msys64` package set, a rebuild, and the
+      packaging scripts re-verified, since UCRT64 links a different C runtime.
 
 ### Packaging
 - [ ] 139 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never

@@ -65,6 +65,16 @@ cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 
 **Unit tests** cover pure logic: container sniffing, decoder ranking, the
 byte-budgeted cache, and format behaviour against the sample files.
 
+**CI.** `.github/workflows/cpp.yml` runs the unit suite and the functional
+suite at 1x, 1.5x and 2x on every push and pull request, on a clean Windows
+runner that installs the toolchain from MSYS2 at the time of the run. That is
+deliberately not the `.msys64` snapshot: a failure there with a green local
+run means either the change depends on something only this machine has, or an
+upstream package moved, and the job prints the package versions so the two
+can be told apart. The application log is uploaded as an artifact when
+anything fails. Its first run found a test that had only ever passed because
+of leftovers on the development machine; see the defect table.
+
 **Functional tests** drive a real `MainWindow` with real events — drag and drop
 sent to actual widgets, keystrokes through `QTest::keyClick`, menus and toolbar
 state read off the real objects. The Python versions of these printed
@@ -98,8 +108,10 @@ Reintroduces every defect this project has fixed and checks the suites go red
 for it. A green suite says nothing until it can fail, and this has twice caught
 tests that passed for the wrong reason.
 
-Last run, 2026-11-01 — all 25 applied and caught. The suite runs three times
-per mutation: unit, functional at 1x, functional at 2x display scaling.
+Last full run, 2026-11-01 — all 25 applied and caught. The 26th, "log lines
+buffered", was added after it and checked on its own at 1x: caught by one
+test. The suite runs three times per mutation: unit, functional at 1x,
+functional at 2x display scaling.
 
 | Defect put back | Unit | Functional 1x | Functional 2x |
 |---|---|---|---|
@@ -117,6 +129,7 @@ per mutation: unit, functional at 1x, functional at 2x display scaling.
 | Fullscreen leaves the chrome on screen | | 1 | 1 |
 | Actions never grey out | | 1 | 1 |
 | Stale decodes allowed on screen | | 1 | 1 |
+| Log lines buffered, not flushed | | 1 | not yet run |
 | 1:1 ignores display scaling | | | **8** |
 | Fit compares logical size, not physical | | | **1** |
 | A turn rotates the view, not the image | | 13 | 13 |
@@ -275,6 +288,7 @@ of these are the kind of mistake that is easy to make twice.
 | Two of the high-DPI tests passed with the fix reverted | They asked `scaleFactor()` whether the zoom was 1:1, and its definition was reverted along with the fix. The code's idea of 1:1 and its transform agreed with each other, and both disagreed with the screen | assertions on the transform times the ratio, never on `scaleFactor()` |
 | A correct 640-pixel width measured as 642 at 1.5x | `mapFromScene` returns an integer polygon whose inclusive bounding rect is a pixel wider, then multiplied by 1.5. A measurement defect, not a rendering one — but it failed a correct build | `transform().mapRect`, which does not round |
 | A green baseline reported as broken | The harness was changed to return three results and its closing check still read two; bash put "0 0" into the second name, which is not "0" | the closing check reads all three, the same way the opening one does |
+| The log test passed on stale content, and the log was not written during tests at all | It checked only that the log file was not empty, and the development machine's log held every earlier session. Inside `qExec`, QTest installs its own message handler, which keeps messages for the report and forwards none, so nothing a test logs reaches the file. The first CI run, on a machine with no earlier session, found the file empty | `main()` logs a marker unique to the run before any suite starts, and the test reads the file back for it; a mutation that stops flushing each line now fails it |
 | Three mutations reported SKIP and tested nothing | Their anchors spanned lines, and inside bash double quotes `\n` is a backslash and an n. The harness printed SKIP and carried on as though that were neutral | single-line anchors; SKIP now fails the run like a survivor does |
 
 The pattern worth noticing: more than half were found by *running* the thing and

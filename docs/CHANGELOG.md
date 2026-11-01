@@ -7,6 +7,27 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-01 — CI
+
+- `.github/workflows/cpp.yml`: on every push, a clean Windows runner installs
+  the toolchain from MSYS2, builds, and runs the unit suite and the functional
+  suite at 1x, 1.5x and 2x. About three minutes. The application log is
+  uploaded when anything fails.
+- **The first run failed, and was right to.** `theLogIsBeingWritten` checked
+  only that the log file was not empty. The development machine's log holds
+  every earlier session, so it always passed there; on the runner the file
+  was empty. Inside `qExec`, QTest installs its own message handler and
+  forwards nothing, so no line a test logs reaches the application's log.
+  The test now looks for a marker `main()` logs before any suite starts,
+  unique to the run. A 26th mutation, which stops the logger flushing each
+  line, fails it.
+- **Corrected:** the empty file was first put down to Windows not updating a
+  file's directory-entry size while it is held open. Reading the file back
+  showed the line was simply not there; the QTest handler was the cause.
+- The runner flags MINGW64 as deprecated, and MSYS2's MINGW64 repository is
+  shrinking: 1,648 packages against UCRT64's 3,945, exiv2 already gone. Moving
+  the toolchain to UCRT64 is now in `TASKS.md`.
+
 ## 2026-11-01 — rotate and flip
 
 - `R` / `L` turn the picture a quarter right or left, `H` / `V` mirror it.
