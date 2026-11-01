@@ -68,6 +68,18 @@ photoinfo::PhotoInfo photoInfo(const LibRaw &raw)
     // so reading it back as local time recovers the wall clock as written.
     if (data.other.timestamp > 0)
         info.taken = QDateTime::fromSecsSinceEpoch(data.other.timestamp);
+
+    const libraw_gps_info_t &gps = data.other.parsed_gps;
+    if (gps.gpsparsed) {
+        const auto degrees = [](const float parts[3], char ref, char negative) {
+            const double value = parts[0] + parts[1] / 60.0 + parts[2] / 3600.0;
+            return ref == negative ? -value : value;
+        };
+        photoinfo::setPosition(info, degrees(gps.latitude, gps.latref, 'S'),
+                               degrees(gps.longitude, gps.longref, 'W'));
+        if (info.latitude)
+            info.altitude = gps.altref == 1 ? -double(gps.altitude) : double(gps.altitude);
+    }
     return info;
 }
 

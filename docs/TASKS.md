@@ -37,8 +37,9 @@ Last reviewed: 2026-11-01
 - [x] Rotate and flip for viewing (R / L / H / V); the file is never
       rewritten, and copy hands over the image as shown
 - [x] Info panel (I): camera, lens, focal length, aperture, shutter, ISO,
-      exposure bias, date taken, and the file's own details. RAW via LibRaw,
-      JPEG and HEIC/AVIF via libexif
+      exposure bias, date taken, GPS position as a map link, and the file's
+      own details. RAW via LibRaw; JPEG, PNG, WebP, TIFF and HEIC/AVIF EXIF
+      via libexif, a TIFF's directories condensed first
 - [x] Failures drawn on the canvas rather than raised as dialogs
 - [x] Settings (Ctrl+,): memory cache, how many images to decode ahead,
       slideshow interval; window size, position and open panels remembered.
@@ -52,9 +53,9 @@ Last reviewed: 2026-11-01
 - [x] Cache eviction logged, so memory pressure leaves a trace
 
 ### Verification
-- [x] 169 unit tests over the pure logic; those reading the real camera
+- [x] 182 unit tests over the pure logic; those reading the real camera
       files skip where those untracked files are absent, as on CI
-- [x] 105 functional tests driving a real window offscreen, run at 1x, 1.5x
+- [x] 109 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
 - [x] Mutation harness covering 34 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
@@ -130,8 +131,6 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
       naively it re-encodes a JPEG and loses quality on every save. It wants
       lossless JPEG transforms (jpegtran-style, on whole MCU blocks) or an
       EXIF orientation edit, and neither applies to RAW or HEIC.
-- [ ] Info panel, what it does not read yet: EXIF in TIFF, PNG and WebP;
-      GPS position.
 
 ### Packaging
 - [ ] 139 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never

@@ -27,8 +27,11 @@ InfoPanel::InfoPanel(QWidget *parent)
     m_label->setTextFormat(Qt::RichText);
     m_label->setWordWrap(true);
     m_label->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-    // Selectable, so a lens name or a date can be copied out.
-    m_label->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    // Selectable, so a lens name or a date can be copied out; and the
+    // location opens a map, but only when clicked -- nothing is looked up.
+    m_label->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::LinksAccessibleByMouse
+                                     | Qt::LinksAccessibleByKeyboard);
+    m_label->setOpenExternalLinks(true);
 
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(10, 8, 10, 8);
@@ -63,7 +66,7 @@ void InfoPanel::showImage(const QString &path, const decoders::DecodedImage &ima
     const Rows camera = photoinfo::rows(image.info);
     present(camera, camera.isEmpty() ? QStringLiteral("No camera information in this file")
                                      : QString(),
-            fileRows);
+            fileRows, photoinfo::mapUrl(image.info));
 }
 
 void InfoPanel::showFailure(const QString &path)
@@ -77,13 +80,19 @@ void InfoPanel::showFailure(const QString &path)
     present({}, QStringLiteral("Could not be decoded"), fileRows);
 }
 
+QString InfoPanel::richText() const
+{
+    return m_label->text();
+}
+
 void InfoPanel::clear()
 {
     m_plain = QStringLiteral("No image");
     m_label->setText(QStringLiteral("<p style='color:gray'>No image</p>"));
 }
 
-void InfoPanel::present(const Rows &camera, const QString &cameraNote, const Rows &file)
+void InfoPanel::present(const Rows &camera, const QString &cameraNote, const Rows &file,
+                        const QString &mapUrl)
 {
     QString html;
     QStringList plain;
@@ -99,9 +108,12 @@ void InfoPanel::present(const Rows &camera, const QString &cameraNote, const Row
             return;
         html += QStringLiteral("<table cellspacing='0' cellpadding='2'>");
         for (const auto &[label, value] : rows) {
+            QString shown = value.toHtmlEscaped();
+            if (label == QLatin1String("Location") && !mapUrl.isEmpty())
+                shown = QStringLiteral("<a href='%1'>%2</a>").arg(mapUrl.toHtmlEscaped(), shown);
             html += QStringLiteral("<tr><td style='color:gray; padding-right:10px'>%1</td>"
                                    "<td>%2</td></tr>")
-                        .arg(label.toHtmlEscaped(), value.toHtmlEscaped());
+                        .arg(label.toHtmlEscaped(), shown);
             plain << QStringLiteral("  %1: %2").arg(label, value);
         }
         html += QStringLiteral("</table>");

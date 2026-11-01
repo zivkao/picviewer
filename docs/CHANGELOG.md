@@ -7,6 +7,28 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-02 — position, and EXIF from every container
+
+- The info panel shows a GPS position and altitude, read from EXIF's GPS
+  directory or, for RAW, from LibRaw. The position is a link to OpenStreetMap
+  that opens only if clicked. 0,0 is treated as no fix, since that is what a
+  camera without one writes.
+- EXIF is now read from PNG (an `eXIf` chunk), WebP (an `EXIF` chunk) and
+  TIFF as well as JPEG and HEIC. A TIFF's EXIF is in the file's own
+  directories, which libtiff writes after the pixel data, and libexif reads
+  only the first 64 KiB of what it is given. A unit test hands it a whole
+  TIFF with 100 KB of pixels first and confirms it finds nothing; the viewer
+  copies the entries it uses into a compact block instead.
+- Fixtures: PNG and WebP from Pillow; the TIFF written by hand in
+  `make_exif.py`, big-endian, directories after 90 KB of pixels, with a
+  position south and west. Pillow's own TIFF writer drops the EXIF and GPS
+  directories, so it could not make one. The HEIC fixture gained a position.
+- **The mutation harness reported a pass with a mutation that did not
+  compile.** An INVALID result was printed and then not counted, so the run
+  ended "every mutation was applied and caught". It now counts like SKIP: a
+  mutation that does not build tested nothing. The one that failed to build
+  was rewritten; all eight new mutations are caught.
+
 ## 2026-11-02 — animated GIF and WebP
 
 - Animated GIF and WebP play. The first frame comes through the decoders

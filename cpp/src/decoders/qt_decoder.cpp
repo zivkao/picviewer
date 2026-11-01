@@ -115,8 +115,15 @@ std::optional<DecodedImage> QtDecoder::loadFull(const QString &path,
     }
 
     DecodedImage result;
+    // Each container keeps EXIF somewhere of its own; the block is the same.
     if (format == "jpeg")
         result.info = photoinfo::fromExif(photoinfo::exifFromJpeg(path));
+    else if (format == "png")
+        result.info = photoinfo::fromExif(photoinfo::exifFromPng(path));
+    else if (format == "webp")
+        result.info = photoinfo::fromExif(photoinfo::exifFromWebp(path));
+    else if (format == "tiff")
+        result.info = photoinfo::fromExif(photoinfo::exifFromTiff(path));
     result.metadata.insert(QStringLiteral("format"), QString::fromLatin1(format).toUpper());
     if (image.colorSpace().isValid())
         result.metadata.insert(QStringLiteral("icc"), QStringLiteral("embedded"));

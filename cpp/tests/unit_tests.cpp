@@ -741,16 +741,38 @@ class PhotoInfoTests : public QObject
         {
             add(exifIfd, tag, 3, 1, u16(value));
         }
-
-        QByteArray bytes() const
+        /// A GPS position: references and degrees-minutes-seconds, as
+        /// cameras write it, and an altitude.
+        void position(double latitude, double longitude, quint32 metres, bool below = false)
         {
-            // Header, IFD0 (with a pointer to the EXIF IFD added), the EXIF
-            // IFD, then every value too long to sit in its entry.
-            const quint32 ifd0 = 8;
-            const quint32 ifd0Size = 2 + 12 * (m_ifd0.size() + 1) + 4;
+            const auto dms = [&](double value) {
+                value = std::abs(value);
+                const quint32 d = quint32(value);
+                const quint32 m = quint32((value - d) * 60);
+                const quint32 s = quint32(std::lround(((value - d) * 60 - m) * 60 * 10000));
+                return u32(d) + u32(1) + u32(m) + u32(1) + u32(s) + u32(10000);
+            };
+            m_gps << Entry{1, 2, 2, QByteArray(latitude < 0 ? "S" : "N") + '\0'}
+                  << Entry{2, 5, 3, dms(latitude)}
+                  << Entry{3, 2, 2, QByteArray(longitude < 0 ? "W" : "E") + '\0'}
+                  << Entry{4, 5, 3, dms(longitude)}
+                  << Entry{5, 1, 1, QByteArray(1, below ? '\1' : '\0')}
+                  << Entry{6, 5, 1, u32(metres) + u32(1)};
+        }
+
+        /// *padding* bytes sit between the header and the first directory,
+        /// as pixel data does in a TIFF written by libtiff.
+        QByteArray bytes(quint32 padding = 0) const
+        {
+            // Header, IFD0 (with pointers to the EXIF and GPS IFDs added),
+            // those IFDs, then every value too long to sit in its entry.
+            const quint32 ifd0 = 8 + padding;
+            const quint32 ifd0Size = 2 + 12 * (m_ifd0.size() + 1 + (m_gps.isEmpty() ? 0 : 1)) + 4;
             const quint32 exif = ifd0 + ifd0Size;
             const quint32 exifSize = 2 + 12 * m_exif.size() + 4;
-            const quint32 overflowAt = exif + exifSize;
+            const quint32 gps = exif + exifSize;
+            const quint32 gpsSize = m_gps.isEmpty() ? 0 : 2 + 12 * m_gps.size() + 4;
+            const quint32 overflowAt = gps + gpsSize;
 
             QByteArray overflow;
             const auto directory = [&](QList<Entry> entries) {
@@ -771,10 +793,15 @@ class PhotoInfoTests : public QObject
 
             QList<Entry> first = m_ifd0;
             first << Entry{0x8769, 4, 1, u32(exif)};
+            if (!m_gps.isEmpty())
+                first << Entry{0x8825, 4, 1, u32(gps)};
             QByteArray out = m_big ? QByteArray("MM\0*", 4) : QByteArray("II*\0", 4);
             out += u32(ifd0);
+            out += QByteArray(padding, '\x55');
             out += directory(first);
             out += directory(m_exif);
+            if (!m_gps.isEmpty())
+                out += directory(m_gps);
             return out + overflow;
         }
 
@@ -801,6 +828,7 @@ class PhotoInfoTests : public QObject
         bool m_big;
         QList<Entry> m_ifd0;
         QList<Entry> m_exif;
+        QList<Entry> m_gps;
     };
 
     static Block typicalBlock(bool bigEndian, bool withDate)
@@ -1006,6 +1034,125 @@ private slots:
         QVERIFY(!photoinfo::exifFromJpeg(path).isEmpty());
         QVERIFY(photoinfo::fromExif(photoinfo::exifFromJpeg(path)).isEmpty());
         QVERIFY(photoinfo::exifFromJpeg(QStringLiteral(PICVIEWER_SAMPLES_DIR "/sample.png")).isEmpty());
+    }
+
+    // -- position ---------------------------------------------------------------
+
+    void gpsPositionsReadWithTheirSigns_data()
+    {
+        QTest::addColumn<bool>("bigEndian");
+        QTest::addColumn<double>("latitude");
+        QTest::addColumn<double>("longitude");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("Taipei, N E, big-endian")
+            << true << 25.033964 << 121.564472 << QStringLiteral("25.033964° N, 121.564472° E");
+        QTest::newRow("Rio, S W, little-endian")
+            << false << -22.951916 << -43.210487 << QStringLiteral("22.951916° S, 43.210487° W");
+        QTest::newRow("Reykjavik, N W")
+            << true << 64.146582 << -21.942635 << QStringLiteral("64.146582° N, 21.942635° W");
+    }
+    void gpsPositionsReadWithTheirSigns()
+    {
+        QFETCH(bool, bigEndian);
+        QFETCH(double, latitude);
+        QFETCH(double, longitude);
+        QFETCH(QString, expected);
+        Block block = typicalBlock(bigEndian, true);
+        block.position(latitude, longitude, 31);
+        const photoinfo::PhotoInfo info = photoinfo::fromExif(block.bytes());
+        QCOMPARE(photoinfo::location(info), expected);
+        QVERIFY(info.altitude.has_value());
+        QCOMPARE(*info.altitude, 31.0);
+    }
+
+    void belowSeaLevelIsNegative()
+    {
+        Block block = typicalBlock(true, true);
+        block.position(31.5, 35.5, 430, true);      // the Dead Sea shore
+        QCOMPARE(*photoinfo::fromExif(block.bytes()).altitude, -430.0);
+    }
+
+    void zeroZeroIsNoFixRatherThanAPlace()
+    {
+        // What a camera writes when it has no fix: a point in the Gulf of
+        // Guinea, and not where anybody took the photograph.
+        Block block = typicalBlock(true, true);
+        block.position(0, 0, 0);
+        const photoinfo::PhotoInfo info = photoinfo::fromExif(block.bytes());
+        QVERIFY(!info.latitude.has_value());
+        QVERIFY(photoinfo::location(info).isEmpty());
+        QVERIFY(photoinfo::mapUrl(info).isEmpty());
+    }
+
+    void theMapLinkCarriesThePosition()
+    {
+        photoinfo::PhotoInfo info;
+        photoinfo::setPosition(info, -22.951916, -43.210487);
+        QCOMPARE(photoinfo::mapUrl(info),
+                 QStringLiteral("https://www.openstreetmap.org/?mlat=-22.951916&mlon=-43.210487"
+                                "#map=16/-22.951916/-43.210487"));
+    }
+
+    // -- PNG, WebP, TIFF --------------------------------------------------------
+
+    void tiffDirectoriesPastSixtyFourKilobytesStillRead()
+    {
+        // libexif reads at most 64 KiB of a block, and a TIFF written by
+        // libtiff puts its directories after the pixels. Handed the whole
+        // file it sees nothing; condensed first, everything.
+        QByteArray tiff = typicalBlock(true, true).bytes(100'000);
+        QVERIFY(tiff.size() > 100'000);
+        QVERIFY2(photoinfo::fromExif(tiff).model.isEmpty(),
+                 "libexif read past 64 KiB after all -- the condensing may not be needed");
+        const photoinfo::PhotoInfo info = photoinfo::fromExif(photoinfo::exifFromTiffBytes(tiff));
+        QCOMPARE(info.model, QStringLiteral("NIKON Z 6"));
+        QCOMPARE(info.iso, 800);
+        QCOMPARE(info.taken, QDateTime(QDate(2024, 12, 31), QTime(23, 59, 58)));
+    }
+
+    void tiffCondensingKeepsThePosition()
+    {
+        Block block = typicalBlock(false, true);
+        block.position(-22.951916, -43.210487, 700);
+        const photoinfo::PhotoInfo info =
+            photoinfo::fromExif(photoinfo::exifFromTiffBytes(block.bytes(70'000)));
+        QCOMPARE(photoinfo::location(info), QStringLiteral("22.951916° S, 43.210487° W"));
+        QCOMPARE(*info.altitude, 700.0);
+    }
+
+    void brokenContainersGiveNothing()
+    {
+        QVERIFY(photoinfo::exifFromTiffBytes(QByteArray()).isEmpty());
+        QVERIFY(photoinfo::exifFromTiffBytes(QByteArray("MM\0*\xff\xff\xff\xff", 8)).isEmpty());
+        QVERIFY(photoinfo::exifFromTiffBytes(typicalBlock(true, true).bytes().left(20)).isEmpty());
+        // The right reader on the wrong file finds nothing, and does not crash.
+        QVERIFY(photoinfo::exifFromPng(fixture("exif_camera.jpg")).isEmpty());
+        QVERIFY(photoinfo::exifFromWebp(fixture("exif_camera.jpg")).isEmpty());
+        QVERIFY(photoinfo::exifFromJpeg(fixture("exif_png.png")).isEmpty());
+    }
+
+    void everyContainerCarriesTheRecord_data()
+    {
+        QTest::addColumn<QString>("file");
+        QTest::addColumn<QString>("location");
+        QTest::newRow("PNG eXIf") << "exif_png.png" << QString();
+        QTest::newRow("WebP EXIF") << "exif_webp.webp" << QString();
+        QTest::newRow("TIFF, directories after the pixels")
+            << "exif_tiff.tif" << QStringLiteral("22.951916° S, 43.210487° W");
+        QTest::newRow("HEIC, with a position")
+            << "exif_phone.heic" << QStringLiteral("25.033964° N, 121.564472° E");
+    }
+    void everyContainerCarriesTheRecord()
+    {
+        QFETCH(QString, file);
+        QFETCH(QString, location);
+        decoders::DecodeError error;
+        const auto image = decoders::Registry::instance().loadFull(
+            fixture(file.toLatin1().constData()), QSize(), &error);
+        QVERIFY2(image, qPrintable(error.message));
+        QVERIFY2(!image->info.model.isEmpty(), "no camera record came through");
+        QVERIFY(image->info.aperture > 0);
+        QCOMPARE(photoinfo::location(image->info), location);
     }
 
     // -- through the decoders ---------------------------------------------------

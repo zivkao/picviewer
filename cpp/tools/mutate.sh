@@ -106,8 +106,13 @@ p.write_text(s.replace(os.environ['FROM'], os.environ['TO'], 1), encoding='utf-8
     cp /tmp/orig.bak "$path"
 
     if [ "$unit" = "$BUILD_FAILED" ]; then
-        printf '%-46s INVALID (build failed)\n' "$label"
+        # A mutation that does not compile tested nothing, exactly like one
+        # whose anchor was missing, and is counted the same way. It was not
+        # at first, and a run reported "every mutation was applied and
+        # caught" with one of them INVALID.
+        printf '%-46s INVALID (build failed), nothing tested\n' "$label"
         tail -4 /tmp/build.log | sed 's/^/      | /'
+        problems=$((problems + 1))
         return
     fi
 
@@ -281,6 +286,42 @@ mutate "the panel keeps the last image's details" "window.cpp" \
 mutate "fullscreen leaves the panel up" "window.cpp" \
     '        m_infoDock->hide();' \
     '        {}'
+
+# -- the info panel: more containers, and position ---------------------------
+
+mutate "panel: PNG EXIF never looked for" "decoders/qt_decoder.cpp" \
+    '    else if (format == "png")' \
+    '    else if (format == "png-")'
+
+mutate "panel: WebP EXIF never looked for" "decoders/qt_decoder.cpp" \
+    '    else if (format == "webp")' \
+    '    else if (format == "webp-")'
+
+mutate "panel: a TIFF handed to libexif whole" "photoinfo.cpp" \
+    '        return exifFromTiffBytes(QByteArray::fromRawData(reinterpret_cast<const char *>(mapped), size));' \
+    '        return QByteArray(reinterpret_cast<const char *>(mapped), size);'
+
+# The GPS pointer then falls through as an ordinary entry, still holding its
+# offset into the original file, which means nothing in the condensed one.
+mutate "panel: condensing a TIFF drops its GPS" "photoinfo.cpp" \
+    '        } else if (e.tag == TagGpsPointer) {' \
+    '        } else if (false) {'
+
+mutate "panel: south and west not negated" "photoinfo.cpp" \
+    '    return text(ref).startsWith(negative, Qt::CaseInsensitive) ? -value : value;' \
+    '    return value;'
+
+mutate "panel: GPS minutes and seconds ignored" "photoinfo.cpp" \
+    '    const double value = parts[0] + parts[1] / 60 + parts[2] / 3600;' \
+    '    const double value = parts[0];'
+
+mutate "panel: 0,0 taken for a place" "photoinfo.cpp" \
+    '        || (*latitude == 0 && *longitude == 0))' \
+    '        || false)'
+
+mutate "panel: the location is not a link" "infopanel.cpp" \
+    '            if (label == QLatin1String("Location") && !mapUrl.isEmpty())' \
+    '            if (false)'
 
 # -- animation -----------------------------------------------------------------
 

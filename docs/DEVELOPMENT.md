@@ -60,8 +60,8 @@ before a long afternoon of CMake errors.
 Two layers, deliberately different in kind.
 
 ```
-cpp\build\tests\unit_tests.exe                     169 tests, no display, about a second
-cpp\build\tests\functional_tests.exe               105 tests, a real window, offscreen
+cpp\build\tests\unit_tests.exe                     182 tests, no display, about a second
+cpp\build\tests\functional_tests.exe               109 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
 
@@ -276,8 +276,13 @@ behind a 4-byte offset. exiv2 would have read every format, RAW included, but
 MSYS2 did not build it for MINGW64, where this started; on UCRT64 it is
 available, but libexif does what is needed and is small. Two
 details: libexif's default of "following the specification" rewrites and adds
-entries on load, so it is turned off -- the panel shows what the camera wrote;
-and EXIF in TIFF, PNG and WebP is not read yet. It is read in the decoder, on
+entries on load, so it is turned off -- the panel shows what the camera wrote.
+PNG and WebP carry the block in a chunk of their own. A TIFF is harder: its
+EXIF lives in the file's own directories, which libtiff writes after the
+pixels, and libexif reads no more than the first 64 KiB of a block -- a test
+hands it a whole file to show it finds nothing. So the entries the panel
+uses are copied into a compact block first. A GPS position is shown as a link
+to OpenStreetMap that opens only if clicked; nothing is looked up. It is read in the decoder, on
 the worker thread, so it is cached with the image and costs the GUI nothing.
 
 **Settings are an INI file, and the tests never see the real one.**

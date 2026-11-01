@@ -1164,6 +1164,9 @@ private slots:
         QFile broken(m_dir.filePath(QStringLiteral("d_broken.jpg")));
         QVERIFY(broken.open(QIODevice::WriteOnly));
         broken.write("\xff\xd8 this is not a JPEG beyond its first two bytes");
+        QVERIFY(!copy(fixture("exif_png.png"), QStringLiteral("e_png.png")).isEmpty());
+        QVERIFY(!copy(fixture("exif_webp.webp"), QStringLiteral("f_webp.webp")).isEmpty());
+        QVERIFY(!copy(fixture("exif_tiff.tif"), QStringLiteral("g_tiff.tif")).isEmpty());
     }
 
     void iOpensAndClosesThePanel()
@@ -1196,12 +1199,24 @@ private slots:
             << "b_phone.heic"
             << QStringList{"Camera: Apple iPhone 13", "Focal length: 5.1 mm (26 mm equivalent)",
                            "Aperture: f/1.6", "Shutter: 1/60 s", "ISO: 125",
-                           "Taken: 2025-06-02 08:05:09", "Format: HEIF"}
+                           "Taken: 2025-06-02 08:05:09", "Format: HEIF",
+                           "Location: 25.033964° N, 121.564472° E", "Altitude: 12 m"}
             << QStringList{"Exposure bias"};
         QTest::newRow("PNG, no camera")
             << "c_plain.png"
             << QStringList{"No camera information in this file", "Name: c_plain.png"}
             << QStringList{"Camera: ", "Taken:"};
+        QTest::newRow("PNG with eXIf")
+            << "e_png.png" << QStringList{"Camera: Canon EOS R5", "Aperture: f/5.6", "Format: PNG"}
+            << QStringList{"No camera information", "Location"};
+        QTest::newRow("WebP with EXIF")
+            << "f_webp.webp" << QStringList{"Camera: Canon EOS R5", "Shutter: 1/250 s"}
+            << QStringList{"No camera information"};
+        QTest::newRow("TIFF, directories after the pixels, south and west")
+            << "g_tiff.tif"
+            << QStringList{"Camera: Canon EOS R5", "ISO: 400",
+                           "Location: 22.951916° S, 43.210487° W", "Altitude: 700 m"}
+            << QStringList{"No camera information"};
     }
 
     void itShowsWhatTheCameraRecorded()
@@ -1222,6 +1237,20 @@ private slots:
             QVERIFY2(text.contains(line), qPrintable("missing \"" + line + "\" in:\n" + text));
         for (const QString &line : absent)
             QVERIFY2(!text.contains(line), qPrintable("unexpected \"" + line + "\" in:\n" + text));
+    }
+
+    void theLocationIsALinkToAMap()
+    {
+        // A link, and only a link: the map opens if the user clicks it, and
+        // nothing is looked up otherwise.
+        MainWindow window;
+        window.show();
+        window.openPath(m_dir.filePath(QStringLiteral("b_phone.heic")));
+        QVERIFY(waitForImage(window));
+        const QString rich = window.infoPanel()->richText();
+        QVERIFY2(rich.contains(QStringLiteral(
+                     "<a href='https://www.openstreetmap.org/?mlat=25.033964&amp;mlon=121.564472")),
+                 qPrintable(rich));
     }
 
     void theNextImageReplacesTheDetails()

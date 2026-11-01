@@ -32,11 +32,15 @@ public:
     /// Everything shown, as "label: value" lines under section headings --
     /// what the tests read, rather than the rich text drawn on screen.
     QString text() const { return m_plain; }
+    /// The rich text drawn, links and all.
+    QString richText() const;
 
 private:
     using Rows = QList<QPair<QString, QString>>;
 
-    void present(const Rows &camera, const QString &cameraNote, const Rows &file);
+    /// *mapUrl*, if given, makes the Location row a link the user may follow.
+    void present(const Rows &camera, const QString &cameraNote, const Rows &file,
+                 const QString &mapUrl = {});
 
     QLabel *m_label;
     QString m_plain;
