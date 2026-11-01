@@ -11,12 +11,15 @@
 
 #include <QtTest>
 
+#include <QClipboard>
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
 #include <QMenuBar>
+#include <QGraphicsItem>
 #include <QMimeData>
+#include <QPainter>
 #include <QProcess>
 #include <QStatusBar>
 #include <QToolBar>
@@ -483,9 +486,12 @@ private slots:
         MainWindow window;
         window.show();
 
-        // Nothing open: navigation, deletion and zoom have nothing to act on.
+        // Nothing open: navigation, deletion, zoom and turns have nothing to
+        // act on.
         const QStringList shouldBeOff = {"&Previous", "&Next", "&Delete",
-                                         "&Fit to Window", "Show in E&xplorer"};
+                                         "&Fit to Window", "Show in E&xplorer",
+                                         "Rotate &Right", "Rotate &Left",
+                                         "Flip &Horizontal", "Flip &Vertical"};
         for (QAction *action : window.actions()) {
             if (shouldBeOff.contains(action->text()))
                 QVERIFY2(!action->isEnabled(),
@@ -826,6 +832,281 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// Rotate and flip, for viewing only.
+///
+/// What can go wrong here is mostly invisible to a test that asks the code
+/// what it did: a turn the wrong way round, a flip and a turn composed in the
+/// wrong order, a fit computed for the image as it was before it was turned.
+/// So these read the answer off the rendered canvas, from an image whose
+/// orientation shows in its colours.
+class OrientationTests : public QObject
+{
+    Q_OBJECT
+
+    QTemporaryDir m_dir;
+
+    /// Red top-left, green top-right, blue bottom-left, yellow bottom-right.
+    static QImage quadrants(int width, int height)
+    {
+        QImage image(width, height, QImage::Format_RGB32);
+        QPainter painter(&image);
+        const int w = width / 2;
+        const int h = height / 2;
+        painter.fillRect(0, 0, w, h, Qt::red);
+        painter.fillRect(w, 0, width - w, h, Qt::green);
+        painter.fillRect(0, h, w, height - h, Qt::blue);
+        painter.fillRect(w, h, width - w, height - h, Qt::yellow);
+        return image;
+    }
+
+    /// The colour a fraction of the way across and down the image as drawn,
+    /// read from the rendered canvas rather than from any state of the view.
+    static QColor colourOnScreen(const ImageView &view, qreal across, qreal down)
+    {
+        const QRect shown = view.mapFromScene(view.scene()->itemsBoundingRect()).boundingRect();
+        const qreal ratio = view.viewport()->devicePixelRatio();
+        const QImage shot = view.viewport()->grab().toImage();
+        const QPointF logical(shown.x() + shown.width() * across,
+                              shown.y() + shown.height() * down);
+        return shot.pixelColor((logical * ratio).toPoint());
+    }
+
+    static bool near(const QColor &a, const QColor &b)
+    {
+        return qAbs(a.red() - b.red()) < 40 && qAbs(a.green() - b.green()) < 40
+               && qAbs(a.blue() - b.blue()) < 40;
+    }
+
+    static QString name(const QColor &colour)
+    {
+        static const QList<QPair<QColor, QString>> names = {
+            {Qt::red, "red"}, {Qt::green, "green"}, {Qt::blue, "blue"}, {Qt::yellow, "yellow"}};
+        for (const auto &[known, label] : names) {
+            if (near(colour, known))
+                return label;
+        }
+        return colour.name();
+    }
+
+    static Qt::Key keyFor(QChar letter)
+    {
+        switch (letter.toLatin1()) {
+        case 'R': return Qt::Key_R;
+        case 'L': return Qt::Key_L;
+        case 'H': return Qt::Key_H;
+        case 'V': return Qt::Key_V;
+        }
+        return Qt::Key_unknown;
+    }
+
+private slots:
+    void initTestCase()
+    {
+        QVERIFY(m_dir.isValid());
+        QVERIFY(quadrants(240, 160).save(m_dir.filePath(QStringLiteral("turn.png"))));
+        // A different size, so the test can tell when it is on screen.
+        QVERIFY(quadrants(200, 100).save(m_dir.filePath(QStringLiteral("other.png"))));
+    }
+
+    void keysTurnTheImageAndTheStatusSaysSo_data()
+    {
+        QTest::addColumn<QString>("keys");
+        QTest::addColumn<QColor>("topLeft");
+        QTest::addColumn<QColor>("topRight");
+        QTest::addColumn<QString>("label");     // empty: upright, nothing shown
+
+        const QColor red(Qt::red), green(Qt::green), blue(Qt::blue), yellow(Qt::yellow);
+        QTest::newRow("R: clockwise") << "R" << blue << red << QStringLiteral("rotated 90°");
+        QTest::newRow("L: counter-clockwise")
+            << "L" << green << yellow << QStringLiteral("rotated 270°");
+        QTest::newRow("RR: upside down") << "RR" << yellow << blue << QStringLiteral("rotated 180°");
+        QTest::newRow("RRRR: round again") << "RRRR" << red << green << QString();
+        QTest::newRow("H: mirrored") << "H" << green << red << QStringLiteral("flipped horizontally");
+        QTest::newRow("V: upside-down mirror")
+            << "V" << blue << yellow << QStringLiteral("flipped vertically");
+        QTest::newRow("HH: back again") << "HH" << red << green << QString();
+        QTest::newRow("HV: same as a half turn")
+            << "HV" << yellow << blue << QStringLiteral("rotated 180°");
+        // The two that say order matters. Turn-then-flip and flip-then-turn
+        // are different pictures, and the user means the order they pressed.
+        QTest::newRow("RH: turn, then flip")
+            << "RH" << red << blue << QStringLiteral("rotated 270°, flipped");
+        QTest::newRow("HR: flip, then turn")
+            << "HR" << yellow << green << QStringLiteral("rotated 90°, flipped");
+    }
+
+    void keysTurnTheImageAndTheStatusSaysSo()
+    {
+        QFETCH(QString, keys);
+        QFETCH(QColor, topLeft);
+        QFETCH(QColor, topRight);
+        QFETCH(QString, label);
+
+        MainWindow window;
+        window.resize(900, 600);
+        window.show();
+        window.openPath(m_dir.filePath(QStringLiteral("turn.png")));
+        QVERIFY(waitForImage(window));
+
+        for (const QChar letter : keys)
+            QTest::keyClick(&window, keyFor(letter));
+        QTest::qWait(40);
+
+        const QColor seenLeft = colourOnScreen(*window.view(), 0.25, 0.25);
+        const QColor seenRight = colourOnScreen(*window.view(), 0.75, 0.25);
+        QVERIFY2(near(seenLeft, topLeft) && near(seenRight, topRight),
+                 qPrintable(QStringLiteral("after %1 the top row reads %2, %3; expected %4, %5")
+                                .arg(keys, name(seenLeft), name(seenRight), name(topLeft),
+                                     name(topRight))));
+
+        const QStringList status = window.statusText().split(QStringLiteral("   "));
+        if (label.isEmpty())
+            QVERIFY2(!window.statusText().contains(QStringLiteral("rotated"))
+                         && !window.statusText().contains(QStringLiteral("flipped")),
+                     qPrintable("upright, but the status bar reads: " + window.statusText()));
+        else
+            QVERIFY2(status.contains(label),
+                     qPrintable("status bar reads: " + window.statusText()));
+    }
+
+    void aNewImageStartsUpright()
+    {
+        MainWindow window;
+        window.resize(900, 600);
+        window.show();
+        window.openPath(m_dir.filePath(QStringLiteral("turn.png")));
+        QVERIFY(waitForImage(window));
+        QTest::keyClick(&window, Qt::Key_R);
+        QVERIFY(!window.view()->orientation().isIdentity());
+
+        window.step(1);
+        QVERIFY(waitFor([&] { return window.view()->pixmap().size() == QSize(200, 100); }));
+        QVERIFY2(window.view()->orientation().isIdentity(),
+                 qPrintable("the next image arrived " + describeOrientation(window.view()->orientation())));
+        QVERIFY2(!window.statusText().contains(QStringLiteral("rotated")),
+                 qPrintable("status bar reads: " + window.statusText()));
+    }
+
+    void theSharperDecodeKeepsTheTurn()
+    {
+        // A RAW shows its embedded preview first and swaps in the full decode
+        // a second or more later. A turn made in that second is the user's,
+        // and the swap must not undo it.
+        ImageView view;
+        view.resize(400, 300);
+        view.show();
+        view.setImage(quadrants(120, 80));
+        view.rotateClockwise();
+        view.setImage(quadrants(240, 160), true);
+        QTest::qWait(30);
+
+        QCOMPARE(describeOrientation(view.orientation()), QStringLiteral("rotated 90°"));
+        QCOMPARE(view.sceneRect().size(), QSizeF(160, 240));
+        QVERIFY2(near(colourOnScreen(view, 0.25, 0.25), Qt::blue),
+                 qPrintable("top-left reads " + name(colourOnScreen(view, 0.25, 0.25))));
+    }
+
+    void aTurnKeepsTheZoom()
+    {
+        // The turn belongs to the image, not the view. The view's transform
+        // is the zoom, read as its m11 -- and a quarter turn makes m11 zero.
+        ImageView view;
+        view.resize(400, 300);
+        view.show();
+        view.setImage(quadrants(1200, 800));
+        view.zoomToActual();
+        view.rotateClockwise();
+        QTest::qWait(30);
+
+        QCOMPARE(view.scaleFactor(), 1.0);
+        const qreal width = view.transform().mapRect(view.scene()->itemsBoundingRect()).width()
+                            * view.viewport()->devicePixelRatio();
+        QVERIFY2(qAbs(width - 800.0) < 0.5,
+                 qPrintable(QStringLiteral("turned at 1:1, the 800-pixel side is %1 screen "
+                                           "pixels wide").arg(width)));
+    }
+
+    void fitMeasuresTheImageAsTurned()
+    {
+        // 3000x1000 fitted to a 400x300 canvas is limited by its width. Turned,
+        // it is 1000x3000 and limited by its height; fitting it by the old
+        // shape would leave it taller than the canvas.
+        ImageView view;
+        view.resize(400, 300);
+        view.show();
+        view.setImage(quadrants(3000, 1000));
+        view.fit();
+        view.rotateClockwise();
+        QTest::qWait(30);
+
+        const QRect onScreen = view.mapFromScene(view.scene()->itemsBoundingRect()).boundingRect();
+        const QRect canvas = view.viewport()->rect();
+        QVERIFY2(onScreen.height() <= canvas.height() + 1 && onScreen.width() <= canvas.width() + 1,
+                 qPrintable(QStringLiteral("turned and fitted, the image is %1x%2 in a %3x%4 canvas")
+                                .arg(onScreen.width()).arg(onScreen.height())
+                                .arg(canvas.width()).arg(canvas.height())));
+        // Fitted, not merely small: the long side fills the canvas.
+        QVERIFY2(onScreen.height() >= canvas.height() - 8,
+                 qPrintable(QStringLiteral("turned and fitted, the image is %1 tall in a %2 canvas")
+                                .arg(onScreen.height()).arg(canvas.height())));
+        QVERIFY(qAbs(onScreen.center().x() - canvas.center().x()) <= 2);
+    }
+
+    void zoomedInTheDetailStaysUnderTheCentre()
+    {
+        ImageView view;
+        view.resize(400, 300);
+        view.show();
+        view.setImage(quadrants(2000, 1600));
+        view.zoomToActual();
+
+        QGraphicsItem *item = view.scene()->items().constFirst();
+        const QPointF detail(500, 400);
+        view.centerOn(item->mapToScene(detail));
+        const auto underCentre = [&] {
+            return item->mapFromScene(view.mapToScene(view.viewport()->rect().center()));
+        };
+        // Scrolling is in whole logical pixels, each worth `ratio` image
+        // pixels at 1:1, and centring rounds once before the turn and once
+        // after. Losing the detail altogether is hundreds of pixels.
+        const qreal slack = 2 * view.viewport()->devicePixelRatio() + 1;
+        const auto closeTo = [&](const QPointF &p) {
+            return qAbs(p.x() - detail.x()) <= slack && qAbs(p.y() - detail.y()) <= slack;
+        };
+        QVERIFY(closeTo(underCentre()));     // the premise
+
+        view.rotateClockwise();
+        QTest::qWait(30);
+        const QPointF now = underCentre();
+        QVERIFY2(closeTo(now),
+                 qPrintable(QStringLiteral("looking at image pixel (500, 400) before the turn "
+                                           "and (%1, %2) after it")
+                                .arg(qRound(now.x())).arg(qRound(now.y()))));
+    }
+
+    void copyHandsOverTheImageAsShown()
+    {
+        MainWindow window;
+        window.resize(900, 600);
+        window.show();
+        window.openPath(m_dir.filePath(QStringLiteral("turn.png")));
+        QVERIFY(waitForImage(window));
+
+        QTest::keyClick(&window, Qt::Key_R);
+        QTest::keyClick(&window, Qt::Key_C, Qt::ControlModifier);
+        QTest::qWait(40);
+
+        const QImage copied = QApplication::clipboard()->image();
+        QCOMPARE(copied.size(), QSize(160, 240));
+        QVERIFY2(near(copied.pixelColor(40, 60), Qt::blue),
+                 qPrintable("the copy's top-left is " + name(copied.pixelColor(40, 60))));
+        QVERIFY2(near(copied.pixelColor(120, 60), Qt::red),
+                 qPrintable("the copy's top-right is " + name(copied.pixelColor(120, 60))));
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 namespace {
 
 int runSuite(QObject *suite, const QString &name, int &passed, int &failed)
@@ -885,6 +1166,7 @@ int main(int argc, char **argv)
     ChromeTests chrome;
     FailureTests failures;
     HighDpiTests highDpi;
+    OrientationTests orientation;
 
     const QList<QPair<QObject *, QString>> suites = {
         {&dropRouting, QStringLiteral("drop-routing")},
@@ -894,6 +1176,7 @@ int main(int argc, char **argv)
         {&chrome, QStringLiteral("chrome")},
         {&failures, QStringLiteral("failures")},
         {&highDpi, QStringLiteral("high-dpi")},
+        {&orientation, QStringLiteral("orientation")},
     };
 
     int exitCode = 0;

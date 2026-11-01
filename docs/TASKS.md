@@ -3,7 +3,7 @@
 Status of the C++ viewer. The Python build is feature-frozen; see the root
 README for what it is.
 
-Last reviewed: 2026-10-25
+Last reviewed: 2026-11-01
 
 ---
 
@@ -28,6 +28,8 @@ Last reviewed: 2026-10-25
 - [x] Actions grey out when they cannot act
 - [x] Fullscreen hides the chrome; Escape leaves it rather than quitting
 - [x] Copy to clipboard, reveal in Explorer, delete to the Recycle Bin
+- [x] Rotate and flip for viewing (R / L / H / V); the file is never
+      rewritten, and copy hands over the image as shown
 - [x] Failures drawn on the canvas rather than raised as dialogs
 
 ### Diagnostics
@@ -39,9 +41,9 @@ Last reviewed: 2026-10-25
 
 ### Verification
 - [x] 100 unit tests over the pure logic, none skipped
-- [x] 56 functional tests driving a real window offscreen, run at 1x and 2x
-      display scaling
-- [x] Mutation harness covering 16 reintroduced defects
+- [x] 74 functional tests driving a real window offscreen, run at 1x, 1.5x
+      and 2x display scaling
+- [x] Mutation harness covering 25 reintroduced defects
 - [x] `tools/benchmark.ps1` with a committed baseline
 - [x] `tools/verify_package.ps1` — the installed copy, with no toolchain on PATH
 
@@ -101,14 +103,17 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
 - [ ] Thumbnail strip. The disk-backed thumbnail cache it needs is the real
       work; the decoder layer already takes a `maxSize` for it.
 - [ ] Animated GIF and WebP. Frame 0 is shown.
-- [ ] Rotate and flip.
+- [ ] Saving a turn back to the file. Left out on purpose for now: done
+      naively it re-encodes a JPEG and loses quality on every save. It wants
+      lossless JPEG transforms (jpegtran-style, on whole MCU blocks) or an
+      EXIF orientation edit, and neither applies to RAW or HEIC.
 - [ ] Slideshow.
 - [ ] EXIF detail panel.
 - [ ] Any settings at all. The cache budget, zoom limits and prefetch radius
       are constants in the source.
 
 ### Packaging
-- [ ] 139 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never
+- [ ] 140 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never
       calls. They cannot simply be deleted — libheif imports them at load time
       and will not load without them — so this needs libheif rebuilt without
       them, or a build that loads codecs as plugins.

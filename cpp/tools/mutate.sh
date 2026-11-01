@@ -3,10 +3,13 @@
 #
 #   .msys64\usr\bin\bash -lc "bash cpp/tools/mutate.sh"
 #
-# A green suite says nothing until it can fail. Every mutation below is code
-# that was actually shipped at some point, and each one is written to keep the
-# surrounding code valid, so a failure is the tests objecting rather than the
-# compiler refusing.
+# A green suite says nothing until it can fail. Most mutations below are code
+# that actually shipped at some point; the orientation ones are the likeliest
+# mistakes, pinned in advance. Each is written to keep the surrounding code
+# valid, so a failure is the tests objecting rather than the compiler refusing.
+#
+# Start it from PowerShell or cmd, not from Git Bash: launched from another
+# MSYS runtime, this bash loses USERNAME, and the failures suite needs it.
 #
 # Two things this harness learned the hard way:
 #   - The MSYS2 python is a native Windows build and cannot resolve /d/...
@@ -188,6 +191,46 @@ mutate "fit compares logical size, not physical" "viewer.cpp"     '    const QSi
 mutate "stale decodes allowed on screen" "window.cpp" \
     '        return;     // the user moved on while this was decoding' \
     '        {}          // the user moved on while this was decoding'
+
+# -- orientation -------------------------------------------------------------
+# Unlike the rest, none of these shipped. They are the likeliest ways to get
+# rotate and flip wrong, pinned before any of them could.
+
+mutate "a turn rotates the view, not the image" "viewer.cpp" \
+    '    m_orientation = m_orientation * step;' \
+    '    setTransform(transform() * step); return;'
+
+mutate "turn and flip composed in the wrong order" "viewer.cpp" \
+    '    m_orientation = m_orientation * step;' \
+    '    m_orientation = step * m_orientation;'
+
+mutate "clockwise turns counter-clockwise" "viewer.cpp" \
+    'void ImageView::rotateClockwise() { reorient(QTransform().rotate(90)); }' \
+    'void ImageView::rotateClockwise() { reorient(QTransform().rotate(-90)); }'
+
+mutate "the next image inherits the turn" "viewer.cpp" \
+    '        m_orientation = QTransform();   // a new image starts upright' \
+    '        {}                              // a new image starts upright'
+
+mutate "the full RAW decode undoes the turn" "viewer.cpp" \
+    '    if (!keepView)' \
+    '    if (true)'
+
+mutate "fit measures the image unturned" "viewer.cpp" \
+    '    m_scene->setSceneRect(m_item->sceneBoundingRect());' \
+    '    m_scene->setSceneRect(m_item->boundingRect());'
+
+mutate "zoomed in, a turn loses the detail" "viewer.cpp" \
+    '        centerOn(m_item->mapToScene(focus));' \
+    '        Q_UNUSED(focus);'
+
+mutate "copy hands over the unturned image" "window.cpp" \
+    '    QApplication::clipboard()->setPixmap(m_view->displayedPixmap());' \
+    '    QApplication::clipboard()->setPixmap(m_view->pixmap());'
+
+mutate "status bar keeps quiet about a turn" "window.cpp" \
+    '        parts << turned;' \
+    '        Q_UNUSED(turned);'
 
 echo
 echo "restoring and re-checking baseline"

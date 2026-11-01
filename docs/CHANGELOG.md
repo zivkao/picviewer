@@ -7,6 +7,34 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-01 — rotate and flip
+
+- `R` / `L` turn the picture a quarter right or left, `H` / `V` mirror it.
+  On the View menu, and ↺ ↻ on the toolbar. The status bar names the
+  orientation ("rotated 90°", "flipped horizontally"), the log records each
+  step, and `Ctrl+C` copies the image as shown. The file is never changed.
+- The turn is applied to the picture, not to the view. The view's transform
+  is the zoom, read as its `m11`, and a quarter turn makes `m11` zero; turning
+  the view would have broken the zoom readout, fit, and display scaling at
+  once.
+- A new image starts upright. The full decode of a RAW replacing its preview
+  keeps the turn, since it is the same picture. Zoomed in, the detail under
+  the centre stays there through a turn.
+- New `OrientationTests` suite (18 tests), reading colours off the rendered
+  canvas from a four-quadrant image, at 1x, 1.5x and 2x. Turn-then-flip and
+  flip-then-turn have a row each, because they are different pictures.
+- One test failed at 2x on first run: a zoomed-in detail drifted 4 image
+  pixels through a turn, against a tolerance of 6 pixels summed. That is
+  scroll rounding -- one logical pixel is two image pixels at 2x, and centring
+  rounds before and after the turn -- so the tolerance now scales with the
+  display ratio. Losing the detail is hundreds of pixels.
+- Nine mutations added to the harness for the likeliest ways to get this
+  wrong -- turning the view instead of the picture, composing in the wrong
+  order, clockwise the wrong way, keeping a turn into the next image, and so
+  on. All 25 now applied and caught; baseline green before and after.
+- `cpp/README.md` no longer claims the functional suites are unported; they
+  were ported on 2026-10-24.
+
 ## 2026-10-25 — display scaling, and RAW from three more makers
 
 - **"100%" was not 1:1 on a scaled display.** A `QGraphicsView` transform is

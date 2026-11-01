@@ -54,10 +54,12 @@ cpp\build\tests\functional_tests.exe      end to end
 decoder ranking, the byte-budgeted cache, and format behaviour against the
 sample files. No display, under a second.
 
-**`functional_tests`** -- 56 passing test functions driving a real `MainWindow` offscreen:
+**`functional_tests`** -- 74 passing test functions driving a real `MainWindow` offscreen:
 drag and drop sent to actual widgets, keystrokes through `QTest::keyClick`,
-menu and toolbar state read off the real objects, fullscreen, and a fixture of
-deny-read files that reproduces an unreadable-file failure.
+menu and toolbar state read off the real objects, fullscreen, a fixture of
+deny-read files that reproduces an unreadable-file failure, display scaling
+read back from rendered pixels, and rotate/flip read off the canvas from an
+image whose orientation shows in its colours.
 
 These assert rather than print, which is the one deliberate change from the
 Python suites they were ported from. Those printed observations and left a
@@ -76,8 +78,8 @@ passed, and said so into a closed stream.
 .msys64\usr\bin\bash -lc "bash cpp/tools/mutate.sh"
 ```
 
-Reintroduces sixteen defects this project has fixed and checks the suites go
-red for each. A green suite says nothing until it can fail, and this has twice
+Reintroduces sixteen defects this project has fixed, and nine likely ways to
+get rotate and flip wrong, and checks the suites go red for each. A green suite says nothing until it can fail, and this has twice
 caught tests that were passing for the wrong reason. The full table is in
 [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
 
@@ -190,10 +192,6 @@ session's operations, not what was measured or decided. That belongs in the
 baseline, the commit messages and these files.
 
 ## Not done
-
-The nine functional suites from the Python version are not ported -- drag and
-drop routing, keyboard shortcuts, menu and toolbar state, fullscreen chrome and
-the unreadable-file handling are implemented but only exercised by hand.
 
 Real RAW from four makers decodes -- Canon, Nikon, Sony, Fujifilm -- but one
 file each. Olympus, Panasonic, Pentax and Leica are unseen.

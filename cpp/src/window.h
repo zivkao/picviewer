@@ -108,6 +108,10 @@ private:
     QAction *m_actZoomOut = nullptr;
     QAction *m_actFit = nullptr;
     QAction *m_actActual = nullptr;
+    QAction *m_actRotateRight = nullptr;
+    QAction *m_actRotateLeft = nullptr;
+    QAction *m_actFlipH = nullptr;
+    QAction *m_actFlipV = nullptr;
     QAction *m_actFullscreen = nullptr;
     QAction *m_actLog = nullptr;
     QAction *m_actAbout = nullptr;

@@ -156,6 +156,28 @@ void MainWindow::buildActions()
                           [this] { m_view->fit(); }, SP::SP_FileIcon, false);
     m_actActual = makeAction(tr("&Actual Size"), keys({"1"}),
                              [this] { m_view->zoomToActual(); }, SP::SP_FileIcon, false);
+    // Viewing only: the file is never rewritten, so a turn cannot damage a
+    // photograph. It lasts until the next image.
+    const auto orient = [this](void (ImageView::*turn)()) {
+        return [this, turn] {
+            (m_view->*turn)();
+            const QString turned = describeOrientation(m_view->orientation());
+            qCInfo(logWindow).noquote()
+                << "orientation" << (turned.isEmpty() ? QStringLiteral("upright") : turned);
+            updateStatus();
+        };
+    };
+    m_actRotateRight = makeAction(tr("Rotate &Right"), keys({"R"}),
+                                  orient(&ImageView::rotateClockwise), SP::SP_FileIcon, false,
+                                  tr("Rotate clockwise"));
+    m_actRotateLeft = makeAction(tr("Rotate &Left"), keys({"L"}),
+                                 orient(&ImageView::rotateCounterClockwise), SP::SP_FileIcon, false,
+                                 tr("Rotate counter-clockwise"));
+    m_actFlipH = makeAction(tr("Flip &Horizontal"), keys({"H"}),
+                            orient(&ImageView::flipHorizontally), SP::SP_FileIcon, false);
+    m_actFlipV = makeAction(tr("Flip &Vertical"), keys({"V"}),
+                            orient(&ImageView::flipVertically), SP::SP_FileIcon, false);
+
     m_actFullscreen = makeAction(tr("F&ullscreen"), keys({"F11"}),
                                  [this] { toggleFullscreen(); }, SP::SP_TitleBarMaxButton, true);
 
@@ -197,6 +219,11 @@ void MainWindow::buildMenus()
     view->addAction(m_actFit);
     view->addAction(m_actActual);
     view->addSeparator();
+    view->addAction(m_actRotateRight);
+    view->addAction(m_actRotateLeft);
+    view->addAction(m_actFlipH);
+    view->addAction(m_actFlipV);
+    view->addSeparator();
     view->addAction(m_actFullscreen);
 
     QMenu *help = menuBar()->addMenu(tr("&Help"));
@@ -218,21 +245,30 @@ void MainWindow::buildToolBar()
     m_toolBar->addAction(m_actNext);
     m_toolBar->addSeparator();
 
-    // These four have no sensible standard icon, so they get short text
-    // instead of the blank square an icon-only button would show.
-    const QList<QPair<QAction *, QString>> textButtons = {
+    // These have no sensible standard icon, so they get short text instead
+    // of the blank square an icon-only button would show.
+    const auto addTextButtons = [this](const QList<QPair<QAction *, QString>> &buttons) {
+        for (const auto &[action, label] : buttons) {
+            auto *button = new QToolButton(m_toolBar);
+            button->setDefaultAction(action);
+            button->setText(label);
+            button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+            m_toolBar->addWidget(button);
+        }
+    };
+    addTextButtons({
         {m_actFit, QStringLiteral("Fit")},
         {m_actActual, QStringLiteral("1:1")},
         {m_actZoomOut, QStringLiteral("−")},
         {m_actZoomIn, QStringLiteral("+")},
-    };
-    for (const auto &[action, label] : textButtons) {
-        auto *button = new QToolButton(m_toolBar);
-        button->setDefaultAction(action);
-        button->setText(label);
-        button->setToolButtonStyle(Qt::ToolButtonTextOnly);
-        m_toolBar->addWidget(button);
-    }
+    });
+    m_toolBar->addSeparator();
+    // Turns only: they are what a sideways phone photo needs. Flips stay in
+    // the menu and on H / V, where they do not crowd the bar.
+    addTextButtons({
+        {m_actRotateLeft, QStringLiteral("↺")},
+        {m_actRotateRight, QStringLiteral("↻")},
+    });
 
     m_toolBar->addSeparator();
     m_toolBar->addAction(m_actFullscreen);
@@ -442,6 +478,8 @@ void MainWindow::updateStatus()
     if (const QString frames = m_currentMeta.value(QStringLiteral("frames")); !frames.isEmpty())
         parts << frames + QStringLiteral(" frames");
     parts << QStringLiteral("%1%").arg(qRound(m_view->scaleFactor() * 100));
+    if (const QString turned = describeOrientation(m_view->orientation()); !turned.isEmpty())
+        parts << turned;
     if (m_showingPreview)
         parts << QStringLiteral("preview...");
 
@@ -471,7 +509,8 @@ void MainWindow::updateActionState()
     m_actCopy->setEnabled(hasImage);
     for (QAction *action : {m_actPrev, m_actNext, m_actFirst, m_actLast})
         action->setEnabled(many);
-    for (QAction *action : {m_actZoomIn, m_actZoomOut, m_actFit, m_actActual})
+    for (QAction *action : {m_actZoomIn, m_actZoomOut, m_actFit, m_actActual,
+                            m_actRotateRight, m_actRotateLeft, m_actFlipH, m_actFlipV})
         action->setEnabled(hasImage);
 }
 
@@ -536,7 +575,9 @@ void MainWindow::copyCurrent()
 {
     if (!m_view->hasImage())
         return;
-    QApplication::clipboard()->setPixmap(m_view->pixmap());
+    // As shown, not as stored: having turned a sideways photo upright, the
+    // user expects to paste it upright.
+    QApplication::clipboard()->setPixmap(m_view->displayedPixmap());
     qCInfo(logWindow).noquote() << "copied" << QFileInfo(currentPath()).fileName() << "to clipboard";
     statusBar()->showMessage(tr("Copied to clipboard"), 2000);
 }

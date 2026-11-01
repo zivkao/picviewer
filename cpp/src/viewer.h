@@ -44,7 +44,20 @@ public:
     qreal scaleFactor() const { return transform().m11() * pixelRatio(); }
     const QPixmap pixmap() const { return m_item->pixmap(); }
 
+    /// Quarter turns and mirrors applied for viewing, composed in the order
+    /// the user asked for them. The file itself is never changed.
+    QTransform orientation() const { return m_orientation; }
+
+    /// The image as it appears on screen, rotated and mirrored -- what a copy
+    /// to the clipboard should hand over.
+    QPixmap displayedPixmap() const { return pixmap().transformed(m_orientation); }
+
 public slots:
+    void rotateClockwise();
+    void rotateCounterClockwise();
+    void flipHorizontally();
+    void flipVertically();
+
     void fit();
     void zoomToActual();
     void toggleFit();
@@ -86,6 +99,14 @@ private:
     /// The transform that shows one image pixel per screen pixel.
     QTransform oneToOne() const;
 
+    /// Apply a quarter turn or mirror on top of the current orientation.
+    void reorient(const QTransform &step);
+
+    /// Place the item for m_orientation and size the scene to match.
+    void updateItemTransform();
+
+    QTransform m_orientation;
+
     bool m_fitMode = true;
     /// The ratio the current transform was computed for. Kept so a move to a
     /// screen with different scaling can preserve the zoom the user chose.
@@ -96,3 +117,6 @@ private:
 
 /// Local filesystem paths carried by a drag, ignoring remote URLs.
 QStringList droppedPaths(const QMimeData *mime);
+
+/// "rotated 90°", "flipped horizontally" and so on; empty when upright.
+QString describeOrientation(const QTransform &orientation);

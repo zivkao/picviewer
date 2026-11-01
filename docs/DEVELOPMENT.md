@@ -42,7 +42,7 @@ Two layers, deliberately different in kind.
 
 ```
 cpp\build\tests\unit_tests.exe                     100 tests, no display, about a second
-cpp\build\tests\functional_tests.exe               56 tests, a real window, offscreen
+cpp\build\tests\functional_tests.exe               74 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
 
@@ -66,6 +66,12 @@ ratio, or the rendered pixels themselves — never `scaleFactor()`. That method
 is the code's own account of the zoom, and a test that asks the code whether
 it is right will agree with the code when it is wrong.
 
+The orientation tests follow the same rule. Their image has four coloured
+quadrants, and each test reads which colour landed top-left and top-right off
+the rendered canvas, so a turn the wrong way, or a turn and a flip composed in
+the wrong order, shows up as the wrong colour rather than as a matrix the code
+agrees with.
+
 ### Proving the tests are worth having
 
 ```
@@ -76,7 +82,7 @@ Reintroduces every defect this project has fixed and checks the suites go red
 for it. A green suite says nothing until it can fail, and this has twice caught
 tests that passed for the wrong reason.
 
-Last run, 2026-10-25 — all 16 applied and caught. The suite runs three times
+Last run, 2026-11-01 — all 25 applied and caught. The suite runs three times
 per mutation: unit, functional at 1x, functional at 2x display scaling.
 
 | Defect put back | Unit | Functional 1x | Functional 2x |
@@ -95,14 +101,29 @@ per mutation: unit, functional at 1x, functional at 2x display scaling.
 | Fullscreen leaves the chrome on screen | | 1 | 1 |
 | Actions never grey out | | 1 | 1 |
 | Stale decodes allowed on screen | | 1 | 1 |
-| 1:1 ignores display scaling | | | **7** |
+| 1:1 ignores display scaling | | | **8** |
 | Fit compares logical size, not physical | | | **1** |
+| A turn rotates the view, not the image | | 13 | 13 |
+| Turn and flip composed in the wrong order | | 2 | 2 |
+| Clockwise turns counter-clockwise | | 5 | 5 |
+| The next image inherits the turn | | 1 | 1 |
+| The full RAW decode undoes the turn | | 1 | 1 |
+| Fit measures the image unturned | | 2 | 2 |
+| Zoomed in, a turn loses the detail | | 1 | 1 |
+| Copy hands over the unturned image | | 1 | 1 |
+| Status bar keeps quiet about a turn | | 8 | 8 |
 
 The split is the useful part. Decoding and cache defects fall to the unit
 suite in about a second; window and canvas defects only to the functional
 suite; and the two display-scaling defects *only* to the run at 2x — at a
 ratio of 1 they change nothing, so a suite run only there would pass with both
 of them in. Neither layer, nor either scale, covers what the others do.
+
+The nine orientation rows are different in kind: none of them shipped. They
+are the likeliest ways to get rotate and flip wrong, added with the feature,
+so each of its tests was seen to fail before it was trusted to pass.
+"1:1 ignores display scaling" now fails eight tests rather than seven because
+one of the orientation tests checks that a turn at 1:1 stays 1:1 on screen.
 
 Add a mutation whenever a defect is fixed. If the suites stay green with the
 bug back in, the test that was supposed to guard it does not. A mutation whose
@@ -189,6 +210,20 @@ those is 1.5 physical ones, so the transform for 1:1 is a scale of `1/ratio`,
 not the identity — and fit decides whether an image fits by comparing it with
 the canvas's physical size. If the window moves to a screen with different
 scaling, the transform is recomputed so the chosen zoom survives.
+
+**Rotate and flip turn the picture, not the view, and never the file.** The
+turn is a transform on the pixmap item, about its centre; the view's own
+transform stays a pure zoom. That is not a matter of taste: `scaleFactor()`
+reads the zoom as the transform's `m11`, and a quarter turn makes `m11` zero —
+rotate the view and the status bar reads 0%, fit divides by nothing, and every
+display-scaling sum above breaks with it. The scene rect follows the turned
+item, so fit measures a portrait turned from a landscape as a portrait.
+Steps compose in the order pressed (turn-then-flip and flip-then-turn are
+different pictures). A new image starts upright; the full decode of a RAW
+replacing its preview keeps the turn, since it is the same picture sharper.
+Nothing is written back: a viewer that rewrites a photograph on a keypress
+risks the one thing a viewer must not, and re-encoding a JPEG loses quality
+even when nothing else goes wrong. Copy hands over the image as shown.
 
 **Failures are drawn on the canvas, not raised as dialogs.** Stepping through a
 folder of unreadable files would otherwise mean dismissing one modal per image.

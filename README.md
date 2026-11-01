@@ -35,6 +35,8 @@ argument still resolves against where you ran it.
 | wheel, `+` `-` | zoom at the cursor |
 | `0` / `1` / double-click | fit / actual size / toggle |
 | drag | pan |
+| `R` `L` | rotate right / left (C++ build) |
+| `H` `V` | flip horizontal / vertical (C++ build) |
 | `F11` | fullscreen |
 | `Del` | move to Recycle Bin |
 | `Esc` `Ctrl+Q` | leave fullscreen / quit |
@@ -45,6 +47,10 @@ files become the playlist themselves, and a folder opens everything in it.
 Everything is also on the menu bar (File / Go / View / Help) and the toolbar, so
 nothing is keyboard-only. Buttons grey out when they cannot act. `Ctrl+E` reveals
 the current file in Explorer, `Ctrl+C` copies the image to the clipboard.
+
+Rotating and flipping are for viewing only: the file on disk is never changed,
+and the next image starts upright. The status bar says when a picture is
+turned, and `Ctrl+C` copies it the way it is shown.
 
 ## Icon
 

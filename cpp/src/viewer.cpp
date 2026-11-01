@@ -8,6 +8,9 @@
 #include <QPainter>
 #include <QUrl>
 #include <QWheelEvent>
+#include <QtMath>
+
+#include <cmath>
 
 namespace {
 
@@ -31,6 +34,30 @@ QPixmap makeChecker()
 }
 
 } // namespace
+
+QString describeOrientation(const QTransform &orientation)
+{
+    if (orientation.isIdentity())
+        return {};
+
+    // Every combination of quarter turns and mirrors is one mirror (or none)
+    // followed by one rotation, so take the mirror out and read the angle
+    // that remains. QTransform::rotate is exact at multiples of 90 degrees,
+    // so the entries are 0 and +-1 and the angle comes out whole.
+    const bool mirrored = orientation.determinant() < 0;
+    const QTransform rotation = mirrored ? QTransform::fromScale(-1, 1) * orientation
+                                         : orientation;
+    int degrees = qRound(qRadiansToDegrees(std::atan2(rotation.m12(), rotation.m11())));
+    degrees = (degrees % 360 + 360) % 360;
+
+    if (!mirrored)
+        return QStringLiteral("rotated %1°").arg(degrees);
+    if (degrees == 0)
+        return QStringLiteral("flipped horizontally");
+    if (degrees == 180)
+        return QStringLiteral("flipped vertically");
+    return QStringLiteral("rotated %1°, flipped").arg(degrees);
+}
 
 QStringList droppedPaths(const QMimeData *mime)
 {
@@ -79,7 +106,13 @@ void ImageView::setImage(const QImage &image, bool keepView)
     m_hasAlpha = image.hasAlphaChannel();
     m_message.clear();
     m_item->setPixmap(QPixmap::fromImage(image));
-    m_scene->setSceneRect(QRectF(image.rect()));
+
+    // keepView means the same picture at better quality -- the full decode
+    // replacing a RAW's embedded preview -- so a turn made while the preview
+    // was up should survive. Anything else is a different picture.
+    if (!keepView)
+        m_orientation = QTransform();   // a new image starts upright
+    updateItemTransform();
 
     if (keepView && !m_fitMode)
         applyTransformationMode();
@@ -90,8 +123,57 @@ void ImageView::setImage(const QImage &image, bool keepView)
 void ImageView::clearImage()
 {
     m_item->setPixmap(QPixmap());
+    m_orientation = QTransform();
+    m_item->setTransform(QTransform());
     m_scene->setSceneRect(QRectF());
     viewport()->update();
+}
+
+// -- orientation -------------------------------------------------------------
+//
+// Applied to the item, never to the view. The view's transform *is* the zoom:
+// scaleFactor() reads its m11, and fit, 1:1 and every display-scaling sum rest
+// on that. A quarter turn makes m11 zero, so rotating the view would read as a
+// zoom of nothing.
+
+void ImageView::rotateClockwise() { reorient(QTransform().rotate(90)); }
+void ImageView::rotateCounterClockwise() { reorient(QTransform().rotate(-90)); }
+void ImageView::flipHorizontally() { reorient(QTransform::fromScale(-1, 1)); }
+void ImageView::flipVertically() { reorient(QTransform::fromScale(1, -1)); }
+
+void ImageView::reorient(const QTransform &step)
+{
+    if (!hasImage())
+        return;
+    // Zoomed in on a detail, the detail should still be under the centre
+    // after the turn, not wherever the scroll position now happens to land.
+    const QPointF focus = m_item->mapFromScene(mapToScene(viewport()->rect().center()));
+
+    // Right-multiplied: Qt maps points as p * M, so this applies the step
+    // after what is already there -- in screen terms, to the image as it is
+    // currently shown. Flip-then-rotate and rotate-then-flip differ, and the
+    // user means the order they pressed the keys in.
+    m_orientation = m_orientation * step;
+    updateItemTransform();
+    if (m_fitMode) {
+        fit();
+    } else {
+        centerOn(m_item->mapToScene(focus));
+        applyTransformationMode();
+    }
+    viewport()->update();
+}
+
+void ImageView::updateItemTransform()
+{
+    // About the image's own centre, so a turn leaves it where it was.
+    const QPointF centre = m_item->boundingRect().center();
+    m_item->setTransform(QTransform::fromTranslate(-centre.x(), -centre.y())
+                         * m_orientation
+                         * QTransform::fromTranslate(centre.x(), centre.y()));
+    // The scene is the image as shown, so a quarter turn swaps its sides and
+    // fit measures the right way round.
+    m_scene->setSceneRect(m_item->sceneBoundingRect());
 }
 
 bool ImageView::hasImage() const
