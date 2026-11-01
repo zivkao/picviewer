@@ -55,6 +55,18 @@ here instead of on somebody else's machine. This is what caught the packaged
 C++ build silently losing TIFF and WebP: its plugins were present but the
 libraries beneath them were not.
 
+## Checking the installer
+
+```
+powershell -ExecutionPolicy Bypass -File tools\verify_installer.ps1
+```
+
+Installs with the newest `cpp\dist\PicViewerCpp-*-setup.exe`, silently,
+checks every file, shortcut and registry entry it should have made, runs
+`verify_package.ps1` on the result, uninstalls through the command recorded
+for Settings > Apps, checks it all went, and installs again. It works on the
+real per-user locations, so it replaces whatever C++ build is installed.
+
 ## Exercising the real application
 
 ```

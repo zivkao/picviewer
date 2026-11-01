@@ -75,6 +75,9 @@ Last reviewed: 2026-11-01
 - [x] `deploy.sh` walks the dependency tree including plugins
 - [x] `trim.sh` removes only what verifies clean afterwards
 - [x] Per-user installer, side by side with the Python build, clean uninstall
+- [x] One-file installer, `PicViewerCpp-<version>-setup.exe`, 35 MB (NSIS);
+      the same install and uninstall entry as `install.ps1`, checked end to
+      end by `tools/verify_installer.ps1`
 - [x] Verified on real RAW from eight makers -- Canon CR2, Nikon NEF
       (lossless compressed), Sony ARW (compressed), Fujifilm RAF (X-Trans),
       Olympus ORF, Panasonic RW2 (a 2024 GH7), Pentax PEF, Leica DNG -- and a
@@ -131,15 +134,15 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
 ### Features
 
 ### Packaging
-- [ ] 139 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never
+- [ ] 141 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never
       calls. They cannot simply be deleted — libheif imports them at load time
       and will not load without them — so this needs libheif rebuilt without
-      them, or a build that loads codecs as plugins.
+      them. Decided against on 2026-11-02: a library to rebuild by hand on
+      every update, and a slower CI, for 42 MB.
 - [ ] ICU's data table is another 32 MB. Qt can be built against its own
       Unicode tables instead, which means rebuilding Qt.
-- [ ] No single-file installer. The current one is a PowerShell script; a
-      `.exe` would need Inno Setup or similar.
-- [ ] Unsigned, so SmartScreen will warn on another machine.
+- [ ] Unsigned, so SmartScreen will warn on another machine. Signing needs a
+      code-signing certificate, which is bought, not built.
 
 ---
 

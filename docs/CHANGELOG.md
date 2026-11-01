@@ -7,6 +7,30 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-02 — a one-file installer
+
+- `cpp/packaging/build_installer.sh` builds `PicViewerCpp-<version>-setup.exe`
+  with NSIS, now in the toolchain: 35 MB, against 141 MB installed. It makes
+  the same install as `install.ps1` -- directory, shortcuts, "Open with"
+  registration, uninstall entry -- so either replaces or removes the other's.
+  Per-user, no administrator prompt; `/S` for silent, `/DESKTOP` for a
+  desktop shortcut. The version comes from `cpp/CMakeLists.txt`.
+- **The first build's uninstaller was taken by the antivirus.** It wrote an
+  NSIS `uninstall.exe`; running it was refused with "Access is denied", the
+  file could not even have its permissions read, and moments later it was
+  gone -- along with the Settings > Apps entry pointing at it, leaving an
+  install nothing could remove. Avira and McAfee are installed on this
+  machine and neither log names the file, so the cause is inferred, not
+  confirmed; it was not worked around. The installer now writes no
+  executable uninstaller and records `uninstall.ps1` instead, the script
+  `install.ps1` has always left and this machine has run many times.
+- `tools/verify_installer.ps1` installs silently, checks every file,
+  shortcut and registry entry, runs the installed copy with no toolchain on
+  PATH (24 of 24 files decode, eight makers' RAW among them), runs the
+  recorded uninstall command, checks everything went and the logs and
+  settings stayed, and installs again. Every check passes.
+- The package, rebuilt on UCRT64, is 141 MB in 70 files.
+
 ## 2026-11-02 — the tools stop emptying the user's log
 
 - **`trim.sh`, `benchmark.ps1`, `sweep.ps1` and `verify_package.ps1` all

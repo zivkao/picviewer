@@ -107,13 +107,27 @@ caught tests that were passing for the wrong reason. The full table is in
 ```
 .msys64\usr\bin\bash -lc "bash cpp/packaging/deploy.sh"
 .msys64\usr\bin\bash -lc "bash cpp/packaging/trim.sh"
-powershell -ExecutionPolicy Bypass -File cpp\packaging\install.ps1 -DesktopShortcut
+.msys64\usr\bin\bash -lc "bash cpp/packaging/build_installer.sh"
 ```
 
-139 MB in 69 files, installed per-user into
-`%LOCALAPPDATA%\Programs\PicViewerCpp`. Deliberately a separate install from
-the Python build -- different directory, Start Menu name and uninstall key --
-so the two sit side by side while they are being compared.
+The last writes `cpp/dist/PicViewerCpp-<version>-setup.exe`, a 35 MB
+one-file installer (NSIS, LZMA): double-click, or `/S` for silent and
+`/DESKTOP` for a desktop shortcut. Without it,
+`powershell -ExecutionPolicy Bypass -File cpp\packaging\install.ps1 -DesktopShortcut`
+installs straight from `cpp/dist/PicViewer`. Both produce the same install --
+141 MB in 70 files, per-user into `%LOCALAPPDATA%\Programs\PicViewerCpp`, no
+administrator prompt -- with the same "Open with" registration and the same
+uninstall entry, so either can replace or remove the other's. Deliberately a
+separate install from the Python build -- different directory, Start Menu name
+and uninstall key -- so the two sit side by side.
+
+Uninstalling is `uninstall.ps1` in either case. The installer's first build
+wrote an NSIS `uninstall.exe`, and the development machine's antivirus took it
+the moment it ran -- launch refused, file gone, and the Settings > Apps entry
+pointing at it gone too -- leaving an install nothing could remove.
+`tools/verify_installer.ps1` installs silently, checks every file, shortcut and
+registry entry, runs the recorded uninstall command, checks it all went, and
+installs again.
 
 `deploy.sh` walks the dependency tree rather than listing libraries by hand,
 and seeds that walk with the *plugins* as well as the executable. Plugins are
