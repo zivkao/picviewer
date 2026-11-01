@@ -52,7 +52,8 @@ does too, and a test holds it there.
 **Features the Python build never had.** Rotate and flip for viewing
 (`R` `L` `H` `V`), and an info panel (`I`) with what the camera recorded:
 body, lens, focal length, aperture, shutter, ISO, exposure bias, date. RAW
-metadata comes from LibRaw, JPEG and HEIC/AVIF EXIF through libexif.
+metadata comes from LibRaw, JPEG and HEIC/AVIF EXIF through libexif. And
+settings (`Ctrl+,`), with the window's size, position and panels remembered.
 
 ## Tests
 
@@ -61,12 +62,12 @@ cpp\env.cmd test                          unit
 cpp\build\tests\functional_tests.exe      end to end
 ```
 
-**`unit_tests`** -- 161 passing test functions over the pure logic: container
+**`unit_tests`** -- 169 passing test functions over the pure logic: container
 sniffing, decoder ranking, the byte-budgeted cache, format behaviour against
 the sample files, and reading and wording the camera's EXIF record. No
 display, under a second.
 
-**`functional_tests`** -- 83 passing test functions driving a real `MainWindow` offscreen:
+**`functional_tests`** -- 89 passing test functions driving a real `MainWindow` offscreen:
 drag and drop sent to actual widgets, keystrokes through `QTest::keyClick`,
 menu and toolbar state read off the real objects, fullscreen, a fixture of
 deny-read files that reproduces an unreadable-file failure, display scaling

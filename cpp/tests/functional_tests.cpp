@@ -13,6 +13,7 @@
 
 #include <QClipboard>
 #include <QDockWidget>
+#include <QSpinBox>
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
@@ -27,6 +28,7 @@
 
 #include "applog.h"
 #include "infopanel.h"
+#include "settingsdialog.h"
 #include "viewer.h"
 #include "window.h"
 
@@ -1275,6 +1277,105 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// What carries over to the next session, and settings that take effect.
+class PersistenceTests : public QObject
+{
+    Q_OBJECT
+
+private slots:
+    // Each test starts from no saved state, and leaves none behind for the
+    // suites after it, which expect a fresh window.
+    void init() { QFile::remove(settings::filePath()); }
+    void cleanup() { QFile::remove(settings::filePath()); }
+
+    void theWindowComesBackAsItWasLeft()
+    {
+        // A size that fits the screen: the offscreen screen is 800x600
+        // physical, so at 2x only 400x300 logical, and a saved geometry
+        // larger than the screen is -- rightly -- shrunk to fit on restore.
+        QSize left;
+        {
+            MainWindow first;
+            const QSize room = first.screen()->availableGeometry().size();
+            first.resize(room * 3 / 4);
+            first.show();
+            QVERIFY(QTest::qWaitForWindowActive(&first));
+            QTest::keyClick(&first, Qt::Key_I);
+            QVERIFY(waitFor([&] { return first.infoDock()->isVisible(); }, 2000));
+            QVERIFY(first.width() < room.width() && first.height() < room.height());
+            left = first.size();
+            QVERIFY(left != MainWindow().size());   // differs from a fresh window's
+            first.close();
+        }
+        MainWindow second;
+        second.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&second));
+        QVERIFY2(second.size() == left,
+                 qPrintable(QStringLiteral("left at %1x%2, came back %3x%4")
+                                .arg(left.width()).arg(left.height())
+                                .arg(second.width()).arg(second.height())));
+        QVERIFY2(second.infoDock()->isVisible(), "the info panel was open, and did not come back");
+    }
+
+    void fullscreenIsNotWhatGetsRemembered()
+    {
+        {
+            MainWindow first;
+            first.resize(640, 480);
+            first.show();
+            QVERIFY(QTest::qWaitForWindowActive(&first));
+            QTest::keyClick(&first, Qt::Key_I);
+            QVERIFY(waitFor([&] { return first.infoDock()->isVisible(); }, 2000));
+            first.toggleFullscreen();
+            QTest::qWait(100);
+            first.close();      // closed while fullscreen, panel hidden by it
+        }
+        MainWindow second;
+        second.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&second));
+        QVERIFY(!second.isFullScreen());
+        QVERIFY2(second.infoDock()->isVisible(),
+                 "closing in fullscreen saved the panel as hidden");
+        QVERIFY(second.menuBar()->isVisible());
+    }
+
+    void theDialogHandsBackWhatWasSet()
+    {
+        SettingsDialog dialog(Preferences{});
+        dialog.cacheBox()->setValue(2048);
+        dialog.prefetchBox()->setValue(1);
+        dialog.slideshowBox()->setValue(9);
+        QCOMPARE(dialog.preferences().cacheMb, 2048);
+        QCOMPARE(dialog.preferences().prefetchRadius, 1);
+        QCOMPARE(dialog.preferences().slideshowSeconds, 9);
+        // And the limits are the ones the settings file is held to.
+        dialog.cacheBox()->setValue(1);
+        QCOMPARE(dialog.preferences().cacheMb, Preferences::MinCacheMb);
+    }
+
+    void newPreferencesTakeEffectAtOnce()
+    {
+        MainWindow window;
+        window.show();
+        window.openPath(samplesDir());
+        QVERIFY(waitForImage(window));
+        QVERIFY(window.playlist().size() >= 6);
+
+        Preferences p = window.preferences();
+        QCOMPARE(window.prefetchTargets().size(), 2 * p.prefetchRadius);
+        p.prefetchRadius = 1;
+        p.cacheMb = 256;
+        window.applyPreferences(p);
+        QCOMPARE(window.prefetchTargets().size(), 2);
+        QCOMPARE(window.loader()->cache().budget(), qint64(256) * 1024 * 1024);
+        p.prefetchRadius = 0;
+        window.applyPreferences(p);
+        QVERIFY(window.prefetchTargets().isEmpty());
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 namespace {
 
 int runSuite(QObject *suite, const QString &name, int &passed, int &failed)
@@ -1326,6 +1427,11 @@ int main(int argc, char **argv)
     QApplication app(argc, argv);       // widgets, so QApplication not QGuiApplication
     applog::install(false);
     qInfo().noquote() << startupMarker();
+
+    // Every window here reads and writes settings; none of it may touch the
+    // settings of whoever runs the tests.
+    QTemporaryDir settingsDir;
+    settings::setFilePath(settingsDir.filePath(QStringLiteral("settings.ini")));
     std::printf("display scale %s\n\n", scale.constData());
 
     DropRoutingTests dropRouting;
@@ -1337,6 +1443,7 @@ int main(int argc, char **argv)
     HighDpiTests highDpi;
     OrientationTests orientation;
     InfoPanelTests infoPanel;
+    PersistenceTests persistence;
 
     const QList<QPair<QObject *, QString>> suites = {
         {&dropRouting, QStringLiteral("drop-routing")},
@@ -1348,6 +1455,7 @@ int main(int argc, char **argv)
         {&highDpi, QStringLiteral("high-dpi")},
         {&orientation, QStringLiteral("orientation")},
         {&infoPanel, QStringLiteral("info-panel")},
+        {&persistence, QStringLiteral("persistence")},
     };
 
     int exitCode = 0;

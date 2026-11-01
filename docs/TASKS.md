@@ -35,6 +35,9 @@ Last reviewed: 2026-11-01
       exposure bias, date taken, and the file's own details. RAW via LibRaw,
       JPEG and HEIC/AVIF via libexif
 - [x] Failures drawn on the canvas rather than raised as dialogs
+- [x] Settings (Ctrl+,): memory cache, how many images to decode ahead,
+      slideshow interval; window size, position and open panels remembered.
+      An INI file beside the logs, clamped on load since anyone can edit it
 
 ### Diagnostics
 - [x] Rotating file log, written even with no console
@@ -44,9 +47,9 @@ Last reviewed: 2026-11-01
 - [x] Cache eviction logged, so memory pressure leaves a trace
 
 ### Verification
-- [x] 161 unit tests over the pure logic; those reading the real camera
+- [x] 169 unit tests over the pure logic; those reading the real camera
       files skip where those untracked files are absent, as on CI
-- [x] 83 functional tests driving a real window offscreen, run at 1x, 1.5x
+- [x] 89 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
 - [x] Mutation harness covering 34 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
@@ -125,10 +128,7 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
       EXIF orientation edit, and neither applies to RAW or HEIC.
 - [ ] Slideshow.
 - [ ] Info panel, what it does not read yet: EXIF in TIFF, PNG and WebP;
-      GPS position; and whether it was open is not remembered between
-      sessions, since nothing is (see settings, below).
-- [ ] Any settings at all. The cache budget, zoom limits and prefetch radius
-      are constants in the source.
+      GPS position.
 
 ### Packaging
 - [ ] 139 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never

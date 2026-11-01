@@ -44,6 +44,13 @@ void ImageCache::put(const CacheKey &key, const decoders::DecodedImage &item)
     evict();
 }
 
+void ImageCache::setBudget(qint64 budget)
+{
+    const std::lock_guard lock(m_mutex);
+    m_budget = budget;
+    evict();
+}
+
 void ImageCache::evict()
 {
     // Always keep the most recent entry, even if it alone exceeds budget --

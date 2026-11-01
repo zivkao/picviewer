@@ -60,8 +60,8 @@ before a long afternoon of CMake errors.
 Two layers, deliberately different in kind.
 
 ```
-cpp\build\tests\unit_tests.exe                     161 tests, no display, about a second
-cpp\build\tests\functional_tests.exe               83 tests, a real window, offscreen
+cpp\build\tests\unit_tests.exe                     169 tests, no display, about a second
+cpp\build\tests\functional_tests.exe               89 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
 
@@ -167,6 +167,10 @@ Add a mutation whenever a defect is fixed. If the suites stay green with the
 bug back in, the test that was supposed to guard it does not. A mutation whose
 anchor is not found fails the run rather than printing SKIP and carrying on —
 "nothing was tested" is not a neutral outcome.
+
+`ONLY="regex"` in the environment runs just the mutations whose label
+matches, for the few added with a change; the record above is always from a
+full run.
 
 **Do not stage or commit while it is running.** It edits files under `src/` in
 place and restores each one after testing it, so for a few seconds at a time
@@ -275,6 +279,14 @@ details: libexif's default of "following the specification" rewrites and adds
 entries on load, so it is turned off -- the panel shows what the camera wrote;
 and EXIF in TIFF, PNG and WebP is not read yet. It is read in the decoder, on
 the worker thread, so it is cached with the image and costs the GUI nothing.
+
+**Settings are an INI file, and the tests never see the real one.**
+`picviewer-cpp.ini` beside the logs, not the registry: one folder holds
+everything the application writes, and deleting it resets everything. Values
+are clamped on load, since it is a text file anyone can edit. Window geometry
+and dock layout are saved on close -- after leaving fullscreen, which hides
+the chrome and the panels and must not be what the next session starts with.
+Both test binaries point `settings::setFilePath` at a temporary file first.
 
 **Failures are drawn on the canvas, not raised as dialogs.** Stepping through a
 folder of unreadable files would otherwise mean dismissing one modal per image.

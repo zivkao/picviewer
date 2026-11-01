@@ -13,12 +13,11 @@
 
 #include "decoders/decoder.h"
 #include "loader.h"
+#include "settings.h"
 #include "viewer.h"
 
 class InfoPanel;
 class QDockWidget;
-
-inline constexpr int PrefetchRadius = 2;
 
 /// Sorts IMG_2.jpg before IMG_10.jpg, the way a file manager would.
 bool naturalLess(const QString &a, const QString &b);
@@ -44,6 +43,14 @@ public:
     QString statusText() const { return m_statusRight->text(); }
     InfoPanel *infoPanel() const { return m_info; }
     QDockWidget *infoDock() const { return m_infoDock; }
+    ImageLoader *loader() const { return m_loader; }
+    const Preferences &preferences() const { return m_prefs; }
+    /// The neighbours prefetch would queue now, nearest first.
+    QStringList prefetchTargets() const;
+
+    /// Take new preferences: the cache budget and prefetch radius at once,
+    /// the slideshow interval from its next step. Does not save them.
+    void applyPreferences(const Preferences &preferences);
 
 public slots:
     void openDialog();
@@ -57,6 +64,7 @@ public slots:
     void revealCurrent();
     void openLogFolder();
     void showAbout();
+    void openSettings();
 
 private slots:
     void onReady(const QString &path, const decoders::DecodedImage &image, quint64 generation);
@@ -103,12 +111,14 @@ private:
     quint64 m_generation = 0;
     bool m_showingPreview = false;
     QMap<QString, QString> m_currentMeta;
+    Preferences m_prefs;
 
     QAction *m_actOpen = nullptr;
     QAction *m_actOpenFolder = nullptr;
     QAction *m_actReveal = nullptr;
     QAction *m_actCopy = nullptr;
     QAction *m_actDelete = nullptr;
+    QAction *m_actSettings = nullptr;
     QAction *m_actQuit = nullptr;
     QAction *m_actPrev = nullptr;
     QAction *m_actNext = nullptr;

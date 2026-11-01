@@ -55,6 +55,9 @@ public:
     qint64 nbytes() const { return m_bytes; }
     qint64 budget() const { return m_budget; }
 
+    /// Change the budget, evicting at once if it went down.
+    void setBudget(qint64 budget);
+
 private:
     void evict();   // caller holds the lock
 

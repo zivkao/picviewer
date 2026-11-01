@@ -30,6 +30,8 @@ add_library(picviewer_core STATIC
     src/loader.cpp
     src/photoinfo.cpp
     src/infopanel.cpp
+    src/settings.cpp
+    src/settingsdialog.cpp
     src/viewer.cpp
     src/window.cpp
     src/decoders/registry.cpp

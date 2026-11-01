@@ -21,6 +21,7 @@
 #include "applog.h"
 #include "decoders/registry.h"
 #include "infopanel.h"
+#include "settingsdialog.h"
 
 Q_LOGGING_CATEGORY(logWindow, "picviewer.window")
 
@@ -83,6 +84,12 @@ MainWindow::MainWindow(QWidget *parent)
     buildMenus();
     buildToolBar();
     showPlaceholder();
+
+    applyPreferences(settings::load());
+    // Size, position, and which panels were open. Restored after the chrome
+    // exists, since the dock layout refers to it by object name.
+    restoreGeometry(settings::windowValue(QStringLiteral("geometry")));
+    restoreState(settings::windowValue(QStringLiteral("state")));
 
     qCInfo(logWindow).noquote() << "window ready:" << m_extensions.size() << "extensions, decoders:"
                       << decoders::Registry::instance().decoderNames().join(QLatin1Char(' '));
@@ -161,6 +168,8 @@ void MainWindow::buildActions()
                            [this] { copyCurrent(); }, SP::SP_FileIcon, false);
     m_actDelete = makeAction(tr("&Delete"), keys({"Delete"}),
                              [this] { deleteCurrent(); }, SP::SP_TrashIcon, true);
+    m_actSettings = makeAction(tr("&Settings..."), keys({"Ctrl+,"}),
+                               [this] { openSettings(); }, SP::SP_FileIcon, false);
     m_actQuit = makeAction(tr("E&xit"), keys({"Ctrl+Q"}),
                            [this] { close(); }, SP::SP_FileIcon, false);
 
@@ -227,6 +236,8 @@ void MainWindow::buildMenus()
     file->addAction(m_actReveal);
     file->addAction(m_actCopy);
     file->addAction(m_actDelete);
+    file->addSeparator();
+    file->addAction(m_actSettings);
     file->addSeparator();
     file->addAction(m_actQuit);
 
@@ -438,20 +449,45 @@ void MainWindow::showIndex(int index)
 
 void MainWindow::prefetchNeighbours()
 {
-    if (m_playlist.isEmpty())
-        return;
+    m_loader->prefetch(prefetchTargets());
+}
+
+QStringList MainWindow::prefetchTargets() const
+{
+    if (m_playlist.isEmpty() || m_index < 0)
+        return {};
     const int count = m_playlist.size();
     QStringList targets;
-    for (int offset = -PrefetchRadius; offset <= PrefetchRadius; ++offset) {
-        if (offset == 0)
-            continue;
-        const QString &candidate = m_playlist.at(((m_index + offset) % count + count) % count);
-        // With few files the wrap-around lands back on the current one, which
-        // would re-queue what was just decoded.
-        if (candidate != m_playlist.at(m_index) && !targets.contains(candidate))
-            targets << candidate;
+    // Nearest first, alternating forward and back, so the likely next image
+    // is queued ahead of the ones further out.
+    for (int distance = 1; distance <= m_prefs.prefetchRadius; ++distance) {
+        for (const int offset : {distance, -distance}) {
+            const QString &candidate = m_playlist.at(((m_index + offset) % count + count) % count);
+            // With few files the wrap-around lands back on the current one,
+            // which would re-queue what was just decoded.
+            if (candidate != m_playlist.at(m_index) && !targets.contains(candidate))
+                targets << candidate;
+        }
     }
-    m_loader->prefetch(targets);
+    return targets;
+}
+
+void MainWindow::applyPreferences(const Preferences &preferences)
+{
+    m_prefs = preferences;
+    m_loader->cache().setBudget(qint64(m_prefs.cacheMb) * 1024 * 1024);
+    qCInfo(logWindow).nospace() << "preferences: cache " << m_prefs.cacheMb << " MB, prefetch "
+                                << m_prefs.prefetchRadius << ", slideshow "
+                                << m_prefs.slideshowSeconds << " s";
+}
+
+void MainWindow::openSettings()
+{
+    SettingsDialog dialog(m_prefs, this);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    applyPreferences(dialog.preferences());
+    settings::save(m_prefs);
 }
 
 // -- results ---------------------------------------------------------------
@@ -695,6 +731,12 @@ void MainWindow::dropEvent(QDropEvent *event)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    // Saved as a normal window: fullscreen has hidden the chrome and the
+    // panels, and the next session should not start that way.
+    if (isFullScreen())     // put the chrome back before it is saved
+        toggleFullscreen();
+    settings::setWindowValue(QStringLiteral("geometry"), saveGeometry());
+    settings::setWindowValue(QStringLiteral("state"), saveState());
     m_loader->shutdown();
     QMainWindow::closeEvent(event);
 }

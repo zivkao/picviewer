@@ -19,6 +19,7 @@
 #include "decoders/registry.h"
 #include "loader.h"
 #include "photoinfo.h"
+#include "settings.h"
 #include "sniff.h"
 
 using sniff::Container;
@@ -343,6 +344,21 @@ private slots:
         QVERIFY2(!cache.get(key("b")).has_value(), "b was least recently used");
     }
 
+    void loweringTheBudgetEvictsAtOnce()
+    {
+        // The setting takes effect when it is changed, not at the next
+        // insert: a user who lowers it to free memory expects it freed.
+        ImageCache cache(100'000'000);
+        cache.put(key("a"), make(1000, 1000));     // 3 MB each
+        cache.put(key("b"), make(1000, 1000));
+        cache.put(key("c"), make(1000, 1000));
+        QCOMPARE(cache.nbytes(), qint64(9'000'000));
+        cache.setBudget(4'000'000);
+        QCOMPARE(cache.nbytes(), qint64(3'000'000));
+        QVERIFY(!cache.get(key("a")));
+        QVERIFY(cache.get(key("c")));             // the newest stays
+    }
+
     void theNewestEntrySurvivesEvenWhenItAloneExceedsBudget()
     {
         // Evicting it would mean never being able to show that image at all.
@@ -545,6 +561,74 @@ private slots:
 };
 
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+
+/// The settings file: defaults, round trips, and hand edits.
+class SettingsTests : public QObject
+{
+    Q_OBJECT
+
+    QTemporaryDir m_dir;
+    QString m_path;
+
+    void writeRaw(const QByteArray &text)
+    {
+        QFile file(m_path);
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        file.write(text);
+    }
+
+private slots:
+    void init()
+    {
+        QVERIFY(m_dir.isValid());
+        m_path = m_dir.filePath(QStringLiteral("settings.ini"));
+        QFile::remove(m_path);
+        settings::setFilePath(m_path);
+    }
+    void cleanupTestCase() { settings::setFilePath(QString()); }
+
+    void noFileMeansTheDefaults()
+    {
+        QCOMPARE(settings::load(), Preferences());
+    }
+
+    void whatIsSavedIsWhatLoads()
+    {
+        Preferences p;
+        p.cacheMb = 2048;
+        p.prefetchRadius = 4;
+        p.slideshowSeconds = 10;
+        settings::save(p);
+        QCOMPARE(settings::load(), p);
+    }
+
+    void handEditedNonsenseIsReinedIn()
+    {
+        // It is a text file in the user's own folder; anything can be in it.
+        writeRaw("[cache]\nmegabytes=5\nprefetch=99\n[slideshow]\nseconds=soon\n");
+        const Preferences p = settings::load();
+        QCOMPARE(p.cacheMb, Preferences::MinCacheMb);
+        QCOMPARE(p.prefetchRadius, Preferences::MaxPrefetch);
+        QCOMPARE(p.slideshowSeconds, Preferences::DefaultSlideshowSeconds);
+    }
+
+    void windowValuesRoundTrip()
+    {
+        settings::setWindowValue(QStringLiteral("geometry"), QByteArray("\x01\x02\xff", 3));
+        QCOMPARE(settings::windowValue(QStringLiteral("geometry")), QByteArray("\x01\x02\xff", 3));
+        QVERIFY(settings::windowValue(QStringLiteral("never-set")).isEmpty());
+    }
+
+    void theDefaultFileLivesBesideTheLogs()
+    {
+        settings::setFilePath(QString());
+        const QFileInfo file(settings::filePath());
+        QCOMPARE(file.fileName(), QStringLiteral("picviewer-cpp.ini"));
+        QCOMPARE(QFileInfo(file.absolutePath()).fileName(), QStringLiteral("PicViewer"));
+    }
+};
 
 // ---------------------------------------------------------------------------
 
@@ -1063,6 +1147,7 @@ int main(int argc, char **argv)
     ScoringTests scoringTests;
     CacheTests cacheTests;
     DecodeTests decodeTests;
+    SettingsTests settingsTests;
     UnicodePathTests unicodePathTests;
     PhotoInfoTests photoInfoTests;
 
@@ -1071,6 +1156,7 @@ int main(int argc, char **argv)
         {&scoringTests, QStringLiteral("scoring")},
         {&cacheTests, QStringLiteral("cache")},
         {&decodeTests, QStringLiteral("decode")},
+        {&settingsTests, QStringLiteral("settings")},
         {&unicodePathTests, QStringLiteral("unicode-paths")},
         {&photoInfoTests, QStringLiteral("photo-info")},
     };

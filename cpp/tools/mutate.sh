@@ -73,6 +73,12 @@ echo "--------------------------------------------------------------------------
 
 mutate() {
     local label="$1" file="$2" from="$3" to="$4"
+    # ONLY="regex" runs just the mutations whose label matches -- for the few
+    # added with a change, without the hour the whole list takes. The full
+    # run is still what the record in docs/DEVELOPMENT.md is made from.
+    if [ -n "${ONLY:-}" ] && ! [[ "$label" =~ $ONLY ]]; then
+        return
+    fi
     local path="$SRC/$file"
     local winpath
     winpath=$(cygpath -w "$path")
@@ -275,6 +281,32 @@ mutate "the panel keeps the last image's details" "window.cpp" \
 mutate "fullscreen leaves the panel up" "window.cpp" \
     '        m_infoDock->hide();' \
     '        {}'
+
+# -- settings ------------------------------------------------------------------
+
+mutate "settings: window layout not saved on close" "window.cpp" \
+    '    settings::setWindowValue(QStringLiteral("state"), saveState());' \
+    '    {}'
+
+mutate "settings: closing in fullscreen saves it hidden" "window.cpp" \
+    '    if (isFullScreen())     // put the chrome back before it is saved' \
+    '    if (false)'
+
+mutate "settings: cache size setting ignored" "window.cpp" \
+    '    m_loader->cache().setBudget(qint64(m_prefs.cacheMb) * 1024 * 1024);' \
+    '    {}'
+
+mutate "settings: prefetch radius stuck at two" "window.cpp" \
+    '    for (int distance = 1; distance <= m_prefs.prefetchRadius; ++distance) {' \
+    '    for (int distance = 1; distance <= 2; ++distance) {'
+
+mutate "settings: hand-edited values not clamped" "settings.cpp" \
+    '    return ok ? qBound(low, value, high) : fallback;' \
+    '    return ok ? value : fallback;'
+
+mutate "settings: a lower cache budget waits for the next insert" "cache.cpp" \
+    '    m_budget = budget;' \
+    '    m_budget = budget; return;'
 
 echo
 echo "restoring and re-checking baseline"

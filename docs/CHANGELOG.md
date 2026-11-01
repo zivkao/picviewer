@@ -7,6 +7,29 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-02 — settings
+
+- File > Settings (`Ctrl+,`): memory cache size, how many images to decode
+  ahead on each side, slideshow interval. The cache and prefetch take effect
+  at once; lowering the cache frees memory then, not at the next decode.
+- The window's size, position and open panels are remembered. Closing while
+  fullscreen saves the windowed layout, not the fullscreen one with its
+  chrome and panels hidden.
+- Stored in `picviewer-cpp.ini` beside the logs, clamped on load. The test
+  binaries point at a temporary file so a test run never reads or overwrites
+  the real one.
+- Prefetch now queues nearest first, alternating forward and back.
+- The restore test failed at 1.5x and 2x at first: the offscreen screen is
+  800x600 physical, so 400x300 logical at 2x, and a 720x510 window does not
+  fit -- Qt shrinks a saved geometry that does not fit the screen, which is
+  right. The test now sizes the window to the screen it is on.
+- `mutate.sh` takes `ONLY="regex"` to run just the matching mutations; six
+  new ones, all caught.
+- `.gitattributes` keeps `*.sh` at LF. With `core.autocrlf` on, as is the
+  Windows default, a fresh checkout would have given every script CRLF, and
+  bash fails on the first line of such a file. Nothing had broken only
+  because the working copies were written with LF.
+
 ## 2026-11-02 — UCRT64, and four more makers
 
 - **The toolchain moved from MSYS2's MINGW64 environment to UCRT64.** MINGW64

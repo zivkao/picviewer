@@ -1,5 +1,10 @@
 * text=auto
 
+# Shell scripts keep LF whatever the checkout's settings: with core.autocrlf
+# on, as on Windows by default, they would arrive with CRLF and bash fails on
+# the first line with "$'\r': command not found".
+*.sh text eol=lf
+
 # Image samples must never be line-ending normalised. PPM and PNM in particular
 # start with an ASCII header before the pixel data, so git can mistake them for
 # text and corrupt them on checkout.
