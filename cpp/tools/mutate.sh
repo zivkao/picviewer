@@ -287,6 +287,38 @@ mutate "fullscreen leaves the panel up" "window.cpp" \
     '        m_infoDock->hide();' \
     '        {}'
 
+# -- the thumbnail strip -------------------------------------------------------
+
+mutate "thumbs: clicking one does nothing" "window.cpp" \
+    '            showIndex(index.row());' \
+    '            {}'
+
+mutate "thumbs: the strip does not follow the image" "window.cpp" \
+    '    m_thumbView->setCurrentIndex(here);' \
+    '    {}'
+
+# The claim in the code is that uniform sizes are what keep thumbnails out of
+# sight from being decoded; this checks the claim, not just the line.
+mutate "thumbs: every row decoded, in sight or not" "window.cpp" \
+    '    m_thumbView->setUniformItemSizes(true);' \
+    '    m_thumbView->setUniformItemSizes(false);'
+
+mutate "thumbs: fullscreen leaves the strip up" "window.cpp" \
+    '        m_thumbDock->hide();' \
+    '        {}'
+
+mutate "thumbs: the disk cache is never read" "thumbnails.cpp" \
+    '    QImage image(file);' \
+    '    QImage image;'
+
+mutate "thumbs: an edited file keeps its old thumbnail" "thumbnails.cpp" \
+    "                                + QByteArray::number(info.lastModified().toMSecsSinceEpoch()) + '|'" \
+    "                                + '|'"
+
+mutate "thumbs: pruning takes the newest first" "thumbnails.cpp" \
+    '        return a.lastModified() < b.lastModified();' \
+    '        return a.lastModified() > b.lastModified();'
+
 # -- saving a turn into a JPEG -------------------------------------------------
 
 mutate "save: file and view turns composed the wrong way round" "window.cpp" \

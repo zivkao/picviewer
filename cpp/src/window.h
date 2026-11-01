@@ -19,7 +19,9 @@
 
 class InfoPanel;
 class QDockWidget;
+class QListView;
 class QMovie;
+class ThumbnailModel;
 
 /// Sorts IMG_2.jpg before IMG_10.jpg, the way a file manager would.
 bool naturalLess(const QString &a, const QString &b);
@@ -45,6 +47,9 @@ public:
     QString statusText() const { return m_statusRight->text(); }
     InfoPanel *infoPanel() const { return m_info; }
     QDockWidget *infoDock() const { return m_infoDock; }
+    QDockWidget *thumbnailDock() const { return m_thumbDock; }
+    QListView *thumbnailView() const { return m_thumbView; }
+    ThumbnailModel *thumbnailModel() const { return m_thumbModel; }
     ImageLoader *loader() const { return m_loader; }
     const Preferences &preferences() const { return m_prefs; }
     /// The neighbours prefetch would queue now, nearest first.
@@ -99,6 +104,9 @@ private:
                         bool hasIcon, const QString &tip = {});
     void buildStatusBar();
     void buildInfoPanel();
+    void buildThumbnailStrip();
+    /// The strip lists the playlist; called wherever the playlist changes.
+    void playlistChanged();
     void buildActions();
     void buildMenus();
     void buildToolBar();
@@ -120,6 +128,10 @@ private:
     InfoPanel *m_info = nullptr;
     /// Whether the panel was open when fullscreen hid it, to put it back.
     bool m_infoBeforeFullscreen = false;
+    QDockWidget *m_thumbDock = nullptr;
+    QListView *m_thumbView = nullptr;
+    ThumbnailModel *m_thumbModel = nullptr;
+    bool m_thumbsBeforeFullscreen = false;
 
     QStringList m_playlist;
     QSet<QString> m_extensions;
@@ -168,6 +180,7 @@ private:
     QAction *m_actFlipH = nullptr;
     QAction *m_actFlipV = nullptr;
     QAction *m_actInfo = nullptr;
+    QAction *m_actThumbs = nullptr;
     QAction *m_actFullscreen = nullptr;
     QAction *m_actSlideshow = nullptr;
     QAction *m_actPause = nullptr;

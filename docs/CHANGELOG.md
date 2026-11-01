@@ -7,6 +7,24 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-02 — thumbnail strip
+
+- `T` shows the folder as a strip of thumbnails along the bottom. Clicking
+  one opens it; the strip marks and scrolls to whatever is on screen; it
+  hides with the rest of the chrome in fullscreen.
+- Only thumbnails in sight are made. A test opens sixty files in a narrow
+  window and requires that no more than twenty are decoded, and a mutation
+  confirms that uniform item sizes are what keeps it so: without them the
+  view asks every row for its picture to size it.
+- Kept on disk under `%LOCALAPPDATA%\PicViewer\thumbnails`, keyed by path,
+  modified time and size so an edited photograph is not shown with its old
+  thumbnail; a second look at a folder decodes nothing. Pruned to 200 MB at
+  start, least recently seen first. Written with `QSaveFile`, so a crash
+  cannot leave half a JPEG to be shown as broken forever.
+- A RAW's thumbnail comes from its embedded preview; everything else is
+  decoded at thumbnail size, which for JPEG happens in the inverse DCT.
+  Seven mutations, all caught.
+
 ## 2026-11-02 — saving a turn into a JPEG
 
 - `Ctrl+S` (File > Save Orientation to File) writes the turn on screen into

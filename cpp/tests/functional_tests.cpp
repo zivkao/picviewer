@@ -13,6 +13,7 @@
 
 #include <QClipboard>
 #include <QDockWidget>
+#include <QListView>
 #include <QSpinBox>
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
@@ -30,6 +31,7 @@
 #include "infopanel.h"
 #include "jpegorient.h"
 #include "settingsdialog.h"
+#include "thumbnails.h"
 #include "viewer.h"
 #include "window.h"
 
@@ -1768,6 +1770,119 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// T: the folder as a strip of thumbnails, decoded only as they come into
+/// sight and kept on disk for next time.
+class ThumbnailStripTests : public QObject
+{
+    Q_OBJECT
+
+    QTemporaryDir m_eight;
+    QTemporaryDir m_sixty;
+
+    static bool allLoaded(const ThumbnailModel *model, int rows)
+    {
+        for (int row = 0; row < rows; ++row) {
+            if (!model->isLoaded(row))
+                return false;
+        }
+        return true;
+    }
+
+    static void open(MainWindow &window, const QString &folder, int width = 1000)
+    {
+        window.resize(width, 700);
+        window.show();
+        window.openPath(folder);
+        QVERIFY(waitForImage(window));
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QTest::keyClick(&window, Qt::Key_T);
+        QVERIFY(waitFor([&] { return window.thumbnailDock()->isVisible(); }, 2000));
+    }
+
+private slots:
+    void initTestCase()
+    {
+        QVERIFY(m_eight.isValid() && m_sixty.isValid());
+        for (int i = 0; i < 8; ++i)
+            QVERIFY(QFile::copy(sample("sample.jpg"), m_eight.filePath(QStringLiteral("e%1.jpg").arg(i))));
+        for (int i = 0; i < 60; ++i)
+            QVERIFY(QFile::copy(sample("sample.jpg"),
+                                m_sixty.filePath(QStringLiteral("s%1.jpg").arg(i, 2, 10, QLatin1Char('0')))));
+    }
+
+    void tOpensTheStripAndItFillsIn()
+    {
+        MainWindow window;
+        open(window, m_eight.path());
+        QVERIFY2(waitFor([&] { return allLoaded(window.thumbnailModel(), 8); }),
+                 "the eight thumbnails never all arrived");
+        QTest::keyClick(&window, Qt::Key_T);
+        QVERIFY(waitFor([&] { return !window.thumbnailDock()->isVisible(); }, 2000));
+    }
+
+    void clickingAThumbnailOpensIt()
+    {
+        MainWindow window;
+        open(window, m_eight.path());
+        QListView *view = window.thumbnailView();
+        const QRect cell = view->visualRect(window.thumbnailModel()->index(5));
+        QVERIFY(!cell.isEmpty());
+        QTest::mouseClick(view->viewport(), Qt::LeftButton, {}, cell.center());
+        QCOMPARE(window.index(), 5);
+    }
+
+    void theStripFollowsTheImage()
+    {
+        MainWindow window;
+        open(window, m_eight.path());
+        window.showIndex(6);
+        QCOMPARE(window.thumbnailView()->currentIndex().row(), 6);
+        window.step(1);
+        QCOMPARE(window.thumbnailView()->currentIndex().row(), 7);
+    }
+
+    void aSecondLookComesFromDisk()
+    {
+        {
+            MainWindow first;
+            open(first, m_eight.path());
+            QVERIFY(waitFor([&] { return allLoaded(first.thumbnailModel(), 8); }));
+        }
+        MainWindow second;
+        open(second, m_eight.path());
+        QVERIFY(waitFor([&] { return allLoaded(second.thumbnailModel(), 8); }));
+        QCOMPARE(second.thumbnailModel()->fromDisk(), 8);
+        QCOMPARE(second.thumbnailModel()->decoded(), 0);
+    }
+
+    void onlyWhatIsInSightIsDecoded()
+    {
+        // Sixty files, a strip a few hundred pixels wide: a handful are in
+        // sight, and only those may be decoded. A folder of thousands would
+        // otherwise decode every one on opening.
+        MainWindow window;
+        open(window, m_sixty.path(), 500);
+        QVERIFY(waitFor([&] { return window.thumbnailModel()->isLoaded(0); }));
+        QTest::qWait(800);      // time enough to decode many more, were they asked for
+        const int done = window.thumbnailModel()->decoded() + window.thumbnailModel()->fromDisk();
+        QVERIFY2(done > 0 && done <= 20,
+                 qPrintable(QStringLiteral("%1 of 60 thumbnails made with about 5 in sight").arg(done)));
+    }
+
+    void fullscreenTakesTheStripAndGivesItBack()
+    {
+        MainWindow window;
+        open(window, m_eight.path());
+        window.toggleFullscreen();
+        QTest::qWait(100);
+        QVERIFY2(!window.thumbnailDock()->isVisible(), "the strip stayed up in fullscreen");
+        window.toggleFullscreen();
+        QVERIFY(waitFor([&] { return window.thumbnailDock()->isVisible(); }, 2000));
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 namespace {
 
 int runSuite(QObject *suite, const QString &name, int &passed, int &failed)
@@ -1824,6 +1939,7 @@ int main(int argc, char **argv)
     // settings of whoever runs the tests.
     QTemporaryDir settingsDir;
     settings::setFilePath(settingsDir.filePath(QStringLiteral("settings.ini")));
+    thumbnails::setDirectory(settingsDir.filePath(QStringLiteral("thumbnails")));
     std::printf("display scale %s\n\n", scale.constData());
 
     DropRoutingTests dropRouting;
@@ -1839,6 +1955,7 @@ int main(int argc, char **argv)
     SlideshowTests slideshow;
     AnimationTests animation;
     SaveOrientationTests saveOrientation;
+    ThumbnailStripTests thumbnailStrip;
 
     const QList<QPair<QObject *, QString>> suites = {
         {&dropRouting, QStringLiteral("drop-routing")},
@@ -1854,6 +1971,7 @@ int main(int argc, char **argv)
         {&slideshow, QStringLiteral("slideshow")},
         {&animation, QStringLiteral("animation")},
         {&saveOrientation, QStringLiteral("save-orientation")},
+        {&thumbnailStrip, QStringLiteral("thumbnail-strip")},
     };
 
     int exitCode = 0;

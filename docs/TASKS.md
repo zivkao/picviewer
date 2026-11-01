@@ -44,6 +44,9 @@ Last reviewed: 2026-11-01
       own details. RAW via LibRaw; JPEG, PNG, WebP, TIFF and HEIC/AVIF EXIF
       via libexif, a TIFF's directories condensed first
 - [x] Failures drawn on the canvas rather than raised as dialogs
+- [x] Thumbnail strip (T): decoded only as rows come into sight, on two
+      threads of its own, kept on disk keyed by path, time and size, and
+      pruned to 200 MB least recently seen first
 - [x] Settings (Ctrl+,): memory cache, how many images to decode ahead,
       slideshow interval; window size, position and open panels remembered.
       An INI file beside the logs, clamped on load since anyone can edit it
@@ -56,9 +59,9 @@ Last reviewed: 2026-11-01
 - [x] Cache eviction logged, so memory pressure leaves a trace
 
 ### Verification
-- [x] 191 unit tests over the pure logic; those reading the real camera
+- [x] 200 unit tests over the pure logic; those reading the real camera
       files skip where those untracked files are absent, as on CI
-- [x] 116 functional tests driving a real window offscreen, run at 1x, 1.5x
+- [x] 124 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
 - [x] Mutation harness covering 34 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
@@ -128,8 +131,6 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
       middle stage would bridge it.
 
 ### Features
-- [ ] Thumbnail strip. The disk-backed thumbnail cache it needs is the real
-      work; the decoder layer already takes a `maxSize` for it.
 
 ### Packaging
 - [ ] 139 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never

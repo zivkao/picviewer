@@ -60,8 +60,8 @@ before a long afternoon of CMake errors.
 Two layers, deliberately different in kind.
 
 ```
-cpp\build\tests\unit_tests.exe                     191 tests, no display, about a second
-cpp\build\tests\functional_tests.exe               116 tests, a real window, offscreen
+cpp\build\tests\unit_tests.exe                     200 tests, no display, about a second
+cpp\build\tests\functional_tests.exe               124 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
 
@@ -305,6 +305,18 @@ are clamped on load, since it is a text file anyone can edit. Window geometry
 and dock layout are saved on close -- after leaving fullscreen, which hides
 the chrome and the panels and must not be what the next session starts with.
 Both test binaries point `settings::setFilePath` at a temporary file first.
+
+**Thumbnails are decoded only when seen, and kept on disk.** The strip is a
+`QListView` over a model whose decoration is requested only for rows the view
+paints, and uniform item sizes are what make that true: without them the view
+asks every row for its size, which means its picture, and a folder of sixty
+decodes sixty -- a mutation shows it. Requests run newest first on two
+threads of their own, so scrolling fills in what is now in sight and the
+image being viewed is never held up. A RAW's thumbnail comes from its
+embedded preview. Thumbnails are cached in `%LOCALAPPDATA%\PicViewer\thumbnails`
+under a hash of path, modified time and size, so an edited file gets a new
+one; a hit touches its file, and each start prunes the folder to 200 MB least
+recently seen first. In memory they are bounded by bytes, not count.
 
 **Failures are drawn on the canvas, not raised as dialogs.** Stepping through a
 folder of unreadable files would otherwise mean dismissing one modal per image.

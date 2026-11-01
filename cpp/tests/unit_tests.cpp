@@ -23,6 +23,7 @@
 #include "jpegorient.h"
 #include "photoinfo.h"
 #include "settings.h"
+#include "thumbnails.h"
 #include "sniff.h"
 
 using sniff::Container;
@@ -564,6 +565,115 @@ private slots:
 };
 
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+
+/// Thumbnails: made small, kept on disk under a key that changes with the
+/// file, and pruned oldest first.
+class ThumbnailTests : public QObject
+{
+    Q_OBJECT
+
+    QTemporaryDir m_cache;
+    QTemporaryDir m_files;
+
+    static QString sampleFile(const char *name)
+    {
+        return QStringLiteral(PICVIEWER_SAMPLES_DIR "/") + QLatin1String(name);
+    }
+    QString copied(const char *name, const QString &as)
+    {
+        const QString to = m_files.filePath(as);
+        QFile::remove(to);
+        QFile::copy(sampleFile(name), to);
+        QFile::setPermissions(to, QFile::ReadOwner | QFile::WriteOwner);
+        return to;
+    }
+
+private slots:
+    void initTestCase()
+    {
+        QVERIFY(m_cache.isValid() && m_files.isValid());
+        thumbnails::setDirectory(m_cache.path());
+    }
+    void cleanupTestCase() { thumbnails::setDirectory(QString()); }
+
+    void aThumbnailIsSmallAndKeepsItsShape()
+    {
+        const QImage thumb = thumbnails::make(sampleFile("sample.jpg"));     // 640x480
+        QCOMPARE(thumb.size(), QSize(thumbnails::Size, thumbnails::Size * 3 / 4));
+    }
+
+    void aRawGivesOneToo()
+    {
+        const QImage thumb = thumbnails::make(sampleFile("synthetic.dng"));
+        QVERIFY(!thumb.isNull());
+        QVERIFY(thumb.width() <= thumbnails::Size && thumb.height() <= thumbnails::Size);
+    }
+
+    void whatWillNotDecodeGivesNothing()
+    {
+        QVERIFY(thumbnails::make(m_files.filePath(QStringLiteral("absent.jpg"))).isNull());
+        QFile junk(m_files.filePath(QStringLiteral("junk.jpg")));
+        QVERIFY(junk.open(QIODevice::WriteOnly));
+        junk.write("not a picture");
+        junk.close();
+        QVERIFY(thumbnails::make(junk.fileName()).isNull());
+    }
+
+    void transparencyLandsOnTheStripsGrey()
+    {
+        QImage clear(50, 50, QImage::Format_ARGB32);
+        clear.fill(Qt::transparent);
+        const QString path = m_files.filePath(QStringLiteral("clear.png"));
+        QVERIFY(clear.save(path));
+        const QImage thumb = thumbnails::make(path);
+        QCOMPARE(thumb.pixelColor(10, 10), QColor(58, 60, 64));
+    }
+
+    void whatIsStoredIsFound()
+    {
+        const QString path = copied("sample.jpg", QStringLiteral("stored.jpg"));
+        QVERIFY(thumbnails::loadCached(path).isNull());
+        thumbnails::store(path, thumbnails::make(path));
+        QVERIFY(QFileInfo::exists(thumbnails::cacheFile(path)));
+        QCOMPARE(thumbnails::loadCached(path).size(), QSize(192, 144));
+    }
+
+    void anEditedFileMissesTheCache()
+    {
+        // Same name, same size, a new modified time: a photograph edited in
+        // place. The old thumbnail must not be shown for it.
+        const QString path = copied("sample.jpg", QStringLiteral("edited.jpg"));
+        thumbnails::store(path, thumbnails::make(path));
+        QVERIFY(!thumbnails::loadCached(path).isNull());
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadWrite));
+        QVERIFY(file.setFileTime(QDateTime::currentDateTime().addSecs(3600),
+                                 QFileDevice::FileModificationTime));
+        file.close();
+        QVERIFY2(thumbnails::loadCached(path).isNull(), "an edited file found its old thumbnail");
+    }
+
+    void pruningTakesTheLongestUnseenFirst()
+    {
+        QTemporaryDir dir;
+        thumbnails::setDirectory(dir.path());
+        const QDateTime now = QDateTime::currentDateTime();
+        const QStringList names = {"old.jpg", "middle.jpg", "new.jpg"};
+        for (int i = 0; i < names.size(); ++i) {
+            QFile f(dir.filePath(names.at(i)));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(QByteArray(1000, 'x'));
+            QVERIFY(f.setFileTime(now.addDays(i - 3), QFileDevice::FileModificationTime));
+        }
+        thumbnails::prune(2000);
+        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("old.jpg"))));
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("middle.jpg"))));
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("new.jpg"))));
+        thumbnails::setDirectory(m_cache.path());
+    }
+};
 
 // ---------------------------------------------------------------------------
 
@@ -1447,6 +1557,7 @@ int main(int argc, char **argv)
     ScoringTests scoringTests;
     CacheTests cacheTests;
     DecodeTests decodeTests;
+    ThumbnailTests thumbnailTests;
     JpegOrientTests jpegOrientTests;
     SettingsTests settingsTests;
     UnicodePathTests unicodePathTests;
@@ -1457,6 +1568,7 @@ int main(int argc, char **argv)
         {&scoringTests, QStringLiteral("scoring")},
         {&cacheTests, QStringLiteral("cache")},
         {&decodeTests, QStringLiteral("decode")},
+        {&thumbnailTests, QStringLiteral("thumbnails")},
         {&jpegOrientTests, QStringLiteral("jpeg-orientation")},
         {&settingsTests, QStringLiteral("settings")},
         {&unicodePathTests, QStringLiteral("unicode-paths")},

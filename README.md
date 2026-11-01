@@ -38,6 +38,7 @@ argument still resolves against where you ran it.
 | `R` `L` | rotate right / left (C++ build) |
 | `H` `V` | flip horizontal / vertical (C++ build) |
 | `I` | info panel: camera, lens, exposure, date (C++ build) |
+| `T` | thumbnail strip (C++ build) |
 | `Ctrl+S` | save a turn into a JPEG, losslessly (C++ build) |
 | `Ctrl+,` | settings (C++ build) |
 | `F5` | slideshow, fullscreen; `Esc` ends it (C++ build) |

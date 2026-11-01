@@ -6,6 +6,8 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QDockWidget>
+#include <QListView>
+#include <QScrollBar>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QLoggingCategory>
@@ -25,6 +27,7 @@
 #include "infopanel.h"
 #include "jpegorient.h"
 #include "settingsdialog.h"
+#include "thumbnails.h"
 
 Q_LOGGING_CATEGORY(logWindow, "picviewer.window")
 
@@ -84,6 +87,7 @@ MainWindow::MainWindow(QWidget *parent)
     buildStatusBar();
     buildActions();
     buildInfoPanel();
+    buildThumbnailStrip();
     buildMenus();
     buildToolBar();
     showPlaceholder();
@@ -103,6 +107,60 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 // -- chrome ----------------------------------------------------------------
+
+void MainWindow::buildThumbnailStrip()
+{
+    m_thumbModel = new ThumbnailModel(this);
+    m_thumbView = new QListView(this);
+    m_thumbView->setObjectName(QStringLiteral("thumbnail_view"));
+    m_thumbView->setModel(m_thumbModel);
+    m_thumbView->setViewMode(QListView::IconMode);
+    m_thumbView->setFlow(QListView::LeftToRight);
+    m_thumbView->setWrapping(false);
+    m_thumbView->setMovement(QListView::Static);
+    // Every item the same size, so the view lays out a folder of thousands
+    // from the first item alone instead of asking each one -- which is what
+    // keeps thumbnails out of sight from being decoded.
+    m_thumbView->setUniformItemSizes(true);
+    m_thumbView->setIconSize(QSize(96, 96));
+    m_thumbView->setGridSize(QSize(104, 104));
+    m_thumbView->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_thumbView->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
+    m_thumbView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_thumbView->setFixedHeight(104 + m_thumbView->horizontalScrollBar()->sizeHint().height() + 6);
+    connect(m_thumbView, &QListView::clicked, this, [this](const QModelIndex &index) {
+        if (index.row() != m_index)
+            showIndex(index.row());
+    });
+
+    m_thumbDock = new QDockWidget(tr("Thumbnails"), this);
+    m_thumbDock->setObjectName(QStringLiteral("thumbs_dock"));
+    m_thumbDock->setWidget(m_thumbView);
+    m_thumbDock->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable);
+    m_thumbDock->setAllowedAreas(Qt::TopDockWidgetArea | Qt::BottomDockWidgetArea);
+    addDockWidget(Qt::BottomDockWidgetArea, m_thumbDock);
+    m_thumbDock->hide();
+
+    m_actThumbs = m_thumbDock->toggleViewAction();
+    m_actThumbs->setText(tr("&Thumbnails"));
+    m_actThumbs->setShortcut(QKeySequence(QStringLiteral("T")));
+    m_actThumbs->setToolTip(tr("The folder as a strip of thumbnails  (T)"));
+    m_actThumbs->setStatusTip(m_actThumbs->toolTip());
+    addAction(m_actThumbs);
+    // Opened on a folder already showing: bring the current one into view.
+    connect(m_thumbDock, &QDockWidget::visibilityChanged, this, [this](bool visible) {
+        if (visible && m_index >= 0)
+            m_thumbView->scrollTo(m_thumbModel->index(m_index), QAbstractItemView::PositionAtCenter);
+    });
+
+    // Old thumbnails cleared out in the background, once per start.
+    QThreadPool::globalInstance()->start([] { thumbnails::prune(thumbnails::DefaultBudget); });
+}
+
+void MainWindow::playlistChanged()
+{
+    m_thumbModel->setPaths(m_playlist);
+}
 
 void MainWindow::buildInfoPanel()
 {
@@ -280,6 +338,7 @@ void MainWindow::buildMenus()
     view->addAction(m_actFlipV);
     view->addSeparator();
     view->addAction(m_actInfo);
+    view->addAction(m_actThumbs);
     view->addAction(m_actSlideshow);
     view->addAction(m_actPause);
     view->addAction(m_actFullscreen);
@@ -367,6 +426,7 @@ void MainWindow::openPath(const QString &path)
 
     if (info.isDir()) {
         m_playlist = scan(path);
+        playlistChanged();
         showIndex(m_playlist.isEmpty() ? -1 : 0);
         return;
     }
@@ -382,6 +442,7 @@ void MainWindow::openPath(const QString &path)
         m_playlist.prepend(info.absoluteFilePath());
         index = 0;
     }
+    playlistChanged();
     showIndex(index);
 }
 
@@ -412,6 +473,7 @@ void MainWindow::openPaths(const QStringList &paths)
         return naturalLess(QFileInfo(a).fileName(), QFileInfo(b).fileName());
     });
     m_playlist = files;
+    playlistChanged();
     showIndex(0);
 }
 
@@ -450,6 +512,11 @@ void MainWindow::showIndex(int index)
     ++m_generation;
     m_showingPreview = false;
     stopAnimation();    // or the last file's frames keep landing on this one
+
+    // The strip follows: the current image marked, and in sight.
+    const QModelIndex here = m_thumbModel->index(index);
+    m_thumbView->setCurrentIndex(here);
+    m_thumbView->scrollTo(here, QAbstractItemView::PositionAtCenter);
     m_currentMeta.clear();
 
     const QString path = m_playlist.at(index);
@@ -645,9 +712,12 @@ void MainWindow::toggleFullscreen()
     // open. I still brings it up in fullscreen for a look.
     if (entering) {
         m_infoBeforeFullscreen = m_infoDock->isVisible();
+        m_thumbsBeforeFullscreen = m_thumbDock->isVisible();
         m_infoDock->hide();
+        m_thumbDock->hide();
     } else {
         m_infoDock->setVisible(m_infoBeforeFullscreen);
+        m_thumbDock->setVisible(m_thumbsBeforeFullscreen);
     }
     if (entering) {
         m_maximizedBeforeFullscreen = isMaximized();
@@ -814,6 +884,7 @@ void MainWindow::deleteCurrent()
     qCInfo(logWindow).noquote() << "deleted" << path;
 
     m_playlist.removeAt(m_index);
+    playlistChanged();
     if (m_playlist.isEmpty())
         showPlaceholder();
     else
