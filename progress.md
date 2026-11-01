@@ -27,7 +27,8 @@
 - [x] JPEG、PNG、BMP、GIF（第一格）、TIFF、WebP、ICO、TGA、PPM
 - [x] HEIC / HEIF / AVIF（libheif）
 - [x] 相機 RAW（LibRaw）：先秒開內嵌預覽圖，再換成完整解碼
-- [x] 實機 RAW 驗證過四家：Canon CR2、Nikon NEF、Sony ARW、Fujifilm RAF（X-Trans），以及手機拍的 HEIC
+- [x] 實機 RAW 驗證過八家：Canon CR2、Nikon NEF、Sony ARW、Fujifilm RAF（X-Trans）、
+      Olympus ORF、Panasonic RW2、Pentax PEF、Leica DNG，以及手機拍的 HEIC
 - [x] 用檔頭判斷格式，副檔名只當備案；副檔名寫錯的檔案也能開
 - [x] EXIF 方向自動轉正、ICC 色彩描述檔轉成 sRGB
 - [x] ICO 取最大尺寸那一張，不是最小的
@@ -57,7 +58,7 @@
 - [x] 效能基準 `tools/baseline.json`，之後的改動可以拿來比較
 
 ### 測試與驗證
-- [x] 單元測試 153 個
+- [x] 單元測試 161 個
 - [x] 功能測試 83 個，驅動真正的視窗，在 1×、1.5×、2× 螢幕縮放下各跑一次
 - [x] Mutation 測試 34 項：故意把修過的錯誤放回去，確認測試真的會失敗；目前全部抓到
 - [x] **CI**：每次 push，GitHub 會在乾淨的 Windows 機器上從零建置並跑全部測試（2026-11-01）
@@ -105,13 +106,9 @@ RAW 在完整解碼完成之前會先顯示內嵌預覽圖，所以畫面不會�
 - [ ] Sony 的內嵌預覽圖只有 1616×1080，大螢幕上在完整解碼前會偏糊。
 
 ### 驗證缺口
-- [ ] 每家相機只測過一個檔案；Olympus、Panasonic、Pentax、Leica 沒測過
+- [ ] 每家相機只測過一個檔案；Canon 新機的 CR3 格式還沒測過
 - [ ] 只在這一台電腦上測過
 - [ ] 視窗在不同縮放比例的兩個螢幕之間移動，沒有實測（需要兩個實體螢幕）
-
-### 工具鏈
-- [ ] 從 MSYS2 的 MINGW64 搬到 UCRT64。MINGW64 已被標為棄用、套件持續減少
-      （exiv2 已經沒有了）。目前用到的都還在，不急，但遲早要搬。
 
 ### 打包
 - [ ] 139 MB 裡有 42 MB 是 libheif 硬性依賴的 AV1 / HEVC 編碼器，看圖用不到，

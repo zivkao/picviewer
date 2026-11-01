@@ -11,9 +11,12 @@ development is on `cpp/`.
 ## Getting a build
 
 The toolchain is isolated the way `.venv` is. `.msys64/` in the project root is
-a complete MSYS2 installation — gcc 16.2, CMake, Ninja, Qt6 6.12, LibRaw,
-libheif, lcms2. It touches neither the system `PATH` nor the registry nor any
-MSYS2 installed elsewhere, and deleting the folder removes it entirely.
+a complete MSYS2 installation in its UCRT64 environment — gcc 16.2, CMake,
+Ninja, Qt6 6.12, LibRaw, libheif, libexif, lcms2. It touches neither the
+system `PATH` nor the registry nor any MSYS2 installed elsewhere, and deleting
+the folder removes it entirely. Only UCRT64 is installed in it: with MINGW64
+packages present as well, CMake found Vulkan headers under `mingw64/include`
+and the build mixed the two C runtimes' headers.
 
 ```
 cpp\env.cmd             a shell with the toolchain on PATH
@@ -57,7 +60,7 @@ before a long afternoon of CMake errors.
 Two layers, deliberately different in kind.
 
 ```
-cpp\build\tests\unit_tests.exe                     153 tests, no display, about a second
+cpp\build\tests\unit_tests.exe                     161 tests, no display, about a second
 cpp\build\tests\functional_tests.exe               83 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
@@ -266,7 +269,8 @@ anyway and which reaches the maker notes where lens names often live. JPEG
 and HEIC/AVIF EXIF goes through libexif: found by walking a JPEG's segment
 headers, or handed over by libheif, which stores EXIF as a metadata item
 behind a 4-byte offset. exiv2 would have read every format, RAW included, but
-MSYS2 no longer builds it for MINGW64; libexif is still there, and small. Two
+MSYS2 did not build it for MINGW64, where this started; on UCRT64 it is
+available, but libexif does what is needed and is small. Two
 details: libexif's default of "following the specification" rewrites and adds
 entries on load, so it is turned off -- the panel shows what the camera wrote;
 and EXIF in TIFF, PNG and WebP is not read yet. It is read in the decoder, on

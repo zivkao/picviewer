@@ -9,7 +9,7 @@
 # moved aside, the result is exercised against real files, and anything that
 # breaks goes straight back.
 set -u
-export PATH=/mingw64/bin:$PATH
+export PATH=/ucrt64/bin:$PATH
 
 DIST=/d/Project/Claude_Pic_Viewer/cpp/dist/PicViewer
 HELD=/tmp/picviewer-held

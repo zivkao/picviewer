@@ -44,8 +44,8 @@ Last reviewed: 2026-11-01
 - [x] Cache eviction logged, so memory pressure leaves a trace
 
 ### Verification
-- [x] 153 unit tests over the pure logic; one reads the real CR2 and skips
-      where that untracked file is absent, as on CI
+- [x] 161 unit tests over the pure logic; those reading the real camera
+      files skip where those untracked files are absent, as on CI
 - [x] 83 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
 - [x] Mutation harness covering 34 reintroduced defects
@@ -58,9 +58,12 @@ Last reviewed: 2026-11-01
 - [x] `deploy.sh` walks the dependency tree including plugins
 - [x] `trim.sh` removes only what verifies clean afterwards
 - [x] Per-user installer, side by side with the Python build, clean uninstall
-- [x] Verified on real RAW from four makers -- Canon CR2, Nikon NEF (lossless
-      compressed), Sony ARW (compressed), Fujifilm RAF (X-Trans) -- and a real
-      phone HEIC
+- [x] Verified on real RAW from eight makers -- Canon CR2, Nikon NEF
+      (lossless compressed), Sony ARW (compressed), Fujifilm RAF (X-Trans),
+      Olympus ORF, Panasonic RW2 (a 2024 GH7), Pentax PEF, Leica DNG -- and a
+      real phone HEIC; `everyRealRawDecodes` reads each one present
+- [x] Toolchain on UCRT64, MSYS2's current environment, with MINGW64
+      removed from `.msys64` so the two cannot mix
 
 ---
 
@@ -87,10 +90,10 @@ The installed *Python* package predates its prefetch fix, so it still does the
 redundant work until it is rebuilt. That is a stale install, not a defect.
 
 ### Gaps in what is verified
-- [ ] **Four makers, one file each.** Canon, Nikon, Sony and Fujifilm all
-      decode, but one body and one setting per maker. Olympus, Panasonic,
-      Pentax and Leica are unseen, as are older bodies with different
-      compression.
+- [ ] **Eight makers, one file each.** Canon, Nikon, Sony, Fujifilm,
+      Olympus, Panasonic, Pentax and Leica all decode, but one body and one
+      setting per maker; older bodies with other compression are unseen, as
+      is Canon's CR3.
 - [ ] **One machine.** Display scaling is now tested at 1x, 1.5x and 2x via
       `QT_SCALE_FACTOR`, but on one Windows 11 install and one GPU.
 - [ ] **Moving between screens with different scaling is untested.** The
@@ -126,14 +129,6 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
       sessions, since nothing is (see settings, below).
 - [ ] Any settings at all. The cache budget, zoom limits and prefetch radius
       are constants in the source.
-
-### Toolchain
-- [ ] **Move from MINGW64 to UCRT64.** MSYS2 is thinning the MINGW64
-      repository out -- 1,648 packages against UCRT64's 3,945 when checked on
-      2026-11-01, with exiv2 among those already gone -- and the CI action
-      marks MINGW64 deprecated. Everything this project uses is still there
-      today. Moving means a new `.msys64` package set, a rebuild, and the
-      packaging scripts re-verified, since UCRT64 links a different C runtime.
 
 ### Packaging
 - [ ] 139 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never

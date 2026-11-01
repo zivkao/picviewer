@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Report what the isolated toolchain actually provides.
-export PATH=/mingw64/bin:$PATH
-export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig
+export PATH=/ucrt64/bin:$PATH
+export PKG_CONFIG_PATH=/ucrt64/lib/pkgconfig
 
 show() { printf '  %-22s %s\n' "$1" "$($2 2>&1 | head -1)"; }
 
@@ -21,14 +21,14 @@ done
 
 echo
 echo "=== Qt image formats Qt itself can read ==="
-ls /mingw64/share/qt6/plugins/imageformats/ 2>/dev/null | tr '\n' ' ' | sed 's/^/  /'
+ls /ucrt64/share/qt6/plugins/imageformats/ 2>/dev/null | tr '\n' ' ' | sed 's/^/  /'
 echo
 
 echo
 echo "=== headers present? ==="
-for h in /mingw64/include/qt6/QtWidgets/QApplication \
-         /mingw64/include/libraw/libraw.h \
-         /mingw64/include/libheif/heif.h \
-         /mingw64/include/lcms2.h; do
+for h in /ucrt64/include/qt6/QtWidgets/QApplication \
+         /ucrt64/include/libraw/libraw.h \
+         /ucrt64/include/libheif/heif.h \
+         /ucrt64/include/lcms2.h; do
     [ -f "$h" ] && echo "  OK   $h" || echo "  MISS $h"
 done

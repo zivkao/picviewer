@@ -30,33 +30,32 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # MINGW64 draws a deprecation warning from this action, and MSYS2 has
-      # been thinning that repository out (exiv2, for one, is UCRT64 only).
-      # Left unsuppressed on purpose: moving to UCRT64 is in docs/TASKS.md.
+      # UCRT64, as cpp/env.cmd uses. MINGW64 drew a deprecation warning here
+      # and MSYS2 has been thinning that repository out.
       - uses: msys2/setup-msys2@v2
         id: msys2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           cache: true
           # The same list as cpp/README.md's "recreate it from nothing".
           install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-qt6-base
-            mingw-w64-x86_64-qt6-tools
-            mingw-w64-x86_64-qt6-imageformats
-            mingw-w64-x86_64-libraw
-            mingw-w64-x86_64-libheif
-            mingw-w64-x86_64-libexif
-            mingw-w64-x86_64-lcms2
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-tools
+            mingw-w64-ucrt-x86_64-qt6-imageformats
+            mingw-w64-ucrt-x86_64-libraw
+            mingw-w64-ucrt-x86_64-libheif
+            mingw-w64-ucrt-x86_64-libexif
+            mingw-w64-ucrt-x86_64-lcms2
 
       - name: Toolchain versions
         shell: msys2 {0}
         run: |
-          pacman -Q mingw-w64-x86_64-{gcc,cmake,ninja,qt6-base,qt6-imageformats,libraw,libheif,libexif,lcms2}
+          pacman -Q mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,qt6-base,qt6-imageformats,libraw,libheif,libexif,lcms2}
 
       - name: Build
         id: build
@@ -72,7 +71,7 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: pwsh
         run: |
-          $env:PATH = "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin;$env:PATH"
+          $env:PATH = "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin;$env:PATH"
           $env:QT_QPA_PLATFORM = "offscreen"
           cpp\build\tests\unit_tests.exe
           if ($LASTEXITCODE -ne 0) { exit 1 }
@@ -84,7 +83,7 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: pwsh
         run: |
-          $env:PATH = "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin;$env:PATH"
+          $env:PATH = "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin;$env:PATH"
           cpp\build\tests\functional_tests.exe --scale 1
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
@@ -92,7 +91,7 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: pwsh
         run: |
-          $env:PATH = "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin;$env:PATH"
+          $env:PATH = "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin;$env:PATH"
           cpp\build\tests\functional_tests.exe --scale 1.5
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
@@ -100,7 +99,7 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: pwsh
         run: |
-          $env:PATH = "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin;$env:PATH"
+          $env:PATH = "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin;$env:PATH"
           cpp\build\tests\functional_tests.exe --scale 2
           if ($LASTEXITCODE -ne 0) { exit 1 }
 

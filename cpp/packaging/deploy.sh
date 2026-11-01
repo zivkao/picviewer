@@ -10,11 +10,11 @@
 # with the distribution's packaging.
 set -u
 
-export PATH=/mingw64/bin:$PATH
+export PATH=/ucrt64/bin:$PATH
 ROOT=/d/Project/Claude_Pic_Viewer/cpp
 BUILD=$ROOT/build
 DIST=$ROOT/dist/PicViewer
-MINGW=/mingw64/bin
+TOOLCHAIN=/ucrt64/bin
 
 [ -f "$BUILD/picviewer.exe" ] || { echo "no build at $BUILD/picviewer.exe"; exit 1; }
 
@@ -50,8 +50,8 @@ while [ ${#queue[@]} -gt 0 ]; do
     for dll in $(objdump -p "$current" 2>/dev/null | awk '/DLL Name:/ {print $3}'); do
         [ -n "${seen[$dll]:-}" ] && continue
         seen[$dll]=1
-        if [ -f "$MINGW/$dll" ]; then
-            cp -n "$MINGW/$dll" "$DIST/" 2>/dev/null && copied=$((copied+1))
+        if [ -f "$TOOLCHAIN/$dll" ]; then
+            cp -n "$TOOLCHAIN/$dll" "$DIST/" 2>/dev/null && copied=$((copied+1))
             queue+=("$DIST/$dll")
         fi
     done

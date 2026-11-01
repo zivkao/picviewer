@@ -7,6 +7,25 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-02 — UCRT64, and four more makers
+
+- **The toolchain moved from MSYS2's MINGW64 environment to UCRT64.** MINGW64
+  is being retired: its repository had shrunk to 1,648 packages against
+  UCRT64's 3,945, and the CI action flagged it deprecated. `.msys64` now holds
+  UCRT64 only; scripts, `env.cmd`, CI and the docs all point there.
+- The first UCRT64 build failed with `at_quick_exit` and `timespec_get` not
+  declared. With both environments installed, Qt's CMake config found Vulkan
+  headers under `mingw64/include`, and that directory's C headers -- written
+  for the older runtime -- were then picked up ahead of UCRT64's. Removing the
+  102 MINGW64 packages fixed it; nothing can mix the two now.
+- Versions: gcc 16.2, Qt 6.12, LibRaw 0.22.3, libheif 1.23.7, libexif 0.6.26.
+  All tests pass unchanged.
+- Four more CC0 samples from raw.pixls.us, each checked against the site's
+  SHA-256: Olympus E-M10 II ORF, Panasonic DC-GH7 RW2 (a 2024 body), Pentax
+  K-r PEF, Leica M10-R DNG. All decode. `everyRealRawDecodes` now reads every
+  camera file in `image_example/`, eight makers, requiring the preview, the
+  RAW decoder, sensor-sized output and the camera's metadata.
+
 ## 2026-11-01 — paths outside the code page
 
 - **Found while reading the decoders for the info panel, then confirmed on

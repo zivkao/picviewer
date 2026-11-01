@@ -1,7 +1,7 @@
 # Open every sample with the C++ build, one at a time, and read its own log
 # back. Generous waits: the previous sweep killed the process mid-decode and
 # made working formats look broken.
-$env:PATH = "D:\Project\Claude_Pic_Viewer\.msys64\mingw64\bin;$env:PATH"
+$env:PATH = "D:\Project\Claude_Pic_Viewer\.msys64\ucrt64\bin;$env:PATH"
 $Exe = "D:\Project\Claude_Pic_Viewer\cpp\build\picviewer.exe"
 $Samples = "D:\Project\Claude_Pic_Viewer\samples"
 $Log = Join-Path $env:LOCALAPPDATA "PicViewer\logs\picviewer-cpp.log"

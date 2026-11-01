@@ -19,8 +19,8 @@
 #     "two tests failed" exactly as much as it could mean "build failed". The
 #     two need telling apart, hence the sentinel below.
 set -u
-export PATH=/usr/bin:/mingw64/bin:$PATH
-export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig
+export PATH=/usr/bin:/ucrt64/bin:$PATH
+export PKG_CONFIG_PATH=/ucrt64/lib/pkgconfig
 export QT_QPA_PLATFORM=offscreen
 
 SRC=/d/Project/Claude_Pic_Viewer/cpp/src

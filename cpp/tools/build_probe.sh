@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
-export PATH=/mingw64/bin:$PATH
-export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig
+export PATH=/ucrt64/bin:$PATH
+export PKG_CONFIG_PATH=/ucrt64/lib/pkgconfig
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 OUT=${TMPDIR:-/tmp}/picviewer-probe
@@ -21,4 +21,4 @@ echo "  built $(stat -c %s "$OUT/probe.exe") bytes"
 
 echo
 echo "=== running ==="
-cd /mingw64/bin && "$OUT/probe.exe" "$SAMPLES"
+cd /ucrt64/bin && "$OUT/probe.exe" "$SAMPLES"

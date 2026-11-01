@@ -952,6 +952,46 @@ private slots:
         QCOMPARE(image->info.taken, QDateTime(QDate(2025, 6, 2), QTime(8, 5, 9)));
     }
 
+    void everyRealRawDecodes_data()
+    {
+        // One row per camera file in image_example/ -- untracked, so on CI
+        // there are none and the single placeholder row skips.
+        QTest::addColumn<QString>("path");
+        const QDir real(QStringLiteral(PICVIEWER_SAMPLES_DIR "/../image_example"));
+        const QStringList raws = real.entryList(
+            {"*.cr2", "*.cr3", "*.nef", "*.arw", "*.raf", "*.orf", "*.rw2", "*.pef", "*.dng",
+             "*.srw", "*.rwl"},
+            QDir::Files, QDir::Name);
+        for (const QString &name : raws)
+            QTest::newRow(qPrintable(name)) << real.filePath(name);
+        if (raws.isEmpty())
+            QTest::newRow("none present") << QString();
+    }
+
+    void everyRealRawDecodes()
+    {
+        QFETCH(QString, path);
+        if (path.isEmpty())
+            QSKIP("no camera RAW in image_example/ (it is untracked)");
+
+        const auto preview = decoders::Registry::instance().loadPreview(path, QSize(1024, 1024));
+        QVERIFY2(preview, "no embedded preview");
+
+        decoders::DecodeError error;
+        // Half the size the full decode would give, which is what the RAW
+        // decoder does for a display smaller than the sensor; full size for
+        // eight makers' files is minutes of a test run.
+        const auto image = decoders::Registry::instance().loadFull(path, QSize(2000, 2000), &error);
+        QVERIFY2(image, qPrintable(error.message));
+        QCOMPARE(image->metadata.value(QStringLiteral("decoder")), QStringLiteral("raw"));
+        QVERIFY2(image->fullSize.width() >= 2000,
+                 qPrintable(QStringLiteral("full size reads %1x%2 -- a thumbnail, not the sensor")
+                                .arg(image->fullSize.width()).arg(image->fullSize.height())));
+        QVERIFY2(!image->info.make.isEmpty(), "no camera make in the metadata");
+        QVERIFY2(image->info.iso > 0 || image->info.exposureTime > 0,
+                 "no exposure in the metadata");
+    }
+
     void aRealRawCarriesTheRecord()
     {
         // The real camera files are untracked, so this runs only where they

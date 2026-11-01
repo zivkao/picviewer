@@ -5,9 +5,9 @@ A port of the Python viewer to C++ with Qt6, LibRaw and libheif.
 ## Toolchain
 
 Isolated the way `.venv` is. `.msys64/` in the project root is a complete MSYS2
-installation: gcc 16.2, CMake, Ninja, Qt6 6.12, LibRaw, libheif, lcms2. It
-touches neither the system `PATH` nor the registry nor any MSYS2 installed
-elsewhere, and deleting the folder removes it entirely.
+installation, UCRT64 environment: gcc 16.2, CMake, Ninja, Qt6 6.12, LibRaw,
+libheif, libexif, lcms2. It touches neither the system `PATH` nor the registry
+nor any MSYS2 installed elsewhere, and deleting the folder removes it entirely.
 
 ```
 cpp\env.cmd             a shell with the toolchain on PATH
@@ -27,7 +27,7 @@ repo.msys2.org, extract it to `.msys64` in the project root, then
 ```
 .msys64\usr\bin\bash -lc "pacman -Syu --noconfirm"
 .msys64\usr\bin\bash -lc "pacman -S --noconfirm --needed \
-    mingw-w64-x86_64-{gcc,cmake,ninja,pkgconf,qt6-base,qt6-tools,qt6-imageformats,libraw,libheif,libexif,lcms2}"
+    mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,pkgconf,qt6-base,qt6-tools,qt6-imageformats,libraw,libheif,libexif,lcms2}"
 ```
 
 `qt6-imageformats` is not optional: `qt6-base` alone reads only JPEG, GIF and
@@ -61,7 +61,7 @@ cpp\env.cmd test                          unit
 cpp\build\tests\functional_tests.exe      end to end
 ```
 
-**`unit_tests`** -- 153 passing test functions over the pure logic: container
+**`unit_tests`** -- 161 passing test functions over the pure logic: container
 sniffing, decoder ranking, the byte-budgeted cache, format behaviour against
 the sample files, and reading and wording the camera's EXIF record. No
 display, under a second.
@@ -207,5 +207,5 @@ baseline, the commit messages and these files.
 
 ## Not done
 
-Real RAW from four makers decodes -- Canon, Nikon, Sony, Fujifilm -- but one
-file each. Olympus, Panasonic, Pentax and Leica are unseen.
+Real RAW from eight makers decodes -- Canon, Nikon, Sony, Fujifilm, Olympus,
+Panasonic, Pentax, Leica -- but one file each, and no Canon CR3.
