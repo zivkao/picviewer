@@ -7,6 +7,7 @@
 #include <QtTest>
 
 #include <QRegularExpression>
+#include <QtEndian>
 #include <QTemporaryFile>
 
 #include <cstdio>
@@ -16,6 +17,7 @@
 #include "decoders/raw_decoder.h"
 #include "decoders/registry.h"
 #include "loader.h"
+#include "photoinfo.h"
 #include "sniff.h"
 
 using sniff::Container;
@@ -543,6 +545,354 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+
+/// What the camera recorded: reading it, and putting it into words.
+class PhotoInfoTests : public QObject
+{
+    Q_OBJECT
+
+    static QString fixture(const char *name)
+    {
+        return QStringLiteral(PICVIEWER_FIXTURES_DIR "/") + QLatin1String(name);
+    }
+
+    /// A TIFF-structured EXIF block written by hand, in either byte order.
+    /// Pillow, which made the committed fixtures, only writes little-endian,
+    /// and Nikon and older Canon bodies write big-endian -- so the other
+    /// order has to come from somewhere.
+    class Block
+    {
+    public:
+        explicit Block(bool bigEndian) : m_big(bigEndian) {}
+
+        void ascii(bool exifIfd, quint16 tag, const QByteArray &text)
+        {
+            add(exifIfd, tag, 2, text.size() + 1, text + '\0');
+        }
+        void rational(bool exifIfd, quint16 tag, quint32 num, quint32 den, bool isSigned = false)
+        {
+            add(exifIfd, tag, isSigned ? 10 : 5, 1, u32(num) + u32(den));
+        }
+        void shortValue(bool exifIfd, quint16 tag, quint16 value)
+        {
+            add(exifIfd, tag, 3, 1, u16(value));
+        }
+
+        QByteArray bytes() const
+        {
+            // Header, IFD0 (with a pointer to the EXIF IFD added), the EXIF
+            // IFD, then every value too long to sit in its entry.
+            const quint32 ifd0 = 8;
+            const quint32 ifd0Size = 2 + 12 * (m_ifd0.size() + 1) + 4;
+            const quint32 exif = ifd0 + ifd0Size;
+            const quint32 exifSize = 2 + 12 * m_exif.size() + 4;
+            const quint32 overflowAt = exif + exifSize;
+
+            QByteArray overflow;
+            const auto directory = [&](QList<Entry> entries) {
+                QByteArray out = u16(entries.size());
+                for (const Entry &e : entries) {
+                    out += u16(e.tag) + u16(e.type) + u32(e.count);
+                    if (e.value.size() <= 4) {
+                        out += e.value + QByteArray(4 - e.value.size(), '\0');
+                    } else {
+                        out += u32(overflowAt + overflow.size());
+                        overflow += e.value;
+                        if (overflow.size() % 2)
+                            overflow += '\0';
+                    }
+                }
+                return out + u32(0);
+            };
+
+            QList<Entry> first = m_ifd0;
+            first << Entry{0x8769, 4, 1, u32(exif)};
+            QByteArray out = m_big ? QByteArray("MM\0*", 4) : QByteArray("II*\0", 4);
+            out += u32(ifd0);
+            out += directory(first);
+            out += directory(m_exif);
+            return out + overflow;
+        }
+
+    private:
+        struct Entry { quint16 tag; quint16 type; quint32 count; QByteArray value; };
+
+        void add(bool exifIfd, quint16 tag, quint16 type, quint32 count, const QByteArray &value)
+        {
+            (exifIfd ? m_exif : m_ifd0) << Entry{tag, type, count, value};
+        }
+        QByteArray u16(quint16 v) const
+        {
+            QByteArray b(2, '\0');
+            m_big ? qToBigEndian(v, b.data()) : qToLittleEndian(v, b.data());
+            return b;
+        }
+        QByteArray u32(quint32 v) const
+        {
+            QByteArray b(4, '\0');
+            m_big ? qToBigEndian(v, b.data()) : qToLittleEndian(v, b.data());
+            return b;
+        }
+
+        bool m_big;
+        QList<Entry> m_ifd0;
+        QList<Entry> m_exif;
+    };
+
+    static Block typicalBlock(bool bigEndian, bool withDate)
+    {
+        Block block(bigEndian);
+        block.ascii(false, 0x010f, "NIKON CORPORATION");
+        block.ascii(false, 0x0110, "NIKON Z 6");
+        block.rational(true, 0x829a, 1, 125);           // exposure time
+        block.rational(true, 0x829d, 40, 10);           // f-number
+        block.shortValue(true, 0x8827, 800);            // ISO
+        block.rational(true, 0x9204, quint32(-1), 1, true);   // bias, -1 EV
+        if (withDate)
+            block.ascii(true, 0x9003, "2024:12:31 23:59:58");
+        return block;
+    }
+
+private slots:
+    // -- putting it into words ------------------------------------------------
+
+    void exposureTime_data()
+    {
+        QTest::addColumn<double>("seconds");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("1/250") << 0.004 << "1/250 s";
+        QTest::newRow("1/60") << 1.0 / 60 << "1/60 s";
+        QTest::newRow("1/2") << 0.5 << "1/2 s";
+        QTest::newRow("1/3, as 0.3") << 0.3 << "1/3 s";
+        QTest::newRow("0.8") << 0.8 << "0.8 s";
+        QTest::newRow("1") << 1.0 << "1 s";
+        QTest::newRow("2.5") << 2.5 << "2.5 s";
+        QTest::newRow("30") << 30.0 << "30 s";
+        QTest::newRow("not recorded") << 0.0 << "";
+    }
+    void exposureTime()
+    {
+        QFETCH(double, seconds);
+        QFETCH(QString, expected);
+        QCOMPARE(photoinfo::exposureTime(seconds), expected);
+    }
+
+    void aperture_data()
+    {
+        QTest::addColumn<double>("fNumber");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("5.6") << 5.6 << "f/5.6";
+        QTest::newRow("8, no decimal") << 8.0 << "f/8";
+        QTest::newRow("1.4") << 1.4 << "f/1.4";
+        QTest::newRow("not recorded") << 0.0 << "";
+    }
+    void aperture()
+    {
+        QFETCH(double, fNumber);
+        QFETCH(QString, expected);
+        QCOMPARE(photoinfo::aperture(fNumber), expected);
+    }
+
+    void exposureBias_data()
+    {
+        QTest::addColumn<double>("ev");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("+2/3") << 2.0 / 3 << "+0.7 EV";
+        QTest::newRow("-1") << -1.0 << "-1 EV";
+        QTest::newRow("-1/3") << -1.0 / 3 << "-0.3 EV";
+        QTest::newRow("zero says nothing") << 0.0 << "";
+    }
+    void exposureBias()
+    {
+        QFETCH(double, ev);
+        QFETCH(QString, expected);
+        QCOMPARE(photoinfo::exposureBias(ev), expected);
+    }
+
+    void camera_data()
+    {
+        QTest::addColumn<QString>("make");
+        QTest::addColumn<QString>("model");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("Canon repeats itself") << "Canon" << "Canon EOS R5" << "Canon EOS R5";
+        QTest::newRow("Nikon, in full") << "NIKON CORPORATION" << "NIKON Z 6" << "NIKON Z 6";
+        QTest::newRow("Olympus, model alone")
+            << "OLYMPUS IMAGING CORP." << "E-M1" << "OLYMPUS E-M1";
+        QTest::newRow("Apple") << "Apple" << "iPhone 13" << "Apple iPhone 13";
+        QTest::newRow("model only") << "" << "X100V" << "X100V";
+        QTest::newRow("make only") << "FUJIFILM" << "" << "FUJIFILM";
+    }
+    void camera()
+    {
+        QFETCH(QString, make);
+        QFETCH(QString, model);
+        QFETCH(QString, expected);
+        photoinfo::PhotoInfo info;
+        info.make = make;
+        info.model = model;
+        QCOMPARE(photoinfo::camera(info), expected);
+    }
+
+    void focalLengthShowsTheEquivalentOnlyWhenItDiffers()
+    {
+        photoinfo::PhotoInfo info;
+        info.focalLength = 70;
+        info.focalLength35 = 70;
+        QCOMPARE(photoinfo::focalLength(info), QStringLiteral("70 mm"));
+        info.focalLength = 5.1;
+        info.focalLength35 = 26;
+        QCOMPARE(photoinfo::focalLength(info), QStringLiteral("5.1 mm (26 mm equivalent)"));
+        info.focalLength35 = 0;
+        QCOMPARE(photoinfo::focalLength(info), QStringLiteral("5.1 mm"));
+    }
+
+    // -- reading it -------------------------------------------------------------
+
+    void bothByteOrdersRead_data()
+    {
+        QTest::addColumn<bool>("bigEndian");
+        QTest::newRow("big-endian (MM)") << true;
+        QTest::newRow("little-endian (II)") << false;
+    }
+    void bothByteOrdersRead()
+    {
+        QFETCH(bool, bigEndian);
+        const photoinfo::PhotoInfo info =
+            photoinfo::fromExif(typicalBlock(bigEndian, true).bytes());
+        QCOMPARE(info.make, QStringLiteral("NIKON CORPORATION"));
+        QCOMPARE(info.model, QStringLiteral("NIKON Z 6"));
+        QCOMPARE(info.exposureTime, 1.0 / 125);
+        QCOMPARE(info.aperture, 4.0);
+        QCOMPARE(info.iso, 800);
+        QVERIFY(info.exposureBias.has_value());
+        QCOMPARE(*info.exposureBias, -1.0);
+        QCOMPARE(info.taken, QDateTime(QDate(2024, 12, 31), QTime(23, 59, 58)));
+    }
+
+    void anUndatedPhotographStaysUndated()
+    {
+        // A date from anywhere but the camera -- a library default, the
+        // file's modified time -- would read as when the photograph was
+        // taken. No date recorded means none shown.
+        const QByteArray block = typicalBlock(true, false).bytes();
+        const photoinfo::PhotoInfo info = photoinfo::fromExif(block);
+        QCOMPARE(info.model, QStringLiteral("NIKON Z 6"));     // the block did parse
+        QVERIFY2(!info.taken.isValid(),
+                 qPrintable("a block with no date read as taken " + info.taken.toString()));
+    }
+
+    void theExifHeaderIsOptional()
+    {
+        const QByteArray tiff = typicalBlock(false, true).bytes();
+        const QByteArray withHeader = QByteArray("Exif\0\0", 6) + tiff;
+        QCOMPARE(photoinfo::fromExif(withHeader).model, QStringLiteral("NIKON Z 6"));
+        QCOMPARE(photoinfo::fromExif(tiff).model, QStringLiteral("NIKON Z 6"));
+    }
+
+    void garbageGivesNothingRatherThanFailing()
+    {
+        QVERIFY(photoinfo::fromExif(QByteArray()).isEmpty());
+        QVERIFY(photoinfo::fromExif(QByteArray("not exif at all")).isEmpty());
+        // A real header over a directory that points past the end.
+        QByteArray truncated = typicalBlock(true, true).bytes().left(30);
+        QVERIFY(photoinfo::fromExif(truncated).iso == 0);
+    }
+
+    void heifItemsSkipTheirOffset_data()
+    {
+        QTest::addColumn<QByteArray>("item");
+        QTest::addColumn<bool>("readable");
+        const QByteArray tiff = typicalBlock(true, true).bytes();
+        const QByteArray header("Exif\0\0", 6);
+        QTest::newRow("offset 0, TIFF follows") << QByteArray(4, '\0') + tiff << true;
+        QTest::newRow("offset 6, past an Exif header")
+            << QByteArray("\0\0\0\x06", 4) + header + tiff << true;
+        QTest::newRow("offset 0, Exif header follows") << QByteArray(4, '\0') + header + tiff << true;
+        QTest::newRow("offset past the end") << QByteArray("\0\0\x10\0", 4) + tiff << false;
+        QTest::newRow("too short for an offset") << QByteArray("\0\0", 2) << false;
+    }
+    void heifItemsSkipTheirOffset()
+    {
+        QFETCH(QByteArray, item);
+        QFETCH(bool, readable);
+        const photoinfo::PhotoInfo info = photoinfo::fromExif(photoinfo::exifFromHeifItem(item));
+        QCOMPARE(info.model == QStringLiteral("NIKON Z 6"), readable);
+    }
+
+    void aJpegsExifIsFoundInItsSegments()
+    {
+        const QString path = fixture("exif_camera.jpg");
+        QVERIFY2(QFileInfo::exists(path), "fixture missing; regenerate with make_exif.py");
+        const photoinfo::PhotoInfo info = photoinfo::fromExif(photoinfo::exifFromJpeg(path));
+        QCOMPARE(photoinfo::camera(info), QStringLiteral("Canon EOS R5"));
+        QCOMPARE(info.lens, QStringLiteral("RF24-105mm F4 L IS USM"));
+        QCOMPARE(photoinfo::focalLength(info), QStringLiteral("70 mm"));
+        QCOMPARE(photoinfo::aperture(info.aperture), QStringLiteral("f/5.6"));
+        QCOMPARE(photoinfo::exposureTime(info.exposureTime), QStringLiteral("1/250 s"));
+        QCOMPARE(info.iso, 400);
+        QCOMPARE(photoinfo::exposureBias(info.exposureBias.value_or(0)), QStringLiteral("+0.7 EV"));
+        QCOMPARE(info.taken, QDateTime(QDate(2025, 5, 1), QTime(13, 22, 10)));
+    }
+
+    void aJpegWithoutCameraExifHasNothingToShow()
+    {
+        // This one carries EXIF, for its orientation, but nothing a camera
+        // records about the shot.
+        const QString path = QStringLiteral(PICVIEWER_SAMPLES_DIR "/rotated_exif.jpg");
+        QVERIFY(!photoinfo::exifFromJpeg(path).isEmpty());
+        QVERIFY(photoinfo::fromExif(photoinfo::exifFromJpeg(path)).isEmpty());
+        QVERIFY(photoinfo::exifFromJpeg(QStringLiteral(PICVIEWER_SAMPLES_DIR "/sample.png")).isEmpty());
+    }
+
+    // -- through the decoders ---------------------------------------------------
+
+    void theJpegDecoderCarriesTheRecord()
+    {
+        decoders::DecodeError error;
+        const auto image = decoders::Registry::instance().loadFull(
+            fixture("exif_camera.jpg"), QSize(), &error);
+        QVERIFY2(image, qPrintable(error.message));
+        QCOMPARE(image->info.iso, 400);
+    }
+
+    void theHeifDecoderCarriesTheRecord()
+    {
+        // HEIF keeps EXIF as a metadata item behind a 4-byte offset, so this
+        // is the path through libheif rather than through the file.
+        decoders::DecodeError error;
+        const auto image = decoders::Registry::instance().loadFull(
+            fixture("exif_phone.heic"), QSize(), &error);
+        QVERIFY2(image, qPrintable(error.message));
+        QCOMPARE(photoinfo::camera(image->info), QStringLiteral("Apple iPhone 13"));
+        QCOMPARE(photoinfo::focalLength(image->info), QStringLiteral("5.1 mm (26 mm equivalent)"));
+        QCOMPARE(photoinfo::aperture(image->info.aperture), QStringLiteral("f/1.6"));
+        QCOMPARE(photoinfo::exposureTime(image->info.exposureTime), QStringLiteral("1/60 s"));
+        QCOMPARE(image->info.iso, 125);
+        QVERIFY(!image->info.exposureBias.has_value());
+        QCOMPARE(image->info.taken, QDateTime(QDate(2025, 6, 2), QTime(8, 5, 9)));
+    }
+
+    void aRealRawCarriesTheRecord()
+    {
+        // The real camera files are untracked, so this runs only where they
+        // are -- and the CR2 is the one body the owner actually shoots.
+        const QString path = QStringLiteral(PICVIEWER_SAMPLES_DIR "/../image_example/IMG_0893.CR2");
+        if (!QFileInfo::exists(path))
+            QSKIP("image_example/IMG_0893.CR2 is not present (it is untracked)");
+        const auto preview = decoders::Registry::instance().loadPreview(path, QSize(512, 512));
+        QVERIFY(preview);
+        QCOMPARE(preview->info.make, QStringLiteral("Canon"));
+        QVERIFY(!preview->info.model.isEmpty());
+        QVERIFY(preview->info.iso > 0);
+        QVERIFY(preview->info.exposureTime > 0);
+        QVERIFY(preview->info.aperture > 0);
+        QVERIFY(preview->info.taken.isValid());
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 namespace {
 
 /// Run one suite and return its report.
@@ -594,12 +944,14 @@ int main(int argc, char **argv)
     ScoringTests scoringTests;
     CacheTests cacheTests;
     DecodeTests decodeTests;
+    PhotoInfoTests photoInfoTests;
 
     const QList<QPair<QObject *, QString>> suites = {
         {&sniffTests, QStringLiteral("sniff")},
         {&scoringTests, QStringLiteral("scoring")},
         {&cacheTests, QStringLiteral("cache")},
         {&decodeTests, QStringLiteral("decode")},
+        {&photoInfoTests, QStringLiteral("photo-info")},
     };
 
     int failures = 0;

@@ -12,6 +12,7 @@
 #include <QtTest>
 
 #include <QClipboard>
+#include <QDockWidget>
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
@@ -25,6 +26,7 @@
 #include <QToolBar>
 
 #include "applog.h"
+#include "infopanel.h"
 #include "viewer.h"
 #include "window.h"
 
@@ -1125,6 +1127,154 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// The info panel: opened with I, filled from the camera's record, and kept
+/// in step with whatever is on screen.
+class InfoPanelTests : public QObject
+{
+    Q_OBJECT
+
+    // The fixtures are copied out rather than opened in place: opening one
+    // makes its folder the playlist, and the fixtures folder also holds a
+    // 309 MiB-decoded PNG that prefetch would then decode on every test.
+    QTemporaryDir m_dir;
+
+    QString copy(const QString &from, const QString &name)
+    {
+        const QString to = m_dir.filePath(name);
+        QFile::remove(to);
+        return QFile::copy(from, to) ? to : QString();
+    }
+
+    static QString fixture(const char *name)
+    {
+        return QStringLiteral(PICVIEWER_FIXTURES_DIR "/") + QLatin1String(name);
+    }
+
+    static QString panelText(const MainWindow &window) { return window.infoPanel()->text(); }
+
+private slots:
+    void initTestCase()
+    {
+        QVERIFY(m_dir.isValid());
+        QVERIFY(!copy(fixture("exif_camera.jpg"), QStringLiteral("a_camera.jpg")).isEmpty());
+        QVERIFY(!copy(fixture("exif_phone.heic"), QStringLiteral("b_phone.heic")).isEmpty());
+        QVERIFY(!copy(sample("sample.png"), QStringLiteral("c_plain.png")).isEmpty());
+        QFile broken(m_dir.filePath(QStringLiteral("d_broken.jpg")));
+        QVERIFY(broken.open(QIODevice::WriteOnly));
+        broken.write("\xff\xd8 this is not a JPEG beyond its first two bytes");
+    }
+
+    void iOpensAndClosesThePanel()
+    {
+        MainWindow window;
+        window.show();
+        // Shortcuts only fire in the active window, and with nothing to load
+        // there is no wait below in which the window becomes active.
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QVERIFY2(!window.infoDock()->isVisible(), "the panel should start closed");
+        QTest::keyClick(&window, Qt::Key_I);
+        QVERIFY(waitFor([&] { return window.infoDock()->isVisible(); }, 2000));
+        QTest::keyClick(&window, Qt::Key_I);
+        QVERIFY(waitFor([&] { return !window.infoDock()->isVisible(); }, 2000));
+    }
+
+    void itShowsWhatTheCameraRecorded_data()
+    {
+        QTest::addColumn<QString>("file");
+        QTest::addColumn<QStringList>("expected");
+        QTest::addColumn<QStringList>("absent");
+        QTest::newRow("camera JPEG")
+            << "a_camera.jpg"
+            << QStringList{"Camera: Canon EOS R5", "Lens: RF24-105mm F4 L IS USM",
+                           "Focal length: 70 mm", "Aperture: f/5.6", "Shutter: 1/250 s",
+                           "ISO: 400", "Exposure bias: +0.7 EV", "Taken: 2025-05-01 13:22:10",
+                           "Name: a_camera.jpg", "Dimensions: 64 x 48", "Format: JPEG"}
+            << QStringList{"equivalent", "No camera information"};
+        QTest::newRow("phone HEIC")
+            << "b_phone.heic"
+            << QStringList{"Camera: Apple iPhone 13", "Focal length: 5.1 mm (26 mm equivalent)",
+                           "Aperture: f/1.6", "Shutter: 1/60 s", "ISO: 125",
+                           "Taken: 2025-06-02 08:05:09", "Format: HEIF"}
+            << QStringList{"Exposure bias"};
+        QTest::newRow("PNG, no camera")
+            << "c_plain.png"
+            << QStringList{"No camera information in this file", "Name: c_plain.png"}
+            << QStringList{"Camera: ", "Taken:"};
+    }
+
+    void itShowsWhatTheCameraRecorded()
+    {
+        QFETCH(QString, file);
+        QFETCH(QStringList, expected);
+        QFETCH(QStringList, absent);
+
+        MainWindow window;
+        window.resize(1000, 700);
+        window.show();
+        window.openPath(m_dir.filePath(file));
+        QVERIFY(waitForImage(window));
+        QTest::keyClick(&window, Qt::Key_I);
+
+        const QString text = panelText(window);
+        for (const QString &line : expected)
+            QVERIFY2(text.contains(line), qPrintable("missing \"" + line + "\" in:\n" + text));
+        for (const QString &line : absent)
+            QVERIFY2(!text.contains(line), qPrintable("unexpected \"" + line + "\" in:\n" + text));
+    }
+
+    void theNextImageReplacesTheDetails()
+    {
+        MainWindow window;
+        window.show();
+        window.openPath(m_dir.filePath(QStringLiteral("a_camera.jpg")));
+        QVERIFY(waitForImage(window));
+        QVERIFY(panelText(window).contains(QStringLiteral("Canon EOS R5")));
+
+        window.showIndex(window.index() + 2);   // c_plain.png, by name order
+        QVERIFY(waitFor([&] { return panelText(window).contains(QStringLiteral("c_plain.png")); }));
+        QVERIFY2(!panelText(window).contains(QStringLiteral("Canon")),
+                 qPrintable("the PNG's panel still shows the JPEG's camera:\n" + panelText(window)));
+    }
+
+    void aFileThatWillNotDecodeStillShowsWhatItIs()
+    {
+        MainWindow window;
+        window.show();
+        window.openPath(m_dir.filePath(QStringLiteral("d_broken.jpg")));
+        QVERIFY(waitFor([&] { return panelText(window).contains(QStringLiteral("d_broken.jpg")); }));
+        QVERIFY(panelText(window).contains(QStringLiteral("Could not be decoded")));
+        QVERIFY(!panelText(window).contains(QStringLiteral("Canon")));
+    }
+
+    void fullscreenTakesThePanelAndGivesItBack()
+    {
+        MainWindow window;
+        window.show();
+        window.openPath(m_dir.filePath(QStringLiteral("a_camera.jpg")));
+        QVERIFY(waitForImage(window));
+
+        QTest::keyClick(&window, Qt::Key_I);
+        QVERIFY(waitFor([&] { return window.infoDock()->isVisible(); }, 2000));
+        window.toggleFullscreen();
+        QTest::qWait(100);
+        QVERIFY2(!window.infoDock()->isVisible(), "the panel stayed up in fullscreen");
+        window.toggleFullscreen();
+        QVERIFY2(waitFor([&] { return window.infoDock()->isVisible(); }, 2000),
+                 "the panel did not come back after fullscreen");
+
+        // And one that was closed stays closed.
+        QTest::keyClick(&window, Qt::Key_I);
+        QVERIFY(waitFor([&] { return !window.infoDock()->isVisible(); }, 2000));
+        window.toggleFullscreen();
+        QTest::qWait(100);
+        window.toggleFullscreen();
+        QTest::qWait(100);
+        QVERIFY(!window.infoDock()->isVisible());
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 namespace {
 
 int runSuite(QObject *suite, const QString &name, int &passed, int &failed)
@@ -1186,6 +1336,7 @@ int main(int argc, char **argv)
     FailureTests failures;
     HighDpiTests highDpi;
     OrientationTests orientation;
+    InfoPanelTests infoPanel;
 
     const QList<QPair<QObject *, QString>> suites = {
         {&dropRouting, QStringLiteral("drop-routing")},
@@ -1196,6 +1347,7 @@ int main(int argc, char **argv)
         {&failures, QStringLiteral("failures")},
         {&highDpi, QStringLiteral("high-dpi")},
         {&orientation, QStringLiteral("orientation")},
+        {&infoPanel, QStringLiteral("info-panel")},
     };
 
     int exitCode = 0;

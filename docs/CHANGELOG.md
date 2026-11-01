@@ -7,6 +7,29 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-01 — info panel
+
+- `I` opens a side panel with what the camera recorded -- body, lens, focal
+  length (with the 35 mm equivalent when it differs), aperture, shutter, ISO,
+  exposure bias, date taken -- and the file's own details: name, dimensions,
+  size, format, decoder, colour profile, modified date. On the View menu and
+  the toolbar; closed by default; hidden in fullscreen and put back after.
+- RAW metadata from LibRaw, which the RAW decoder already has open. JPEG and
+  HEIC/AVIF EXIF through libexif, newly added to the toolchain and to CI.
+  exiv2 was the first choice and is no longer built for MINGW64.
+- libexif "follows the specification" by default, rewriting and adding
+  entries on load; that is turned off. The code first said it invented a
+  date for undated photographs. Checked by turning it back on: the fields
+  read here come out the same, an undated block included, so the comment now
+  says only what is documented and no mutation pretends to guard it.
+- Two committed fixtures, `exif_camera.jpg` and `exif_phone.heic`, about 1 KB
+  each, from `cpp/tests/fixtures/make_exif.py`; a big-endian EXIF block is
+  built by hand in the unit tests, since Pillow writes only little-endian.
+  41 new unit tests, 9 new functional; the real CR2 is read where present.
+- One new functional test failed at first: `I` pressed straight after
+  `show()`, before the offscreen window was active, so the shortcut never
+  fired. The test now waits for the window; the panel was fine.
+
 ## 2026-11-01 — CI
 
 - `.github/workflows/cpp.yml`: on every push, a clean Windows runner installs

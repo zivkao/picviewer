@@ -115,6 +115,8 @@ std::optional<DecodedImage> QtDecoder::loadFull(const QString &path,
     }
 
     DecodedImage result;
+    if (format == "jpeg")
+        result.info = photoinfo::fromExif(photoinfo::exifFromJpeg(path));
     result.metadata.insert(QStringLiteral("format"), QString::fromLatin1(format).toUpper());
     if (image.colorSpace().isValid())
         result.metadata.insert(QStringLiteral("icc"), QStringLiteral("embedded"));

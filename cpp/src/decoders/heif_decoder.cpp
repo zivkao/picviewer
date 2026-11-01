@@ -50,6 +50,23 @@ void applyColorProfile(QImage &image, const heif_image_handle *handle)
         image.setColorSpace(space);
 }
 
+/// The camera's EXIF, which HEIF keeps as a metadata item beside the image.
+photoinfo::PhotoInfo photoInfo(const heif_image_handle *handle)
+{
+    auto *h = const_cast<heif_image_handle *>(handle);
+    heif_item_id id = 0;
+    if (heif_image_handle_get_list_of_metadata_block_IDs(h, "Exif", &id, 1) < 1)
+        return {};
+    const std::size_t size = heif_image_handle_get_metadata_size(h, id);
+    // A real EXIF block is a few kilobytes; the cap is for files that lie.
+    if (size == 0 || size > 16 * 1024 * 1024)
+        return {};
+    QByteArray item(static_cast<qsizetype>(size), Qt::Uninitialized);
+    if (heif_image_handle_get_metadata(h, id, item.data()).code != heif_error_Ok)
+        return {};
+    return photoinfo::fromExif(photoinfo::exifFromHeifItem(item));
+}
+
 } // namespace
 
 const QSet<QString> &HeifDecoder::extensions()
@@ -143,6 +160,7 @@ std::optional<DecodedImage> HeifDecoder::loadFull(const QString &path,
     result.image = std::move(image);
     result.isPreview = false;
     result.fullSize = full;
+    result.info = photoInfo(handle.get());
     result.metadata.insert(QStringLiteral("format"),
                            container == sniff::Container::Avif ? QStringLiteral("AVIF")
                                                                : QStringLiteral("HEIF"));

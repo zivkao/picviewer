@@ -27,7 +27,7 @@ repo.msys2.org, extract it to `.msys64` in the project root, then
 ```
 .msys64\usr\bin\bash -lc "pacman -Syu --noconfirm"
 .msys64\usr\bin\bash -lc "pacman -S --noconfirm --needed \
-    mingw-w64-x86_64-{gcc,cmake,ninja,pkgconf,qt6-base,qt6-tools,qt6-imageformats,libraw,libheif,lcms2}"
+    mingw-w64-x86_64-{gcc,cmake,ninja,pkgconf,qt6-base,qt6-tools,qt6-imageformats,libraw,libheif,libexif,lcms2}"
 ```
 
 `qt6-imageformats` is not optional: `qt6-base` alone reads only JPEG, GIF and
@@ -49,6 +49,11 @@ starts on the first directory entry, usually the smallest -- a 16x16 icon out
 of a file that also carries 256x256. Pillow picked the largest; the port now
 does too, and a test holds it there.
 
+**Features the Python build never had.** Rotate and flip for viewing
+(`R` `L` `H` `V`), and an info panel (`I`) with what the camera recorded:
+body, lens, focal length, aperture, shutter, ISO, exposure bias, date. RAW
+metadata comes from LibRaw, JPEG and HEIC/AVIF EXIF through libexif.
+
 ## Tests
 
 ```
@@ -56,11 +61,12 @@ cpp\env.cmd test                          unit
 cpp\build\tests\functional_tests.exe      end to end
 ```
 
-**`unit_tests`** -- 100 passing test functions over the pure logic: container sniffing,
-decoder ranking, the byte-budgeted cache, and format behaviour against the
-sample files. No display, under a second.
+**`unit_tests`** -- 141 passing test functions over the pure logic: container
+sniffing, decoder ranking, the byte-budgeted cache, format behaviour against
+the sample files, and reading and wording the camera's EXIF record. No
+display, under a second.
 
-**`functional_tests`** -- 74 passing test functions driving a real `MainWindow` offscreen:
+**`functional_tests`** -- 83 passing test functions driving a real `MainWindow` offscreen:
 drag and drop sent to actual widgets, keystrokes through `QTest::keyClick`,
 menu and toolbar state read off the real objects, fullscreen, a fixture of
 deny-read files that reproduces an unreadable-file failure, display scaling
@@ -84,8 +90,8 @@ passed, and said so into a closed stream.
 .msys64\usr\bin\bash -lc "bash cpp/tools/mutate.sh"
 ```
 
-Reintroduces sixteen defects this project has fixed, and nine likely ways to
-get rotate and flip wrong, and checks the suites go red for each. A green suite says nothing until it can fail, and this has twice
+Reintroduces sixteen defects this project has fixed, and sixteen likely
+mistakes in the newer work, and checks the suites go red for each. A green suite says nothing until it can fail, and this has twice
 caught tests that were passing for the wrong reason. The full table is in
 [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
 

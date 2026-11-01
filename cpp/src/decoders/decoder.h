@@ -10,6 +10,7 @@
 
 #include <optional>
 
+#include "photoinfo.h"
 #include "sniff.h"
 
 namespace decoders {
@@ -28,6 +29,7 @@ struct DecodedImage {
     bool isPreview = false;
     QSize fullSize;                     ///< true dimensions of the source
     QMap<QString, QString> metadata;
+    photoinfo::PhotoInfo info;          ///< what the camera recorded, if anything
 
     qint64 nbytes() const { return qMax<qint64>(image.sizeInBytes(), 1); }
 };

@@ -12,11 +12,12 @@ endif()
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 
-# LibRaw and libheif ship pkg-config files in MSYS2 but no CMake config, so
-# they are found that way rather than with find_package.
+# LibRaw, libheif and libexif ship pkg-config files in MSYS2 but no CMake
+# config, so they are found that way rather than with find_package.
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBRAW REQUIRED libraw)
 pkg_check_modules(LIBHEIF REQUIRED libheif)
+pkg_check_modules(LIBEXIF REQUIRED libexif)
 
 # Everything but the entry point, so the application and both test binaries
 # link one library rather than compiling the same sources three times -- and
@@ -27,6 +28,8 @@ add_library(picviewer_core STATIC
     src/cache.cpp
     src/applog.cpp
     src/loader.cpp
+    src/photoinfo.cpp
+    src/infopanel.cpp
     src/viewer.cpp
     src/window.cpp
     src/decoders/registry.cpp
@@ -39,23 +42,27 @@ target_include_directories(picviewer_core PUBLIC
     src
     ${LIBRAW_INCLUDE_DIRS}
     ${LIBHEIF_INCLUDE_DIRS}
+    ${LIBEXIF_INCLUDE_DIRS}
 )
 
 target_link_libraries(picviewer_core PUBLIC
     Qt6::Core Qt6::Gui Qt6::Widgets
     ${LIBRAW_LIBRARIES}
     ${LIBHEIF_LIBRARIES}
+    ${LIBEXIF_LIBRARIES}
 )
 
 target_link_directories(picviewer_core PUBLIC
     ${LIBRAW_LIBRARY_DIRS}
     ${LIBHEIF_LIBRARY_DIRS}
+    ${LIBEXIF_LIBRARY_DIRS}
 )
 
 target_compile_options(picviewer_core PRIVATE
     -Wall -Wextra -Wpedantic
     ${LIBRAW_CFLAGS_OTHER}
     ${LIBHEIF_CFLAGS_OTHER}
+    ${LIBEXIF_CFLAGS_OTHER}
 )
 
 add_executable(picviewer WIN32

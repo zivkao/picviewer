@@ -5,6 +5,7 @@
 #include <QCloseEvent>
 #include <QDesktopServices>
 #include <QDir>
+#include <QDockWidget>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QLoggingCategory>
@@ -19,6 +20,7 @@
 
 #include "applog.h"
 #include "decoders/registry.h"
+#include "infopanel.h"
 
 Q_LOGGING_CATEGORY(logWindow, "picviewer.window")
 
@@ -77,6 +79,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     buildStatusBar();
     buildActions();
+    buildInfoPanel();
     buildMenus();
     buildToolBar();
     showPlaceholder();
@@ -86,6 +89,28 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 // -- chrome ----------------------------------------------------------------
+
+void MainWindow::buildInfoPanel()
+{
+    m_info = new InfoPanel(this);
+    m_infoDock = new QDockWidget(tr("Info"), this);
+    m_infoDock->setObjectName(QStringLiteral("info_dock"));
+    m_infoDock->setWidget(m_info);
+    m_infoDock->setFeatures(QDockWidget::DockWidgetClosable | QDockWidget::DockWidgetMovable);
+    m_infoDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    addDockWidget(Qt::RightDockWidgetArea, m_infoDock);
+    // Closed until asked for: most of the time the picture is the point.
+    m_infoDock->hide();
+
+    // The dock's own toggle action, so the menu tick, the toolbar button and
+    // the dock's close button can never disagree about whether it is open.
+    m_actInfo = m_infoDock->toggleViewAction();
+    m_actInfo->setText(tr("Image &Info"));
+    m_actInfo->setShortcut(QKeySequence(QStringLiteral("I")));
+    m_actInfo->setToolTip(tr("Camera and file details  (I)"));
+    m_actInfo->setStatusTip(m_actInfo->toolTip());
+    addAction(m_actInfo);   // so I works in fullscreen, with the menu bar hidden
+}
 
 void MainWindow::buildStatusBar()
 {
@@ -224,6 +249,7 @@ void MainWindow::buildMenus()
     view->addAction(m_actFlipH);
     view->addAction(m_actFlipV);
     view->addSeparator();
+    view->addAction(m_actInfo);
     view->addAction(m_actFullscreen);
 
     QMenu *help = menuBar()->addMenu(tr("&Help"));
@@ -269,6 +295,8 @@ void MainWindow::buildToolBar()
         {m_actRotateLeft, QStringLiteral("↺")},
         {m_actRotateRight, QStringLiteral("↻")},
     });
+    m_toolBar->addSeparator();
+    addTextButtons({{m_actInfo, QStringLiteral("Info")}});
 
     m_toolBar->addSeparator();
     m_toolBar->addAction(m_actFullscreen);
@@ -444,6 +472,7 @@ void MainWindow::display(const decoders::DecodedImage &image, bool keepView)
     m_showingPreview = image.isPreview;
     m_currentMeta = image.metadata;
     m_view->setImage(image.image, keepView);
+    m_info->showImage(currentPath(), image);
     updateStatus();
 }
 
@@ -453,6 +482,7 @@ void MainWindow::onFailed(const QString &path, const QString &message, quint64 g
         return;
     qCDebug(logWindow) << "showing failure for" << QFileInfo(path).fileName();
     m_view->clearImage();
+    m_info->showFailure(path);
     m_view->setMessage(tr("Could not open %1\n\n%2").arg(QFileInfo(path).fileName(), message));
     m_statusRight->setText(tr("Failed"));
     updateActionState();
@@ -490,6 +520,7 @@ void MainWindow::showPlaceholder()
 {
     m_index = -1;
     m_view->clearImage();
+    m_info->clear();
     m_view->setMessage(tr("Drop an image here, or press Ctrl+O to open one"));
     setWindowTitle(QStringLiteral("Pic Viewer"));
     m_statusLeft->setText(tr("Ctrl+O to open, or drop a file here"));
@@ -530,6 +561,14 @@ void MainWindow::toggleFullscreen()
     statusBar()->setVisible(!entering);
     menuBar()->setVisible(!entering);
     m_toolBar->setVisible(!entering);
+    // The panel goes with the rest of the chrome and comes back if it was
+    // open. I still brings it up in fullscreen for a look.
+    if (entering) {
+        m_infoBeforeFullscreen = m_infoDock->isVisible();
+        m_infoDock->hide();
+    } else {
+        m_infoDock->setVisible(m_infoBeforeFullscreen);
+    }
     if (entering)
         showFullScreen();
     else

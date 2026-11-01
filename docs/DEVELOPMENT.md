@@ -57,8 +57,8 @@ before a long afternoon of CMake errors.
 Two layers, deliberately different in kind.
 
 ```
-cpp\build\tests\unit_tests.exe                     100 tests, no display, about a second
-cpp\build\tests\functional_tests.exe               74 tests, a real window, offscreen
+cpp\build\tests\unit_tests.exe                     141 tests, no display, about a second
+cpp\build\tests\functional_tests.exe               83 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
 
@@ -108,10 +108,8 @@ Reintroduces every defect this project has fixed and checks the suites go red
 for it. A green suite says nothing until it can fail, and this has twice caught
 tests that passed for the wrong reason.
 
-Last full run, 2026-11-01 — all 25 applied and caught. The 26th, "log lines
-buffered", was added after it and checked on its own at 1x: caught by one
-test. The suite runs three times per mutation: unit, functional at 1x,
-functional at 2x display scaling.
+Last run, 2026-11-01 — all 32 applied and caught. The suite runs three times
+per mutation: unit, functional at 1x, functional at 2x display scaling.
 
 | Defect put back | Unit | Functional 1x | Functional 2x |
 |---|---|---|---|
@@ -129,7 +127,7 @@ functional at 2x display scaling.
 | Fullscreen leaves the chrome on screen | | 1 | 1 |
 | Actions never grey out | | 1 | 1 |
 | Stale decodes allowed on screen | | 1 | 1 |
-| Log lines buffered, not flushed | | 1 | not yet run |
+| Log lines buffered, not flushed | | 1 | 1 |
 | 1:1 ignores display scaling | | | **8** |
 | Fit compares logical size, not physical | | | **1** |
 | A turn rotates the view, not the image | | 13 | 13 |
@@ -141,6 +139,12 @@ functional at 2x display scaling.
 | Zoomed in, a turn loses the detail | | 1 | 1 |
 | Copy hands over the unturned image | | 1 | 1 |
 | Status bar keeps quiet about a turn | | 8 | 8 |
+| JPEG EXIF looked for under the wrong name | 1 | 2 | 2 |
+| HEIF EXIF read without skipping its offset | 4 | 1 | 1 |
+| Fast shutter speeds shown as decimals | 6 | 2 | 2 |
+| The make repeated in the camera name | 3 | 1 | 1 |
+| The panel keeps the last image's details | | 4 | 4 |
+| Fullscreen leaves the panel up | | 1 | 1 |
 
 The split is the useful part. Decoding and cache defects fall to the unit
 suite in about a second; window and canvas defects only to the functional
@@ -148,9 +152,9 @@ suite; and the two display-scaling defects *only* to the run at 2x — at a
 ratio of 1 they change nothing, so a suite run only there would pass with both
 of them in. Neither layer, nor either scale, covers what the others do.
 
-The nine orientation rows are different in kind: none of them shipped. They
-are the likeliest ways to get rotate and flip wrong, added with the feature,
-so each of its tests was seen to fail before it was trusted to pass.
+The orientation, log and info-panel rows are different in kind: none of them
+shipped. They are the likeliest ways to get each feature wrong, added with
+it, so each of its tests was seen to fail before it was trusted to pass.
 "1:1 ignores display scaling" now fails eight tests rather than seven because
 one of the orientation tests checks that a turn at 1:1 stays 1:1 on screen.
 
@@ -253,6 +257,18 @@ replacing its preview keeps the turn, since it is the same picture sharper.
 Nothing is written back: a viewer that rewrites a photograph on a keypress
 risks the one thing a viewer must not, and re-encoding a JPEG loses quality
 even when nothing else goes wrong. Copy hands over the image as shown.
+
+**The camera's record comes from two libraries, and libexif is the second
+choice.** RAW metadata is read by LibRaw, which the RAW decoder has open
+anyway and which reaches the maker notes where lens names often live. JPEG
+and HEIC/AVIF EXIF goes through libexif: found by walking a JPEG's segment
+headers, or handed over by libheif, which stores EXIF as a metadata item
+behind a 4-byte offset. exiv2 would have read every format, RAW included, but
+MSYS2 no longer builds it for MINGW64; libexif is still there, and small. Two
+details: libexif's default of "following the specification" rewrites and adds
+entries on load, so it is turned off -- the panel shows what the camera wrote;
+and EXIF in TIFF, PNG and WebP is not read yet. It is read in the decoder, on
+the worker thread, so it is cached with the image and costs the GUI nothing.
 
 **Failures are drawn on the canvas, not raised as dialogs.** Stepping through a
 folder of unreadable files would otherwise mean dismissing one modal per image.

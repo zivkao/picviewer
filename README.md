@@ -37,6 +37,7 @@ argument still resolves against where you ran it.
 | drag | pan |
 | `R` `L` | rotate right / left (C++ build) |
 | `H` `V` | flip horizontal / vertical (C++ build) |
+| `I` | info panel: camera, lens, exposure, date (C++ build) |
 | `F11` | fullscreen |
 | `Del` | move to Recycle Bin |
 | `Esc` `Ctrl+Q` | leave fullscreen / quit |

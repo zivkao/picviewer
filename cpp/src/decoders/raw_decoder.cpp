@@ -33,6 +33,30 @@ QImage toQImage(const libraw_processed_image_t &source)
     return image;
 }
 
+/// What LibRaw read from the file's own metadata when it opened it. RAW
+/// files keep this in TIFF directories and maker notes that libexif does not
+/// reach, and LibRaw has already done the work.
+photoinfo::PhotoInfo photoInfo(const LibRaw &raw)
+{
+    const auto &data = raw.imgdata;
+    photoinfo::PhotoInfo info;
+    info.make = QString::fromUtf8(data.idata.make).simplified();
+    info.model = QString::fromUtf8(data.idata.model).simplified();
+    info.lens = QString::fromUtf8(data.lens.Lens).simplified();
+    if (info.lens.isEmpty())
+        info.lens = QString::fromUtf8(data.lens.makernotes.Lens).simplified();
+    info.focalLength = data.other.focal_len;
+    info.focalLength35 = data.lens.FocalLengthIn35mmFormat;
+    info.aperture = data.other.aperture;
+    info.exposureTime = data.other.shutter;
+    info.iso = qRound(data.other.iso_speed);
+    // LibRaw turns the camera's date string into a time_t through mktime,
+    // so reading it back as local time recovers the wall clock as written.
+    if (data.other.timestamp > 0)
+        info.taken = QDateTime::fromSecsSinceEpoch(data.other.timestamp);
+    return info;
+}
+
 } // namespace
 
 const QSet<QString> &RawDecoder::extensions()
@@ -133,6 +157,7 @@ std::optional<DecodedImage> RawDecoder::loadPreview(const QString &path,
     result.image = std::move(image);
     result.isPreview = true;
     result.fullSize = full;
+    result.info = photoInfo(raw);
     result.metadata.insert(QStringLiteral("format"), QStringLiteral("RAW"));
     result.metadata.insert(QStringLiteral("size"),
                            QStringLiteral("%1 x %2").arg(full.width()).arg(full.height()));
@@ -202,6 +227,7 @@ std::optional<DecodedImage> RawDecoder::loadFull(const QString &path,
     result.image = std::move(image);
     result.isPreview = false;
     result.fullSize = full;
+    result.info = photoInfo(raw);
     result.metadata.insert(QStringLiteral("format"), QStringLiteral("RAW"));
     result.metadata.insert(QStringLiteral("size"),
                            QStringLiteral("%1 x %2").arg(full.width()).arg(full.height()));

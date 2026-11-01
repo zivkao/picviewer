@@ -15,6 +15,9 @@
 #include "loader.h"
 #include "viewer.h"
 
+class InfoPanel;
+class QDockWidget;
+
 inline constexpr int PrefetchRadius = 2;
 
 /// Sorts IMG_2.jpg before IMG_10.jpg, the way a file manager would.
@@ -39,6 +42,8 @@ public:
     bool showingPreview() const { return m_showingPreview; }
     ImageView *view() const { return m_view; }
     QString statusText() const { return m_statusRight->text(); }
+    InfoPanel *infoPanel() const { return m_info; }
+    QDockWidget *infoDock() const { return m_infoDock; }
 
 public slots:
     void openDialog();
@@ -69,6 +74,7 @@ private:
                         std::function<void()> slot, QStyle::StandardPixmap icon,
                         bool hasIcon, const QString &tip = {});
     void buildStatusBar();
+    void buildInfoPanel();
     void buildActions();
     void buildMenus();
     void buildToolBar();
@@ -86,6 +92,10 @@ private:
     QLabel *m_statusLeft;
     QLabel *m_statusRight;
     QToolBar *m_toolBar = nullptr;
+    QDockWidget *m_infoDock = nullptr;
+    InfoPanel *m_info = nullptr;
+    /// Whether the panel was open when fullscreen hid it, to put it back.
+    bool m_infoBeforeFullscreen = false;
 
     QStringList m_playlist;
     QSet<QString> m_extensions;
@@ -112,6 +122,7 @@ private:
     QAction *m_actRotateLeft = nullptr;
     QAction *m_actFlipH = nullptr;
     QAction *m_actFlipV = nullptr;
+    QAction *m_actInfo = nullptr;
     QAction *m_actFullscreen = nullptr;
     QAction *m_actLog = nullptr;
     QAction *m_actAbout = nullptr;

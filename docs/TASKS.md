@@ -31,6 +31,9 @@ Last reviewed: 2026-11-01
 - [x] Copy to clipboard, reveal in Explorer, delete to the Recycle Bin
 - [x] Rotate and flip for viewing (R / L / H / V); the file is never
       rewritten, and copy hands over the image as shown
+- [x] Info panel (I): camera, lens, focal length, aperture, shutter, ISO,
+      exposure bias, date taken, and the file's own details. RAW via LibRaw,
+      JPEG and HEIC/AVIF via libexif
 - [x] Failures drawn on the canvas rather than raised as dialogs
 
 ### Diagnostics
@@ -41,10 +44,11 @@ Last reviewed: 2026-11-01
 - [x] Cache eviction logged, so memory pressure leaves a trace
 
 ### Verification
-- [x] 100 unit tests over the pure logic, none skipped
-- [x] 74 functional tests driving a real window offscreen, run at 1x, 1.5x
+- [x] 141 unit tests over the pure logic; one reads the real CR2 and skips
+      where that untracked file is absent, as on CI
+- [x] 83 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
-- [x] Mutation harness covering 26 reintroduced defects
+- [x] Mutation harness covering 32 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
       display scales on every push
 - [x] `tools/benchmark.ps1` with a committed baseline
@@ -64,9 +68,18 @@ Last reviewed: 2026-11-01
 
 ### Defects
 
-None known in the C++ source. Two were listed here on first writing and both
-were already fixed — checked rather than assumed, which is the only reason to
-keep a list like this at all:
+- [ ] **Paths outside the ANSI code page.** Found 2026-11-01, by opening
+      copies of the samples under different names with the installed build.
+      HEIC fails for *any* non-ASCII character in the path -- a Traditional
+      Chinese file name, or a plain name inside a folder called 照片. RAW
+      fails for characters outside Big5 (Simplified Chinese, emoji), and
+      worse, does so silently: the Qt decoder takes over and shows the
+      200x150 thumbnail from the file's first TIFF directory. The paths go to
+      LibRaw and libheif as `toLocal8Bit()`; libheif expects UTF-8, and
+      LibRaw's `char*` open goes through the ANSI code page.
+
+Two were listed here on first writing and both were already fixed — checked
+rather than assumed, which is the only reason to keep a list like this at all:
 
 - `-v` colliding with `--version` is fixed in `main.cpp`, and was never a
   problem in the Python build, which uses argparse and no Qt parser.
@@ -110,7 +123,9 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
       lossless JPEG transforms (jpegtran-style, on whole MCU blocks) or an
       EXIF orientation edit, and neither applies to RAW or HEIC.
 - [ ] Slideshow.
-- [ ] EXIF detail panel.
+- [ ] Info panel, what it does not read yet: EXIF in TIFF, PNG and WebP;
+      GPS position; and whether it was open is not remembered between
+      sessions, since nothing is (see settings, below).
 - [ ] Any settings at all. The cache budget, zoom limits and prefetch radius
       are constants in the source.
 

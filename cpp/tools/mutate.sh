@@ -238,6 +238,34 @@ mutate "status bar keeps quiet about a turn" "window.cpp" \
     '        parts << turned;' \
     '        Q_UNUSED(turned);'
 
+# -- the info panel -----------------------------------------------------------
+# Also pinned in advance, like the orientation ones.
+
+# Qt names the format "jpeg"; "jpg" is the obvious slip and reads nothing.
+mutate "JPEG EXIF looked for under the wrong name" "decoders/qt_decoder.cpp" \
+    '    if (format == "jpeg")' \
+    '    if (format == "jpg")'
+
+mutate "HEIF EXIF read without skipping its offset" "photoinfo.cpp" \
+    '    return item.mid(4 + offset);' \
+    '    return item;'
+
+mutate "fast shutter speeds shown as decimals" "photoinfo.cpp" \
+    '    if (seconds < 0.55)' \
+    '    if (false)'
+
+mutate "the make repeated in the camera name" "photoinfo.cpp" \
+    '    if (model.startsWith(brand, Qt::CaseInsensitive))' \
+    '    if (false)'
+
+mutate "the panel keeps the last image's details" "window.cpp" \
+    '    m_info->showImage(currentPath(), image);' \
+    '    {}'
+
+mutate "fullscreen leaves the panel up" "window.cpp" \
+    '        m_infoDock->hide();' \
+    '        {}'
+
 echo
 echo "restoring and re-checking baseline"
 # All three results, read the same way as at the start. Reading two names from
