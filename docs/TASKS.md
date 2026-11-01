@@ -14,7 +14,9 @@ Last reviewed: 2026-11-01
 - [x] Decoder registry with confidence ranking and fall-through
 - [x] Qt image plugins for the mainstream formats
 - [x] libheif for HEIC and AVIF, used directly rather than through a wrapper
-- [x] LibRaw for camera RAW, with the two-stage embedded-preview path
+- [x] LibRaw for camera RAW, with the two-stage embedded-preview path, and a
+      half-size stage between them when the embedded preview is small (Sony's
+      1616x1080 bridged in 0.3 s, Panasonic's 1920x1440 in 0.5 s)
 - [x] Container sniffing by magic bytes, extension only as a fallback
 - [x] EXIF orientation and ICC to sRGB
 - [x] Byte-budgeted LRU cache with failure memory
@@ -59,7 +61,7 @@ Last reviewed: 2026-11-01
 - [x] Cache eviction logged, so memory pressure leaves a trace
 
 ### Verification
-- [x] 200 unit tests over the pure logic; those reading the real camera
+- [x] 205 unit tests over the pure logic; those reading the real camera
       files skip where those untracked files are absent, as on CI
 - [x] 124 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
@@ -125,10 +127,6 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
       meanwhile, so the screen is never empty. The Python build takes 23 s.
       (First recorded here as 7.7 s, measured with four other RAWs being
       prefetched alongside it.)
-- [ ] **Sony's embedded preview is 1616x1080.** On a large screen that is
-      visibly soft for the 1.3 s the full decode takes. Nothing to fix in the
-      decoder -- it is what the camera wrote -- but a half-size demosaic as a
-      middle stage would bridge it.
 
 ### Features
 

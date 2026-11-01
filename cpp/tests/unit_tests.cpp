@@ -568,6 +568,75 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// The loader's stages for a RAW: embedded preview, a half-size decode when
+/// that preview is small, then the full decode.
+class LoaderStageTests : public QObject
+{
+    Q_OBJECT
+
+    struct Delivery {
+        QSize size;
+        bool preview;
+    };
+
+    static QList<Delivery> deliveries(const QString &path)
+    {
+        ImageLoader loader;
+        QList<Delivery> seen;
+        QObject::connect(&loader, &ImageLoader::ready, &loader,
+                         [&](const QString &, const decoders::DecodedImage &image, quint64) {
+                             seen << Delivery{image.image.size(), image.isPreview};
+                         });
+        loader.load(path, 1);
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < 20000 && (seen.isEmpty() || seen.last().preview))
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        loader.shutdown();
+        return seen;
+    }
+
+private slots:
+    void initTestCase()
+    {
+        qRegisterMetaType<decoders::DecodedImage>("decoders::DecodedImage");
+    }
+
+    void aSmallPreviewIsBridgedByAHalfSizeDecode()
+    {
+        // synthetic.dng embeds a 200x150 preview of an 800x600 sensor.
+        const auto seen = deliveries(QStringLiteral(PICVIEWER_SAMPLES_DIR "/synthetic.dng"));
+        QCOMPARE(seen.size(), 3);
+        QVERIFY(seen[0].preview);
+        QVERIFY(qMax(seen[0].size.width(), seen[0].size.height()) < MiddleStageBelow);
+        QVERIFY2(seen[1].preview, "the half-size stage was delivered as the final decode");
+        QCOMPARE(seen[1].size, QSize(400, 300));
+        QVERIFY(!seen[2].preview);
+        QCOMPARE(seen[2].size, QSize(800, 600));
+    }
+
+    void aLargePreviewGoesStraightToTheFullDecode()
+    {
+        // A Canon CR2 embeds a preview at full resolution: nothing to bridge.
+        const QString cr2 = QStringLiteral(PICVIEWER_SAMPLES_DIR "/../image_example/IMG_0893.CR2");
+        if (!QFileInfo::exists(cr2))
+            QSKIP("image_example/IMG_0893.CR2 is not present (it is untracked)");
+        const auto seen = deliveries(cr2);
+        QCOMPARE(seen.size(), 2);
+        QVERIFY(seen[0].preview);
+        QVERIFY(!seen[1].preview);
+    }
+
+    void aStillImageComesOnce()
+    {
+        const auto seen = deliveries(QStringLiteral(PICVIEWER_SAMPLES_DIR "/sample.jpg"));
+        QCOMPARE(seen.size(), 1);
+        QVERIFY(!seen[0].preview);
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 /// Thumbnails: made small, kept on disk under a key that changes with the
 /// file, and pruned oldest first.
 class ThumbnailTests : public QObject
@@ -1557,6 +1626,7 @@ int main(int argc, char **argv)
     ScoringTests scoringTests;
     CacheTests cacheTests;
     DecodeTests decodeTests;
+    LoaderStageTests loaderStageTests;
     ThumbnailTests thumbnailTests;
     JpegOrientTests jpegOrientTests;
     SettingsTests settingsTests;
@@ -1568,6 +1638,7 @@ int main(int argc, char **argv)
         {&scoringTests, QStringLiteral("scoring")},
         {&cacheTests, QStringLiteral("cache")},
         {&decodeTests, QStringLiteral("decode")},
+        {&loaderStageTests, QStringLiteral("loader-stages")},
         {&thumbnailTests, QStringLiteral("thumbnails")},
         {&jpegOrientTests, QStringLiteral("jpeg-orientation")},
         {&settingsTests, QStringLiteral("settings")},

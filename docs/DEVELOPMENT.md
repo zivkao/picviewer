@@ -60,7 +60,7 @@ before a long afternoon of CMake errors.
 Two layers, deliberately different in kind.
 
 ```
-cpp\build\tests\unit_tests.exe                     200 tests, no display, about a second
+cpp\build\tests\unit_tests.exe                     205 tests, no display, about a second
 cpp\build\tests\functional_tests.exe               124 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
@@ -232,9 +232,16 @@ extension breaks the tie — a TIFF container not named `.tif` goes to the RAW
 decoder. A real Canon CR2 opens `49 49 2A 00`, indistinguishable by magic bytes
 from a scanned document, so this is not a hypothetical.
 
-**RAW decodes in two stages.** Demosaicing a 19 MB CR2 costs over a second, so
-the embedded preview is shown within milliseconds and the full decode replaces
-it in place without disturbing zoom or pan.
+**RAW decodes in two stages, or three.** Demosaicing a 19 MB CR2 costs over a
+second, so the embedded preview is shown within milliseconds and the full
+decode replaces it in place without disturbing zoom or pan. Some cameras embed
+a small preview -- Sony 1616x1080, Panasonic 1920x1440 -- that is soft on a
+large screen for that second, so when the preview's long side is under 2000
+pixels and the sensor is at least twice it, a half-size decode comes between:
+it skips the demosaic interpolation and costs about a quarter of the full one
+(0.3 s for the Sony, against 1.1 s). The full decode runs after it on the same
+thread, so the final image arrives that much later; a sharp one arrives three
+times sooner.
 
 **The cache budget is in bytes, not entries.** A hundred thumbnails and a
 hundred 100-megapixel photographs are the same count and three orders of

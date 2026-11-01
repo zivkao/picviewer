@@ -26,7 +26,8 @@
 ### 格式支援
 - [x] JPEG、PNG、BMP、GIF（含動畫）、TIFF、WebP、ICO、TGA、PPM
 - [x] HEIC / HEIF / AVIF（libheif）
-- [x] 相機 RAW（LibRaw）：先秒開內嵌預覽圖，再換成完整解碼
+- [x] 相機 RAW（LibRaw）：先秒開內嵌預覽圖，再換成完整解碼；預覽圖太小的機型（Sony、Panasonic）
+      中間會先補一張半尺寸的清楚影像（2026-11-02）
 - [x] 實機 RAW 驗證過八家：Canon CR2、Nikon NEF、Sony ARW、Fujifilm RAF（X-Trans）、
       Olympus ORF、Panasonic RW2、Pentax PEF、Leica DNG，以及手機拍的 HEIC
 - [x] 用檔頭判斷格式，副檔名只當備案；副檔名寫錯的檔案也能開
@@ -64,7 +65,7 @@
 - [x] 效能基準 `tools/baseline.json`，之後的改動可以拿來比較
 
 ### 測試與驗證
-- [x] 單元測試 200 個
+- [x] 單元測試 205 個
 - [x] 功能測試 124 個，驅動真正的視窗，在 1×、1.5×、2× 螢幕縮放下各跑一次
 - [x] Mutation 測試 34 項：故意把修過的錯誤放回去，確認測試真的會失敗；目前全部抓到
 - [x] **CI**：每次 push，GitHub 會在乾淨的 Windows 機器上從零建置並跑全部測試（2026-11-01）
@@ -102,7 +103,6 @@ RAW 在完整解碼完成之前會先顯示內嵌預覽圖，所以畫面不會�
 ### 效能
 - [ ] Fujifilm X-Trans 要 5.5 秒，約一般 RAW 的四倍。可改用較快的演算法，
       細節會稍微少一點。你有在拍富士再做。
-- [ ] Sony 的內嵌預覽圖只有 1616×1080，大螢幕上在完整解碼前會偏糊。
 
 ### 驗證缺口
 - [ ] 每家相機只測過一個檔案；Canon 新機的 CR3 格式還沒測過

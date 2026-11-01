@@ -116,6 +116,26 @@ private:
             << "preview for " << QFileInfo(m_path).fileName() << " -> "
             << preview->image.width() << "x" << preview->image.height();
         deliver(*preview);
+
+        // Some cameras embed a small preview -- Sony's is 1616x1080 -- which
+        // is soft on a large screen for the second or more the full decode
+        // takes. A half-size demosaic skips the interpolation, costs about a
+        // quarter of the full one, and bridges the gap.
+        const QSize full = preview->fullSize;
+        const int shown = qMax(preview->image.width(), preview->image.height());
+        if (shown >= MiddleStageBelow || qMax(full.width(), full.height()) < 2 * shown)
+            return;
+        QElapsedTimer timer;
+        timer.start();
+        decoders::DecodeError error;
+        auto half = registry.loadFull(m_path, full / 2, &error);
+        if (!half)
+            return;
+        half->isPreview = true;     // a better stand-in, still not the decode
+        qCInfo(logLoader).nospace().noquote()
+            << "half-size stage for " << QFileInfo(m_path).fileName() << " in "
+            << timer.elapsed() << "ms -> " << half->image.width() << "x" << half->image.height();
+        deliver(*half);
     }
 
     void emitReady(const decoders::DecodedImage &image)

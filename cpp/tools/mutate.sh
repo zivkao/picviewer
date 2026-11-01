@@ -287,6 +287,16 @@ mutate "fullscreen leaves the panel up" "window.cpp" \
     '        m_infoDock->hide();' \
     '        {}'
 
+# -- RAW's half-size stage -----------------------------------------------------
+
+mutate "raw: no half-size stage after a small preview" "loader.cpp" \
+    '        if (shown >= MiddleStageBelow || qMax(full.width(), full.height()) < 2 * shown)' \
+    '        if (true)'
+
+mutate "raw: the half-size stage passed off as the final decode" "loader.cpp" \
+    '        half->isPreview = true;     // a better stand-in, still not the decode' \
+    '        {}'
+
 # -- the thumbnail strip -------------------------------------------------------
 
 mutate "thumbs: clicking one does nothing" "window.cpp" \

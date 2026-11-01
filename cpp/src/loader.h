@@ -12,6 +12,9 @@
 // letting the truly pathological files through would starve everything else.
 inline constexpr qint64 MaxDecodePixels = 200'000'000;
 inline constexpr int PreviewMaxSide = 3840;
+/// An embedded preview smaller than this, on its long side, is followed by a
+/// half-size decode before the full one.
+inline constexpr int MiddleStageBelow = 2000;
 
 class ImageLoader : public QObject
 {

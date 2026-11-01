@@ -7,6 +7,22 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-02 — a half-size stage for small RAW previews
+
+- A RAW whose embedded preview is small now gets a half-size decode between
+  the preview and the full one. Measured on the eight makers' files, alone:
+
+  | File | Embedded preview | Half-size stage | Full decode |
+  |---|---|---|---|
+  | Sony A7 III ARW | 1616x1080 | 314 ms, 3012x2012 | 1083 ms |
+  | Panasonic GH7 RW2 | 1920x1440 | 475 ms, 2896x2176 | 1415 ms |
+  | the other six | 2560 or more | not needed | -- |
+
+- It runs before the full decode on the same thread, so the final image is
+  that much later; a sharp one comes three times sooner. Delivered as a
+  preview, so the status bar still says "preview..." and a slideshow does not
+  start its count on it. Two mutations, both caught.
+
 ## 2026-11-02 — thumbnail strip
 
 - `T` shows the folder as a strip of thumbnails along the bottom. Clicking
