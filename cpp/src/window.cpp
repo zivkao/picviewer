@@ -12,6 +12,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QMovie>
 #include <QProcess>
 #include <QStatusBar>
 #include <QTimer>
@@ -20,6 +21,7 @@
 
 #include "applog.h"
 #include "decoders/registry.h"
+#include "color.h"
 #include "infopanel.h"
 #include "settingsdialog.h"
 
@@ -220,6 +222,10 @@ void MainWindow::buildActions()
                                 [this] { toggleSlideshow(); }, SP::SP_FileIcon, false,
                                 tr("Start or stop the slideshow"));
 
+    m_actPause = makeAction(tr("&Pause Animation"), keys({"P"}),
+                            [this] { togglePauseAnimation(); }, SP::SP_FileIcon, false);
+    m_actPause->setCheckable(true);
+
     m_actFullscreen = makeAction(tr("F&ullscreen"), keys({"F11"}),
                                  [this] { toggleFullscreen(); }, SP::SP_TitleBarMaxButton, true);
 
@@ -270,6 +276,7 @@ void MainWindow::buildMenus()
     view->addSeparator();
     view->addAction(m_actInfo);
     view->addAction(m_actSlideshow);
+    view->addAction(m_actPause);
     view->addAction(m_actFullscreen);
 
     QMenu *help = menuBar()->addMenu(tr("&Help"));
@@ -437,6 +444,7 @@ void MainWindow::showIndex(int index)
     m_index = index;
     ++m_generation;
     m_showingPreview = false;
+    stopAnimation();    // or the last file's frames keep landing on this one
     m_currentMeta.clear();
 
     const QString path = m_playlist.at(index);
@@ -519,6 +527,10 @@ void MainWindow::display(const decoders::DecodedImage &image, bool keepView)
     m_currentMeta = image.metadata;
     m_view->setImage(image.image, keepView);
     m_info->showImage(currentPath(), image);
+    const QString format = image.metadata.value(QStringLiteral("format"));
+    if (!image.isPreview && image.metadata.value(QStringLiteral("frames")).toInt() > 1
+        && (format == QLatin1String("GIF") || format == QLatin1String("WEBP")))
+        startAnimation(currentPath());
     updateStatus();
     if (!image.isPreview)
         scheduleSlideshowStep();
@@ -529,6 +541,7 @@ void MainWindow::onFailed(const QString &path, const QString &message, quint64 g
     if (generation != m_generation)
         return;
     qCDebug(logWindow) << "showing failure for" << QFileInfo(path).fileName();
+    stopAnimation();
     m_view->clearImage();
     m_info->showFailure(path);
     scheduleSlideshowStep();    // an unreadable file is passed over, not stopped at
@@ -569,6 +582,7 @@ void MainWindow::showPlaceholder()
 {
     m_index = -1;
     stopSlideshow();
+    stopAnimation();
     m_view->clearImage();
     m_info->clear();
     m_view->setMessage(tr("Drop an image here, or press Ctrl+O to open one"));
@@ -590,6 +604,7 @@ void MainWindow::updateActionState()
     m_actCopy->setEnabled(hasImage);
     for (QAction *action : {m_actPrev, m_actNext, m_actFirst, m_actLast, m_actSlideshow})
         action->setEnabled(many);
+    m_actPause->setEnabled(m_movie != nullptr);
     for (QAction *action : {m_actZoomIn, m_actZoomOut, m_actFit, m_actActual,
                             m_actRotateRight, m_actRotateLeft, m_actFlipH, m_actFlipV})
         action->setEnabled(hasImage);
@@ -633,6 +648,53 @@ void MainWindow::toggleFullscreen()
     } else {
         showNormal();
     }
+}
+
+void MainWindow::startAnimation(const QString &path)
+{
+    stopAnimation();
+    // QMovie decodes frame by frame as it plays, so a long animation costs
+    // one frame of memory, not all of them.
+    auto *movie = new QMovie(path, QByteArray(), this);
+    if (!movie->isValid() || movie->frameCount() == 1) {
+        delete movie;
+        return;
+    }
+    m_movie = movie;
+    m_movie->setCacheMode(QMovie::CacheNone);
+    connect(m_movie, &QMovie::frameChanged, this, [this] {
+        QImage frame = m_movie->currentImage();
+        color::toSRgb(frame);
+        // keepView: the same picture moving, so zoom, pan and any turn the
+        // user made stay as they are.
+        m_view->setImage(frame, true);
+    });
+    m_actPause->setChecked(false);
+    m_movie->start();
+    qCInfo(logWindow).noquote() << "animating" << QFileInfo(path).fileName()
+                                << m_movie->frameCount() << "frames";
+    updateActionState();
+}
+
+void MainWindow::stopAnimation()
+{
+    if (!m_movie)
+        return;
+    m_movie->stop();
+    m_movie->disconnect(this);
+    m_movie->deleteLater();
+    m_movie = nullptr;
+    m_actPause->setChecked(false);
+    updateActionState();
+}
+
+void MainWindow::togglePauseAnimation()
+{
+    if (!m_movie)
+        return;
+    const bool pause = m_movie->state() == QMovie::Running;
+    m_movie->setPaused(pause);
+    m_actPause->setChecked(pause);
 }
 
 void MainWindow::toggleSlideshow()

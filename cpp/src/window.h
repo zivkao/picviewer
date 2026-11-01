@@ -19,6 +19,7 @@
 
 class InfoPanel;
 class QDockWidget;
+class QMovie;
 
 /// Sorts IMG_2.jpg before IMG_10.jpg, the way a file manager would.
 bool naturalLess(const QString &a, const QString &b);
@@ -54,6 +55,8 @@ public:
     void applyPreferences(const Preferences &preferences);
 
     bool slideshowRunning() const { return m_slideshowRunning; }
+    /// An animated GIF or WebP is playing (or paused) on the canvas.
+    bool animating() const { return m_movie != nullptr; }
     /// Milliseconds between images; the setting is whole seconds, which is
     /// too slow for a test to wait through.
     void setSlideshowInterval(int ms) { m_slideshowMs = ms; }
@@ -72,6 +75,7 @@ public slots:
     void showAbout();
     void openSettings();
     void toggleSlideshow();
+    void togglePauseAnimation();
 
 private slots:
     void onReady(const QString &path, const decoders::DecodedImage &image, quint64 generation);
@@ -121,6 +125,11 @@ private:
     Preferences m_prefs;
 
     void stopSlideshow();
+
+    /// Play the current file's frames over the first one already shown.
+    void startAnimation(const QString &path);
+    void stopAnimation();
+    QMovie *m_movie = nullptr;
     /// Wait out the interval, then step. Started when an image lands, not
     /// when the step is taken, so a slow RAW still gets its full turn.
     void scheduleSlideshowStep();
@@ -155,6 +164,7 @@ private:
     QAction *m_actInfo = nullptr;
     QAction *m_actFullscreen = nullptr;
     QAction *m_actSlideshow = nullptr;
+    QAction *m_actPause = nullptr;
     QAction *m_actLog = nullptr;
     QAction *m_actAbout = nullptr;
 };

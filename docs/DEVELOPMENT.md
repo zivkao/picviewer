@@ -61,7 +61,7 @@ Two layers, deliberately different in kind.
 
 ```
 cpp\build\tests\unit_tests.exe                     169 tests, no display, about a second
-cpp\build\tests\functional_tests.exe               97 tests, a real window, offscreen
+cpp\build\tests\functional_tests.exe               105 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
 

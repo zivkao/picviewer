@@ -1496,6 +1496,141 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// Animated GIF and WebP: they play, they stop when left, P pauses them.
+///
+/// Read off the canvas over time: each fixture frame is one solid colour,
+/// so the set of colours seen at the centre says whether frames are landing.
+class AnimationTests : public QObject
+{
+    Q_OBJECT
+
+    QTemporaryDir m_dir;
+
+    static QString name(const QColor &c)
+    {
+        const auto near = [&](int r, int g, int b) {
+            return qAbs(c.red() - r) < 40 && qAbs(c.green() - g) < 40 && qAbs(c.blue() - b) < 40;
+        };
+        if (near(255, 0, 0)) return QStringLiteral("red");
+        if (near(0, 255, 0)) return QStringLiteral("green");
+        if (near(0, 0, 255)) return QStringLiteral("blue");
+        return c.name();
+    }
+
+    /// Every colour seen at the centre of the canvas during *ms*.
+    static QSet<QString> coloursOver(const MainWindow &window, int ms)
+    {
+        QSet<QString> seen;
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < ms) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+            const QImage shot = window.view()->viewport()->grab().toImage();
+            seen << name(shot.pixelColor(shot.width() / 2, shot.height() / 2));
+            QTest::qSleep(10);
+        }
+        return seen;
+    }
+
+    static QString fixture(const char *file)
+    {
+        return QStringLiteral(PICVIEWER_FIXTURES_DIR "/") + QLatin1String(file);
+    }
+
+    QString path(const char *file) const { return m_dir.filePath(QLatin1String(file)); }
+
+private slots:
+    void initTestCase()
+    {
+        QVERIFY(m_dir.isValid());
+        QVERIFY(QFile::copy(fixture("anim.gif"), path("a_anim.gif")));
+        QVERIFY(QFile::copy(fixture("anim.webp"), path("b_anim.webp")));
+        QVERIFY(QFile::copy(sample("sample.png"), path("c_still.png")));
+    }
+
+    void itPlays_data()
+    {
+        QTest::addColumn<QString>("file");
+        QTest::newRow("GIF") << "a_anim.gif";
+        QTest::newRow("WebP") << "b_anim.webp";
+    }
+
+    void itPlays()
+    {
+        QFETCH(QString, file);
+        MainWindow window;
+        window.show();
+        window.openPath(m_dir.filePath(file));
+        QVERIFY(waitForImage(window));
+        QVERIFY2(window.animating(), "an animated file was shown still");
+        const QSet<QString> seen = coloursOver(window, 700);
+        QVERIFY2(seen.contains(QStringLiteral("red")) && seen.contains(QStringLiteral("green"))
+                     && seen.contains(QStringLiteral("blue")),
+                 qPrintable("frames seen: " + QStringList(seen.begin(), seen.end()).join(", ")));
+    }
+
+    void movingOnStopsIt()
+    {
+        MainWindow window;
+        window.show();
+        window.openPath(path("a_anim.gif"));
+        QVERIFY(waitForImage(window));
+        QVERIFY(window.animating());
+
+        window.showIndex(window.playlist().indexOf(path("c_still.png")) >= 0
+                             ? window.playlist().indexOf(path("c_still.png"))
+                             : window.index() + 2);
+        QVERIFY(waitFor([&] { return window.view()->pixmap().size() == QSize(640, 480); }));
+        QVERIFY(!window.animating());
+        QTest::qWait(300);
+        QVERIFY2(window.view()->pixmap().size() == QSize(640, 480),
+                 "a frame of the GIF landed on the next image");
+        QCOMPARE(coloursOver(window, 300).size(), 1);
+    }
+
+    void pPausesAndResumes()
+    {
+        MainWindow window;
+        window.show();
+        window.openPath(path("a_anim.gif"));
+        QVERIFY(waitForImage(window));
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+
+        QTest::keyClick(&window, Qt::Key_P);
+        QCOMPARE(coloursOver(window, 400).size(), 1);
+        QTest::keyClick(&window, Qt::Key_P);
+        QVERIFY2(coloursOver(window, 500).size() >= 2, "P did not resume it");
+    }
+
+    void aTurnHoldsAcrossFrames()
+    {
+        MainWindow window;
+        window.show();
+        window.openPath(path("a_anim.gif"));
+        QVERIFY(waitForImage(window));
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QTest::keyClick(&window, Qt::Key_R);
+        QTest::qWait(400);      // several frames
+        QVERIFY2(!window.view()->orientation().isIdentity(), "a new frame undid the turn");
+        QCOMPARE(window.view()->sceneRect().size(), QSizeF(32, 48));
+    }
+
+    void aStillImageDoesNotAnimate()
+    {
+        MainWindow window;
+        window.show();
+        window.openPath(path("c_still.png"));
+        QVERIFY(waitForImage(window));
+        QVERIFY(!window.animating());
+        for (QAction *action : window.actions()) {
+            if (action->text() == QStringLiteral("&Pause Animation"))
+                QVERIFY(!action->isEnabled());
+        }
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 namespace {
 
 int runSuite(QObject *suite, const QString &name, int &passed, int &failed)
@@ -1565,6 +1700,7 @@ int main(int argc, char **argv)
     InfoPanelTests infoPanel;
     PersistenceTests persistence;
     SlideshowTests slideshow;
+    AnimationTests animation;
 
     const QList<QPair<QObject *, QString>> suites = {
         {&dropRouting, QStringLiteral("drop-routing")},
@@ -1578,6 +1714,7 @@ int main(int argc, char **argv)
         {&infoPanel, QStringLiteral("info-panel")},
         {&persistence, QStringLiteral("persistence")},
         {&slideshow, QStringLiteral("slideshow")},
+        {&animation, QStringLiteral("animation")},
     };
 
     int exitCode = 0;

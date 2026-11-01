@@ -7,6 +7,21 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-02 — animated GIF and WebP
+
+- Animated GIF and WebP play. The first frame comes through the decoders
+  like any image, so the cache, the info panel and the status bar treat it
+  as usual; then a QMovie plays the frames over it, decoding one at a time
+  rather than holding every frame in memory. `P` pauses and resumes. Each
+  frame keeps the view, so zoom, pan and a turn hold while it plays.
+- The animation is stopped first thing on every move to another image,
+  failure or close. Left running, the last file's frames would keep landing
+  on the next picture; a test steps from a GIF to a PNG and requires the PNG
+  to stay put.
+- Fixtures `anim.gif` and `anim.webp`, three solid frames each, a few hundred
+  bytes, from `make_anim.py`. The tests read the canvas centre over time and
+  require all three colours. Five mutations, all caught.
+
 ## 2026-11-02 — slideshow
 
 - `F5` starts a slideshow, fullscreen, looping through the folder. Each

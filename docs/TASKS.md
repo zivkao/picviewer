@@ -31,6 +31,8 @@ Last reviewed: 2026-11-01
       and a window maximized before goes back to maximized
 - [x] Slideshow (F5): fullscreen, loops, each image's interval counted from
       when it lands so a slow RAW is not skipped; Escape, F5 or F11 ends it
+- [x] Animated GIF and WebP play, frame by frame through QMovie rather than
+      all decoded up front; P pauses; zoom and any turn hold across frames
 - [x] Copy to clipboard, reveal in Explorer, delete to the Recycle Bin
 - [x] Rotate and flip for viewing (R / L / H / V); the file is never
       rewritten, and copy hands over the image as shown
@@ -52,7 +54,7 @@ Last reviewed: 2026-11-01
 ### Verification
 - [x] 169 unit tests over the pure logic; those reading the real camera
       files skip where those untracked files are absent, as on CI
-- [x] 97 functional tests driving a real window offscreen, run at 1x, 1.5x
+- [x] 105 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
 - [x] Mutation harness covering 34 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
@@ -124,7 +126,6 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
 ### Features
 - [ ] Thumbnail strip. The disk-backed thumbnail cache it needs is the real
       work; the decoder layer already takes a `maxSize` for it.
-- [ ] Animated GIF and WebP. Frame 0 is shown.
 - [ ] Saving a turn back to the file. Left out on purpose for now: done
       naively it re-encodes a JPEG and loses quality on every save. It wants
       lossless JPEG transforms (jpegtran-style, on whole MCU blocks) or an

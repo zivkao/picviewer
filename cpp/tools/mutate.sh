@@ -282,6 +282,28 @@ mutate "fullscreen leaves the panel up" "window.cpp" \
     '        m_infoDock->hide();' \
     '        {}'
 
+# -- animation -----------------------------------------------------------------
+
+mutate "animation: never starts" "window.cpp" \
+    '        startAnimation(currentPath());' \
+    '        {}'
+
+mutate "animation: keeps playing after moving on" "window.cpp" \
+    '    stopAnimation();    // or the last file'"'"'s frames keep landing on this one' \
+    '    {}'
+
+mutate "animation: each frame resets zoom and turn" "window.cpp" \
+    '        m_view->setImage(frame, true);' \
+    '        m_view->setImage(frame, false);'
+
+mutate "animation: P does nothing" "window.cpp" \
+    '    m_movie->setPaused(pause);' \
+    '    Q_UNUSED(pause);'
+
+mutate "animation: pause is live on a still image" "window.cpp" \
+    '    m_actPause->setEnabled(m_movie != nullptr);' \
+    '    m_actPause->setEnabled(true);'
+
 # -- slideshow -----------------------------------------------------------------
 
 mutate "slideshow: never advances" "window.cpp" \
