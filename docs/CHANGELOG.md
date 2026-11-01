@@ -7,6 +7,22 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-02 — the tools stop emptying the user's log
+
+- **`trim.sh`, `benchmark.ps1`, `sweep.ps1` and `verify_package.ps1` all
+  emptied the application log before each run**, so that what they read back
+  was theirs. It is the user's own log -- the history a bug report needs --
+  and every packaging run, benchmark and package check had been wiping it.
+  Found when the session's command classifier refused a diagnostic script
+  that did the same thing. Each tool now notes the log's length before it
+  starts and reads only what is appended, through `tools/logtail.ps1` for
+  the PowerShell ones; a rotation in between is read whole.
+- `trim.sh` then reported the freshly gathered package broken, which it was
+  not. Its wait stopped at the first `decoded` line of *any* file; with the
+  new half-size stage a RAW takes a little longer, a neighbour's prefetch
+  finished first, and the RAW was killed mid-decode and counted as failed. It
+  now waits for the file under test's own line.
+
 ## 2026-11-02 — a half-size stage for small RAW previews
 
 - A RAW whose embedded preview is small now gets a half-size decode between

@@ -9,6 +9,7 @@ $samples = "D:\Project\Claude_Pic_Viewer\samples"
 $real = "D:\Project\Claude_Pic_Viewer\image_example"
 
 if (-not (Test-Path $exe)) { throw "not installed: $exe" }
+. (Join-Path $PSScriptRoot "logtail.ps1")
 
 $originalPath = $env:PATH
 $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
@@ -21,19 +22,19 @@ $results = @{}
 foreach ($f in $files) {
     Get-Process picviewer -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep -Milliseconds 250
-    Clear-Content $log -ErrorAction SilentlyContinue
+    $from = Get-LogSize $log
 
     Start-Process $exe -ArgumentList "`"$($f.FullName)`""
     $sw = [Diagnostics.Stopwatch]::StartNew()
     while ($sw.ElapsedMilliseconds -lt 30000) {
         Start-Sleep -Milliseconds 200
-        $t = Get-Content $log -Raw -ErrorAction SilentlyContinue
+        $t = Read-LogSince $log $from
         if ($t -match "decoded .*$([regex]::Escape($f.Name))" -or $t -match "decode failed|FATAL") { break }
     }
     Get-Process picviewer -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep -Milliseconds 200
 
-    $line = Get-Content $log -ErrorAction SilentlyContinue |
+    $line = (Read-LogSince $log $from) -split "`n" |
             Where-Object { $_ -match "decoded $([regex]::Escape($f.Name))|decode failed|FATAL" } |
             Select-Object -First 1
     if ($line -match "decoded \S+ via (\S+) in (\d+)ms -> (\d+)x(\d+)") {

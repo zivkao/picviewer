@@ -33,6 +33,7 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $Root = Resolve-Path (Join-Path $ScriptDir "..")
 $BaselinePath = Join-Path $ScriptDir "baseline.json"
+. (Join-Path $ScriptDir "logtail.ps1")
 
 $Builds = @(
     @{ name = "python"
@@ -99,7 +100,7 @@ function Measure-Startup($build) {
 
 function Measure-Decode($build, $case) {
     Stop-Build $build.proc
-    if (Test-Path $build.log) { Clear-Content $build.log }
+    $from = Get-LogSize $build.log
 
     # Each file is opened from a folder of its own. Opened in place, the viewer
     # prefetches its neighbours in parallel, so a RAW measured among four
@@ -116,7 +117,7 @@ function Measure-Decode($build, $case) {
     $ms = $null; $via = $null; $size = $null
     while ($sw.ElapsedMilliseconds -lt 40000) {
         Start-Sleep -Milliseconds 150
-        $text = Get-Content $build.log -Raw -ErrorAction SilentlyContinue
+        $text = Read-LogSince $build.log $from
         if ($text -match "decoded \S*$([regex]::Escape($name))\S* via (\S+) in (\d+)ms -> (\d+x\d+)") {
             $via = $Matches[1]; $ms = [int]$Matches[2]; $size = $Matches[3]; break
         }

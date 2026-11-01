@@ -39,6 +39,10 @@ Two cautions that the numbers themselves will not tell you:
   measured 1.2 s alone and 4.3 s in company. The times `verify_package.ps1`
   prints are the in-company kind and are not a benchmark.
 
+None of these empties the application's log to read its own lines back: the
+log is the user's. They note its length first and read what is appended, via
+`logtail.ps1`.
+
 ## Checking a package
 
 ```

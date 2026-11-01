@@ -33,22 +33,39 @@ FILES=(
 # Exercise every decoder from a PATH with no toolchain on it, so a library the
 # package is missing fails here instead of quietly resolving to the build
 # environment and passing.
+#
+# Two things this got wrong at first. It emptied the log before each run --
+# the user's own log, their history for any bug report -- and now reads only
+# what each run appends. And it stopped waiting at the first "decoded" line of
+# any file, so a neighbour's prefetch finishing first had the file under test
+# killed mid-decode and counted as broken; it now waits for that file's own.
 verify() {
     local failures=0
     for f in "${FILES[@]}"; do
         [ -f "$f" ] || continue
-        : > "$LOG"
+        local name
+        name=$(basename "$f")
+        local before
+        before=$(stat -c %s "$LOG" 2>/dev/null || echo 0)
         PATH=/c/Windows/System32:/c/Windows "$DIST/picviewer.exe" "$(cygpath -w "$f")" &
         local pid=$!
         local waited=0
+        local outcome=""
         while [ $waited -lt 50 ]; do
             sleep 0.4
             waited=$((waited + 1))
-            grep -q "decoded\|failed\|FATAL" "$LOG" 2>/dev/null && break
+            # A rotation mid-run starts the file again from nothing.
+            [ "$(stat -c %s "$LOG" 2>/dev/null || echo 0)" -lt "$before" ] && before=0
+            outcome=$(tail -c +$((before + 1)) "$LOG" 2>/dev/null \
+                      | grep -E "decoded $name via|decode failed for $name|FATAL" | head -1)
+            [ -n "$outcome" ] && break
         done
         kill "$pid" 2>/dev/null
         wait "$pid" 2>/dev/null
-        grep -q "decoded $(basename "$f")" "$LOG" 2>/dev/null || failures=$((failures + 1))
+        case "$outcome" in
+            *"decoded $name via"*) ;;
+            *) failures=$((failures + 1)) ;;
+        esac
     done
     echo "$failures"
 }

@@ -5,10 +5,11 @@ $env:PATH = "D:\Project\Claude_Pic_Viewer\.msys64\ucrt64\bin;$env:PATH"
 $Exe = "D:\Project\Claude_Pic_Viewer\cpp\build\picviewer.exe"
 $Samples = "D:\Project\Claude_Pic_Viewer\samples"
 $Log = Join-Path $env:LOCALAPPDATA "PicViewer\logs\picviewer-cpp.log"
+. (Join-Path $PSScriptRoot "logtail.ps1")
 
 Get-Process picviewer -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 300
-if (Test-Path $Log) { Clear-Content $Log }
+$from = Get-LogSize $Log
 
 $files = Get-ChildItem $Samples -File | Where-Object { $_.Extension -ne ".md" }
 Write-Host "opening $($files.Count) samples`n"
@@ -21,7 +22,7 @@ foreach ($f in $files) {
 }
 Start-Sleep -Seconds 1
 
-$lines = Get-Content $Log
+$lines = (Read-LogSince $Log $from) -split "`n"
 $decoded = @{}
 foreach ($line in ($lines | Select-String 'decoded ')) {
     # Foreground decodes only: a prefetch line says nothing about what the
