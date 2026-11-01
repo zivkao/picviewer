@@ -7,6 +7,26 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-02 — saving a turn into a JPEG
+
+- `Ctrl+S` (File > Save Orientation to File) writes the turn on screen into
+  the JPEG, after asking. Only the EXIF orientation tag changes; the picture
+  is not re-compressed. Three paths, one per kind of file: the tag present
+  (its two bytes overwritten in place, nothing else touched); EXIF without
+  the tag (the block rewritten by libexif, kept from dropping or "fixing"
+  anything); no EXIF (a minimal block inserted after JFIF's APP0). The last
+  two are built in memory, checked -- the tag reads back, the file decodes
+  the right way round, the camera's record is unchanged -- and swapped in
+  with `QSaveFile`. Not offered for RAW, HEIC or PNG.
+- The functional test records the pixels on screen, saves, lets the viewer
+  re-read the file, and requires the same pixels. A unit test tags one JPEG
+  with each of the eight orientations and checks Qt decodes each as the
+  transform table says.
+- The first set of tests could not tell the file's turn and the view's turn
+  composed in the wrong order: every case was a pure rotation, and rotations
+  commute. A case with a mirror on top of an existing turn was added; it is
+  the only one that catches that mutation. Five mutations, all caught.
+
 ## 2026-11-02 — position, and EXIF from every container
 
 - The info panel shows a GPS position and altitude, read from EXIF's GPS

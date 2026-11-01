@@ -49,13 +49,16 @@ starts on the first directory entry, usually the smallest -- a 16x16 icon out
 of a file that also carries 256x256. Pillow picked the largest; the port now
 does too, and a test holds it there.
 
-**Features the Python build never had.** Rotate and flip for viewing
-(`R` `L` `H` `V`), and an info panel (`I`) with what the camera recorded:
-body, lens, focal length, aperture, shutter, ISO, exposure bias, date, GPS
-position. RAW metadata comes from LibRaw; JPEG, PNG, WebP, TIFF and HEIC/AVIF
-EXIF through libexif. And
-settings (`Ctrl+,`), with the window's size, position and panels remembered,
-a slideshow (`F5`), and animated GIF and WebP playback (`P` pauses).
+**Features the Python build never had.**
+
+- Rotate and flip for viewing (`R` `L` `H` `V`), saved losslessly into a JPEG
+  on request (`Ctrl+S`).
+- An info panel (`I`) with what the camera recorded: body, lens, focal
+  length, aperture, shutter, ISO, exposure bias, date, GPS position. RAW
+  metadata comes from LibRaw; JPEG, PNG, WebP, TIFF and HEIC/AVIF EXIF through
+  libexif.
+- Settings (`Ctrl+,`), with the window's size, position and panels remembered.
+- A slideshow (`F5`), and animated GIF and WebP playback (`P` pauses).
 
 ## Tests
 
@@ -64,12 +67,12 @@ cpp\env.cmd test                          unit
 cpp\build\tests\functional_tests.exe      end to end
 ```
 
-**`unit_tests`** -- 182 passing test functions over the pure logic: container
+**`unit_tests`** -- 191 passing test functions over the pure logic: container
 sniffing, decoder ranking, the byte-budgeted cache, format behaviour against
 the sample files, and reading and wording the camera's EXIF record. No
 display, under a second.
 
-**`functional_tests`** -- 109 passing test functions driving a real `MainWindow` offscreen:
+**`functional_tests`** -- 116 passing test functions driving a real `MainWindow` offscreen:
 drag and drop sent to actual widgets, keystrokes through `QTest::keyClick`,
 menu and toolbar state read off the real objects, fullscreen, a fixture of
 deny-read files that reproduces an unreadable-file failure, display scaling

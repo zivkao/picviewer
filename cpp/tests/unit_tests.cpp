@@ -6,6 +6,8 @@
 
 #include <QtTest>
 
+#include <QBuffer>
+#include <QImageReader>
 #include <QRegularExpression>
 #include <QtEndian>
 #include <QTemporaryDir>
@@ -18,6 +20,7 @@
 #include "decoders/raw_decoder.h"
 #include "decoders/registry.h"
 #include "loader.h"
+#include "jpegorient.h"
 #include "photoinfo.h"
 #include "settings.h"
 #include "sniff.h"
@@ -561,6 +564,156 @@ private slots:
 };
 
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+
+/// Saving a turn into a JPEG's orientation tag, without touching its pixels.
+///
+/// Three samples take the three paths: rotated_exif.jpg has the tag (two
+/// bytes patched), exif_camera.jpg has EXIF without it (the block
+/// rewritten), sample.jpg has no EXIF at all (a block inserted).
+class JpegOrientTests : public QObject
+{
+    Q_OBJECT
+
+    QTemporaryDir m_dir;
+
+    static QByteArray read(const QString &path)
+    {
+        QFile file(path);
+        return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+    }
+    static QString sampleFile(const char *name)
+    {
+        return QStringLiteral(PICVIEWER_SAMPLES_DIR "/") + QLatin1String(name);
+    }
+    static QString fixtureFile(const char *name)
+    {
+        return QStringLiteral(PICVIEWER_FIXTURES_DIR "/") + QLatin1String(name);
+    }
+    static QImage decoded(const QByteArray &jpeg)
+    {
+        QByteArray copy = jpeg;
+        QBuffer buffer(&copy);
+        QImageReader reader(&buffer, "jpeg");
+        reader.setAutoTransform(true);
+        return reader.read();
+    }
+
+private slots:
+    void initTestCase() { QVERIFY(m_dir.isValid()); }
+
+    void everyOrientationMapsToItselfAndBack()
+    {
+        for (int o = 1; o <= 8; ++o)
+            QCOMPARE(jpegorient::orientationFor(jpegorient::transformFor(o)), o);
+        QCOMPARE(jpegorient::orientationFor(QTransform().rotate(45)), 0);
+    }
+
+    void theyMatchWhatQtDoesWithTheTag()
+    {
+        // The same pixels under each tag, decoded by Qt, must come out as
+        // the transform says -- otherwise "save what is shown" saves
+        // something else.
+        const QByteArray original = read(sampleFile("sample.jpg"));
+        const QImage upright = decoded(original);
+        for (int o = 1; o <= 8; ++o) {
+            const QByteArray tagged = jpegorient::withOrientation(original, o);
+            QVERIFY2(!tagged.isEmpty(), qPrintable(QStringLiteral("orientation %1").arg(o)));
+            const QImage expected = upright.transformed(jpegorient::transformFor(o));
+            QCOMPARE(decoded(tagged).size(), expected.size());
+            QCOMPARE(decoded(tagged).pixel(5, 5), expected.pixel(5, 5));
+        }
+    }
+
+    void aTagAlreadyThereIsPatchedInPlace()
+    {
+        const QByteArray before = read(sampleFile("rotated_exif.jpg"));
+        QCOMPARE(jpegorient::readOrientation(before), 6);
+        jpegorient::Method how = jpegorient::Method::Inserted;
+        const QByteArray after = jpegorient::withOrientation(before, 1, &how);
+        QVERIFY(how == jpegorient::Method::Patched);
+        QCOMPARE(after.size(), before.size());
+        int differing = 0;
+        for (qsizetype i = 0; i < before.size(); ++i)
+            differing += before[i] != after[i];
+        QVERIFY2(differing >= 1 && differing <= 2,
+                 qPrintable(QStringLiteral("%1 bytes changed; the tag is two").arg(differing)));
+        QCOMPARE(jpegorient::readOrientation(after), 1);
+    }
+
+    void exifWithoutTheTagIsRewrittenAndKeepsItsRecord()
+    {
+        const QByteArray before = read(fixtureFile("exif_camera.jpg"));
+        QCOMPARE(jpegorient::readOrientation(before), 1);
+        jpegorient::Method how = jpegorient::Method::Patched;
+        const QByteArray after = jpegorient::withOrientation(before, 6, &how);
+        QVERIFY(how == jpegorient::Method::Rewritten);
+        QCOMPARE(jpegorient::readOrientation(after), 6);
+        const auto camera = [](const QByteArray &jpeg) {
+            QTemporaryFile file;
+            if (!file.open())
+                return QList<QPair<QString, QString>>();
+            file.write(jpeg);
+            file.flush();
+            return photoinfo::rows(photoinfo::fromExif(photoinfo::exifFromJpeg(file.fileName())));
+        };
+        QCOMPARE(camera(after), camera(before));
+        QVERIFY(!camera(after).isEmpty());
+    }
+
+    void noExifGetsAMinimalBlock()
+    {
+        const QByteArray before = read(sampleFile("sample.jpg"));
+        QCOMPARE(jpegorient::readOrientation(before), 1);
+        jpegorient::Method how = jpegorient::Method::Patched;
+        const QByteArray after = jpegorient::withOrientation(before, 8, &how);
+        QVERIFY(how == jpegorient::Method::Inserted);
+        QCOMPARE(jpegorient::readOrientation(after), 8);
+        // Take the one new segment out again and the original is what is
+        // left, byte for byte. (It goes after JFIF's APP0, which must stay
+        // first, so it is not simply at the front.)
+        const qsizetype at = after.indexOf(QByteArray("\xff\xe1", 2));
+        QVERIFY(at > 0);
+        const qsizetype length = 2 + qFromBigEndian<quint16>(after.constData() + at + 2);
+        QCOMPARE(after.left(at) + after.mid(at + length), before);
+        QVERIFY(length < 64);
+        QVERIFY2(before.mid(2, 2) == QByteArray("\xff\xe0", 2), "the sample has a JFIF APP0");
+        QVERIFY2(after.mid(2, 2) == QByteArray("\xff\xe0", 2), "JFIF's APP0 is no longer first");
+    }
+
+    void notAJpegIsRefused()
+    {
+        QString error;
+        QVERIFY(jpegorient::withOrientation(read(sampleFile("sample.png")), 6, nullptr, &error).isEmpty());
+        QVERIFY(!error.isEmpty());
+        QCOMPARE(jpegorient::readOrientation(read(sampleFile("sample.png"))), 0);
+    }
+
+    void writingTheFileLeavesWhatIsNotTheTag()
+    {
+        const QString path = m_dir.filePath(QStringLiteral("patched.jpg"));
+        QFile::remove(path);
+        QVERIFY(QFile::copy(sampleFile("rotated_exif.jpg"), path));
+        QFile::setPermissions(path, QFile::ReadOwner | QFile::WriteOwner);
+        const QByteArray before = read(path);
+        jpegorient::Method how = jpegorient::Method::Inserted;
+        QString error;
+        QVERIFY2(jpegorient::write(path, 3, &how, &error), qPrintable(error));
+        QVERIFY(how == jpegorient::Method::Patched);
+        const QByteArray after = read(path);
+        QCOMPARE(after.size(), before.size());
+        QCOMPARE(jpegorient::readOrientation(path), 3);
+
+        const QString inserted = m_dir.filePath(QStringLiteral("inserted.jpg"));
+        QFile::remove(inserted);
+        QVERIFY(QFile::copy(sampleFile("sample.jpg"), inserted));
+        QFile::setPermissions(inserted, QFile::ReadOwner | QFile::WriteOwner);
+        QVERIFY2(jpegorient::write(inserted, 6, &how, &error), qPrintable(error));
+        QVERIFY(how == jpegorient::Method::Inserted);
+        QCOMPARE(jpegorient::readOrientation(inserted), 6);
+    }
+};
 
 // ---------------------------------------------------------------------------
 
@@ -1294,6 +1447,7 @@ int main(int argc, char **argv)
     ScoringTests scoringTests;
     CacheTests cacheTests;
     DecodeTests decodeTests;
+    JpegOrientTests jpegOrientTests;
     SettingsTests settingsTests;
     UnicodePathTests unicodePathTests;
     PhotoInfoTests photoInfoTests;
@@ -1303,6 +1457,7 @@ int main(int argc, char **argv)
         {&scoringTests, QStringLiteral("scoring")},
         {&cacheTests, QStringLiteral("cache")},
         {&decodeTests, QStringLiteral("decode")},
+        {&jpegOrientTests, QStringLiteral("jpeg-orientation")},
         {&settingsTests, QStringLiteral("settings")},
         {&unicodePathTests, QStringLiteral("unicode-paths")},
         {&photoInfoTests, QStringLiteral("photo-info")},

@@ -23,6 +23,7 @@
 #include "decoders/registry.h"
 #include "color.h"
 #include "infopanel.h"
+#include "jpegorient.h"
 #include "settingsdialog.h"
 
 Q_LOGGING_CATEGORY(logWindow, "picviewer.window")
@@ -174,6 +175,9 @@ void MainWindow::buildActions()
                            [this] { copyCurrent(); }, SP::SP_FileIcon, false);
     m_actDelete = makeAction(tr("&Delete"), keys({"Delete"}),
                              [this] { deleteCurrent(); }, SP::SP_TrashIcon, true);
+    m_actSaveOrientation = makeAction(tr("Save &Orientation to File"), keys({"Ctrl+S"}),
+                                      [this] { saveOrientation(); }, SP::SP_FileIcon, false,
+                                      tr("Write the turn into the JPEG, without re-compressing it"));
     m_actSettings = makeAction(tr("&Settings..."), keys({"Ctrl+,"}),
                                [this] { openSettings(); }, SP::SP_FileIcon, false);
     m_actQuit = makeAction(tr("E&xit"), keys({"Ctrl+Q"}),
@@ -250,6 +254,7 @@ void MainWindow::buildMenus()
     file->addAction(m_actReveal);
     file->addAction(m_actCopy);
     file->addAction(m_actDelete);
+    file->addAction(m_actSaveOrientation);
     file->addSeparator();
     file->addAction(m_actSettings);
     file->addSeparator();
@@ -605,6 +610,10 @@ void MainWindow::updateActionState()
     for (QAction *action : {m_actPrev, m_actNext, m_actFirst, m_actLast, m_actSlideshow})
         action->setEnabled(many);
     m_actPause->setEnabled(m_movie != nullptr);
+    // Only a JPEG can take a turn losslessly, and only a turn needs saving.
+    m_actSaveOrientation->setEnabled(
+        hasImage && m_currentMeta.value(QStringLiteral("format")) == QLatin1String("JPEG")
+        && !m_view->orientation().isIdentity());
     for (QAction *action : {m_actZoomIn, m_actZoomOut, m_actFit, m_actActual,
                             m_actRotateRight, m_actRotateLeft, m_actFlipH, m_actFlipV})
         action->setEnabled(hasImage);
@@ -695,6 +704,50 @@ void MainWindow::togglePauseAnimation()
     const bool pause = m_movie->state() == QMovie::Running;
     m_movie->setPaused(pause);
     m_actPause->setChecked(pause);
+}
+
+void MainWindow::saveOrientation()
+{
+    const QString name = QFileInfo(currentPath()).fileName();
+    const QString turned = describeOrientation(m_view->orientation());
+    if (QMessageBox::question(
+            this, tr("Save Orientation"),
+            tr("Save %1 %2?\n\nOnly the orientation tag in the file changes; the picture is "
+               "not re-compressed, so no quality is lost. Other programs will show it this "
+               "way round too.").arg(name, turned),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No)
+        != QMessageBox::Yes)
+        return;
+    QString error;
+    if (!writeOrientationToFile(&error))
+        warn(tr("Could not save the orientation of %1: %2").arg(name, error));
+}
+
+bool MainWindow::writeOrientationToFile(QString *error)
+{
+    const QString path = currentPath();
+    const int current = jpegorient::readOrientation(path);
+    if (current == 0) {
+        if (error)
+            *error = tr("it could not be read as a JPEG");
+        return false;
+    }
+    // The picture on screen is the stored pixels turned by the file's own
+    // orientation and then by the view's; the new tag must say both.
+    const QTransform shown = jpegorient::transformFor(current) * m_view->orientation();
+    const int wanted = jpegorient::orientationFor(shown);
+    jpegorient::Method how = jpegorient::Method::Patched;
+    if (!jpegorient::write(path, wanted, &how, error))
+        return false;
+    qCInfo(logWindow).noquote() << "orientation saved to" << QFileInfo(path).fileName() << ":"
+                                << current << "->" << wanted
+                                << (how == jpegorient::Method::Patched     ? "(tag patched)"
+                                    : how == jpegorient::Method::Rewritten ? "(EXIF rewritten)"
+                                                                           : "(EXIF added)");
+    // Decoded again: the file now carries the turn, and the view starts
+    // upright on it, so what is shown does not change.
+    showIndex(m_index);
+    return true;
 }
 
 void MainWindow::toggleSlideshow()

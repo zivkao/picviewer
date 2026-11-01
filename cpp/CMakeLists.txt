@@ -29,6 +29,7 @@ add_library(picviewer_core STATIC
     src/applog.cpp
     src/loader.cpp
     src/photoinfo.cpp
+    src/jpegorient.cpp
     src/infopanel.cpp
     src/settings.cpp
     src/settingsdialog.cpp

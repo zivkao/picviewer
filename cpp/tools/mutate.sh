@@ -287,6 +287,28 @@ mutate "fullscreen leaves the panel up" "window.cpp" \
     '        m_infoDock->hide();' \
     '        {}'
 
+# -- saving a turn into a JPEG -------------------------------------------------
+
+mutate "save: file and view turns composed the wrong way round" "window.cpp" \
+    '    const QTransform shown = jpegorient::transformFor(current) * m_view->orientation();' \
+    '    const QTransform shown = m_view->orientation() * jpegorient::transformFor(current);'
+
+mutate "save: the view keeps its turn on the saved file" "window.cpp" \
+    '    showIndex(m_index);' \
+    '    {}'
+
+mutate "save: offered for formats that cannot take it" "window.cpp" \
+    '        hasImage && m_currentMeta.value(QStringLiteral("format")) == QLatin1String("JPEG")' \
+    '        hasImage'
+
+mutate "save: the tag patched one byte off" "jpegorient.cpp" \
+    '        if (!file.open(QIODevice::ReadWrite) || !file.seek(first)' \
+    '        if (!file.open(QIODevice::ReadWrite) || !file.seek(first + 1)'
+
+mutate "save: new EXIF put ahead of JFIF's APP0" "jpegorient.cpp" \
+    '        if (type == 0xe0 && at == 2)' \
+    '        if (false)'
+
 # -- the info panel: more containers, and position ---------------------------
 
 mutate "panel: PNG EXIF never looked for" "decoders/qt_decoder.cpp" \

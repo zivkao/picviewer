@@ -54,6 +54,10 @@ public:
     /// the slideshow interval from its next step. Does not save them.
     void applyPreferences(const Preferences &preferences);
 
+    /// Write the turn shown into the JPEG's orientation tag, without asking.
+    /// The menu command asks first; this is what it does once told yes.
+    bool writeOrientationToFile(QString *error = nullptr);
+
     bool slideshowRunning() const { return m_slideshowRunning; }
     /// An animated GIF or WebP is playing (or paused) on the canvas.
     bool animating() const { return m_movie != nullptr; }
@@ -76,6 +80,7 @@ public slots:
     void openSettings();
     void toggleSlideshow();
     void togglePauseAnimation();
+    void saveOrientation();
 
 private slots:
     void onReady(const QString &path, const decoders::DecodedImage &image, quint64 generation);
@@ -147,6 +152,7 @@ private:
     QAction *m_actReveal = nullptr;
     QAction *m_actCopy = nullptr;
     QAction *m_actDelete = nullptr;
+    QAction *m_actSaveOrientation = nullptr;
     QAction *m_actSettings = nullptr;
     QAction *m_actQuit = nullptr;
     QAction *m_actPrev = nullptr;

@@ -36,6 +36,9 @@ Last reviewed: 2026-11-01
 - [x] Copy to clipboard, reveal in Explorer, delete to the Recycle Bin
 - [x] Rotate and flip for viewing (R / L / H / V); the file is never
       rewritten, and copy hands over the image as shown
+- [x] Save a turn into a JPEG (Ctrl+S, asks first): the EXIF orientation tag
+      only, never the pixels; patched in place where it exists, otherwise a
+      checked rewrite swapped in whole. Not offered for RAW, HEIC or PNG
 - [x] Info panel (I): camera, lens, focal length, aperture, shutter, ISO,
       exposure bias, date taken, GPS position as a map link, and the file's
       own details. RAW via LibRaw; JPEG, PNG, WebP, TIFF and HEIC/AVIF EXIF
@@ -53,9 +56,9 @@ Last reviewed: 2026-11-01
 - [x] Cache eviction logged, so memory pressure leaves a trace
 
 ### Verification
-- [x] 182 unit tests over the pure logic; those reading the real camera
+- [x] 191 unit tests over the pure logic; those reading the real camera
       files skip where those untracked files are absent, as on CI
-- [x] 109 functional tests driving a real window offscreen, run at 1x, 1.5x
+- [x] 116 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
 - [x] Mutation harness covering 34 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
@@ -127,10 +130,6 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
 ### Features
 - [ ] Thumbnail strip. The disk-backed thumbnail cache it needs is the real
       work; the decoder layer already takes a `maxSize` for it.
-- [ ] Saving a turn back to the file. Left out on purpose for now: done
-      naively it re-encodes a JPEG and loses quality on every save. It wants
-      lossless JPEG transforms (jpegtran-style, on whole MCU blocks) or an
-      EXIF orientation edit, and neither applies to RAW or HEIC.
 
 ### Packaging
 - [ ] 139 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never

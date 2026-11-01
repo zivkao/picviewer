@@ -38,6 +38,7 @@ argument still resolves against where you ran it.
 | `R` `L` | rotate right / left (C++ build) |
 | `H` `V` | flip horizontal / vertical (C++ build) |
 | `I` | info panel: camera, lens, exposure, date (C++ build) |
+| `Ctrl+S` | save a turn into a JPEG, losslessly (C++ build) |
 | `Ctrl+,` | settings (C++ build) |
 | `F5` | slideshow, fullscreen; `Esc` ends it (C++ build) |
 | `P` | pause / resume an animated GIF or WebP (C++ build) |
@@ -52,9 +53,11 @@ Everything is also on the menu bar (File / Go / View / Help) and the toolbar, so
 nothing is keyboard-only. Buttons grey out when they cannot act. `Ctrl+E` reveals
 the current file in Explorer, `Ctrl+C` copies the image to the clipboard.
 
-Rotating and flipping are for viewing only: the file on disk is never changed,
-and the next image starts upright. The status bar says when a picture is
-turned, and `Ctrl+C` copies it the way it is shown.
+Rotating and flipping change only the view, and the next image starts upright.
+The status bar says when a picture is turned, and `Ctrl+C` copies it the way
+it is shown. To keep a turn, `Ctrl+S` writes it into a JPEG's orientation tag
+after asking -- the picture itself is not re-compressed, so nothing is lost.
+RAW, HEIC and PNG files are never changed.
 
 ## Icon
 

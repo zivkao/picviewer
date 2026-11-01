@@ -28,6 +28,7 @@
 
 #include "applog.h"
 #include "infopanel.h"
+#include "jpegorient.h"
 #include "settingsdialog.h"
 #include "viewer.h"
 #include "window.h"
@@ -1660,6 +1661,113 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// Ctrl+S: the turn on screen written into the JPEG, and nothing lost.
+class SaveOrientationTests : public QObject
+{
+    Q_OBJECT
+
+    QTemporaryDir m_dir;
+    int m_count = 0;
+
+    QString writable(const QString &from, const QString &name)
+    {
+        const QString to = m_dir.filePath(name);
+        QFile::remove(to);
+        if (!QFile::copy(from, to))
+            return {};
+        QFile::setPermissions(to, QFile::ReadOwner | QFile::WriteOwner);
+        return to;
+    }
+
+    static QAction *saveAction(MainWindow &window)
+    {
+        for (QAction *action : window.actions()) {
+            if (action->text() == QStringLiteral("Save &Orientation to File"))
+                return action;
+        }
+        return nullptr;
+    }
+
+private slots:
+    void initTestCase() { QVERIFY(m_dir.isValid()); }
+
+    void whatIsShownIsWhatIsSaved_data()
+    {
+        QTest::addColumn<QString>("source");
+        QTest::addColumn<int>("key");
+        QTest::addColumn<int>("expected");      // the tag afterwards
+        QTest::newRow("tag already there, turned left")
+            << sample("rotated_exif.jpg") << int(Qt::Key_L) << 1;
+        // A mirror on top of a turn: the one case where the order the two
+        // are composed in changes the answer. The file's own turn first,
+        // then the view's mirror, is a transpose (5); the other way round
+        // is its opposite (7).
+        QTest::newRow("tag already there, mirrored")
+            << sample("rotated_exif.jpg") << int(Qt::Key_H) << 5;
+        QTest::newRow("EXIF without the tag, turned right")
+            << QStringLiteral(PICVIEWER_FIXTURES_DIR "/exif_camera.jpg") << int(Qt::Key_R) << 6;
+        QTest::newRow("no EXIF, mirrored")
+            << sample("sample.jpg") << int(Qt::Key_H) << 2;
+    }
+
+    void whatIsShownIsWhatIsSaved()
+    {
+        QFETCH(QString, source);
+        QFETCH(int, key);
+        QFETCH(int, expected);
+        const QString path = writable(source, QStringLiteral("turn_%1.jpg").arg(++m_count));
+        QVERIFY(!path.isEmpty());
+
+        MainWindow window;
+        window.show();
+        window.openPath(path);
+        QVERIFY(waitForImage(window));
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QTest::keyClick(&window, static_cast<Qt::Key>(key));
+        const QImage shown = window.view()->displayedPixmap().toImage().convertToFormat(QImage::Format_RGB32);
+        QVERIFY(saveAction(window)->isEnabled());
+
+        QString error;
+        QVERIFY2(window.writeOrientationToFile(&error), qPrintable(error));
+        QCOMPARE(jpegorient::readOrientation(path), expected);
+
+        // Read back from the file, upright in the view, and the same pixels.
+        QVERIFY(waitFor([&] {
+            return window.view()->orientation().isIdentity() && window.view()->hasImage()
+                   && window.view()->pixmap().size() == shown.size();
+        }));
+        QVERIFY(waitForImage(window));
+        const QImage reloaded = window.view()->pixmap().toImage().convertToFormat(QImage::Format_RGB32);
+        QVERIFY2(reloaded == shown, "the file reads back differently from what was on screen");
+        QVERIFY(!window.statusText().contains(QStringLiteral("rotated")));
+        QVERIFY2(!saveAction(window)->isEnabled(), "nothing left to save, but the command is live");
+    }
+
+    void onlyATurnedJpegCanBeSaved()
+    {
+        const QString jpeg = writable(sample("sample.jpg"), QStringLiteral("plain.jpg"));
+        MainWindow window;
+        window.show();
+        window.openPath(jpeg);
+        QVERIFY(waitForImage(window));
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+        QVERIFY2(!saveAction(window)->isEnabled(), "offered with nothing turned");
+        QTest::keyClick(&window, Qt::Key_R);
+        QVERIFY(saveAction(window)->isEnabled());
+
+        const QString png = writable(sample("sample.png"), QStringLiteral("plain.png"));
+        MainWindow other;
+        other.show();
+        other.openPath(png);
+        QVERIFY(waitForImage(other));
+        QVERIFY(QTest::qWaitForWindowActive(&other));
+        QTest::keyClick(&other, Qt::Key_R);
+        QVERIFY2(!saveAction(other)->isEnabled(), "offered for a PNG, which has no lossless way");
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 namespace {
 
 int runSuite(QObject *suite, const QString &name, int &passed, int &failed)
@@ -1730,6 +1838,7 @@ int main(int argc, char **argv)
     PersistenceTests persistence;
     SlideshowTests slideshow;
     AnimationTests animation;
+    SaveOrientationTests saveOrientation;
 
     const QList<QPair<QObject *, QString>> suites = {
         {&dropRouting, QStringLiteral("drop-routing")},
@@ -1744,6 +1853,7 @@ int main(int argc, char **argv)
         {&persistence, QStringLiteral("persistence")},
         {&slideshow, QStringLiteral("slideshow")},
         {&animation, QStringLiteral("animation")},
+        {&saveOrientation, QStringLiteral("save-orientation")},
     };
 
     int exitCode = 0;

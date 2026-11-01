@@ -60,8 +60,8 @@ before a long afternoon of CMake errors.
 Two layers, deliberately different in kind.
 
 ```
-cpp\build\tests\unit_tests.exe                     182 tests, no display, about a second
-cpp\build\tests\functional_tests.exe               109 tests, a real window, offscreen
+cpp\build\tests\unit_tests.exe                     191 tests, no display, about a second
+cpp\build\tests\functional_tests.exe               116 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
 
@@ -263,9 +263,22 @@ item, so fit measures a portrait turned from a landscape as a portrait.
 Steps compose in the order pressed (turn-then-flip and flip-then-turn are
 different pictures). A new image starts upright; the full decode of a RAW
 replacing its preview keeps the turn, since it is the same picture sharper.
-Nothing is written back: a viewer that rewrites a photograph on a keypress
-risks the one thing a viewer must not, and re-encoding a JPEG loses quality
-even when nothing else goes wrong. Copy hands over the image as shown.
+Nothing is written back on a keypress: a viewer that rewrites a photograph
+uninvited risks the one thing a viewer must not. Copy hands over the image
+as shown.
+
+**A turn is saved only on request, only to a JPEG, and only through its
+orientation tag.** `Ctrl+S` asks first. Re-encoding a JPEG to rotate it loses
+quality every time; the EXIF orientation tag exists so nothing has to be
+re-encoded, and every viewer honours it. The tag is written as the file's own
+turn composed with the view's -- the order matters as soon as a mirror is
+involved. Where the tag exists its two bytes are overwritten in place, so
+nothing else about the file changes, not even its creation time. Where it
+does not, the new file is built in memory, checked (the tag reads back, it
+decodes the right way round, the camera's record is unchanged) and swapped in
+with `QSaveFile`, so a failure part-way leaves the original whole. A new EXIF
+block goes after JFIF's APP0, which must stay first. RAW and HEIC are not
+offered: neither has a safe equivalent.
 
 **The camera's record comes from two libraries, and libexif is the second
 choice.** RAW metadata is read by LibRaw, which the RAW decoder has open
