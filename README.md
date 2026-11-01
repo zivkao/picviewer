@@ -227,20 +227,20 @@ Traditional Chinese.
 
 ## C++ port
 
-`cpp/` holds a port to C++ with Qt6, LibRaw and libheif, built against an
-isolated MSYS2 toolchain in `.msys64/` that is to this what `.venv` is to the
-Python version. The decoder architecture is the same; 98 assertions cover it
-and seven reintroduced defects all turn the suite red. See [cpp/README.md](cpp/README.md).
+`cpp/` holds a port to C++ with Qt6, LibRaw, libheif and libexif, built
+against an isolated MSYS2 toolchain in `.msys64/` that is to this what `.venv`
+is to the Python version. It is the build being developed; the Python one is
+frozen. 205 unit and 124 functional tests cover it, on every push in CI as
+well as locally, and 73 reintroduced defects all turn them red. See
+[cpp/README.md](cpp/README.md).
 
-Both are now packaged and install side by side, into separate directories with
-separate Start Menu entries, so neither disturbs the other. The C++ build is
-139 MB against 177 MB and decodes faster throughout -- 9x on a small JPEG,
-1.7x on a real 19 MB Canon CR2. Startup is the same in both, despite an
-earlier measurement here that said otherwise; see `tools/benchmark.ps1`.
+It installs from a one-file installer, `PicViewerCpp-<version>-setup.exe`, side
+by side with the Python build. It is 140 MB against 177 MB and decodes faster
+throughout -- 3.7x on a phone HEIC, 2.3x on a Canon CR2, 3.4x on a Fujifilm
+X-Trans RAF. Startup is the same in both; see `tools/benchmark.ps1`.
 
-The first real camera RAW and phone HEIC either build has seen both decode
-correctly -- see [cpp/README.md](cpp/README.md) for what that proved about the
-decoder ranking.
+Real RAW from eight makers decodes -- Canon, Nikon, Sony, Fujifilm, Olympus,
+Panasonic, Pentax, Leica -- as does a real phone HEIC.
 
 ## Not built yet
 

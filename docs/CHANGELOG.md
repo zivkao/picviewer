@@ -7,6 +7,28 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-02 — the benchmark, measured honestly
+
+- Rerun after the move to UCRT64 and four new makers. The first run reported
+  the C++ build's HEIC 68% slower; with the benchmark's faults fixed it is
+  279 ms -- exactly what it was. Nothing in the decoder had changed: libheif
+  alone, by path and from mapped memory, measured the same 190 ms either way.
+- **Each decode was one run**, so a cold first launch counted as the result.
+  Now three runs, the median kept.
+- **Each run copied the file afresh.** The first opens of a freshly written
+  file pay for the antivirus reading it: the HEIC measured 353-476 ms copied
+  anew each time, 255-318 ms from a copy opened a while before. The file is
+  now copied once and opened once untimed before the three timed runs.
+- **The median was the maximum.** `[int]1.5` is 2 in PowerShell, which
+  rounds half to even, so of three sorted runs the largest was kept. The
+  startup median used the same expression and was right only because with
+  five runs `[int]2.5` is also 2. Both use `Floor` now, and each case prints
+  its three runs.
+- The figures in `cpp/README.md`, the root README and `progress.md` are
+  replaced. The small files' speed-ups there were overstated, from single
+  runs at millisecond resolution. The eight RAW makers are 2.3x to 3.5x
+  faster in C++.
+
 ## 2026-11-02 — a one-file installer
 
 - `cpp/packaging/build_installer.sh` builds `PicViewerCpp-<version>-setup.exe`

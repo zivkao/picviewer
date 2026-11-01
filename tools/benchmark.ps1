@@ -95,24 +95,18 @@ function Measure-Startup($build) {
     }
     # Median, not mean: the first launch of a session is a cold-cache outlier
     # several times the rest, and it would drag an average anywhere it liked.
-    ($times | Sort-Object)[[int]($times.Count / 2)]
+    # Floor, not [int]: PowerShell's [int] rounds half to even, so with three
+    # values [int]1.5 is 2 and picks the largest. With five, [int]2.5 is also
+    # 2, which is why this was right here and wrong in the decode loop.
+    ($times | Sort-Object)[[math]::Floor($times.Count / 2)]
 }
 
-function Measure-Decode($build, $case) {
+function Measure-Decode($build, $target) {
     Stop-Build $build.proc
     $from = Get-LogSize $build.log
 
-    # Each file is opened from a folder of its own. Opened in place, the viewer
-    # prefetches its neighbours in parallel, so a RAW measured among four
-    # other RAWs competed with them for the CPU: the same CR2 read 1.2 s alone
-    # and 4.3 s in company. A benchmark has to measure the file, not the folder.
-    $isolated = Join-Path ([IO.Path]::GetTempPath()) ("picviewer-bench-" + [Guid]::NewGuid().ToString("N"))
-    New-Item -ItemType Directory -Path $isolated | Out-Null
-    $target = Join-Path $isolated (Split-Path $case.path -Leaf)
-    Copy-Item $case.path $target
-
     Start-Process $build.exe -ArgumentList "`"$target`"" | Out-Null
-    $name = Split-Path $case.path -Leaf
+    $name = Split-Path $target -Leaf
     $sw = [Diagnostics.Stopwatch]::StartNew()
     $ms = $null; $via = $null; $size = $null
     while ($sw.ElapsedMilliseconds -lt 40000) {
@@ -124,7 +118,6 @@ function Measure-Decode($build, $case) {
         if ($text -match "decode failed") { break }
     }
     Stop-Build $build.proc
-    Remove-Item $isolated -Recurse -Force -ErrorAction SilentlyContinue
     if ($null -eq $ms) { return $null }
     @{ ms = $ms; via = $via; size = $size }
 }
@@ -157,8 +150,30 @@ foreach ($build in $Builds) {
     }
     foreach ($case in $Cases) {
         if (-not (Test-Path $case.path)) { continue }
-        $m = Measure-Decode $build $case
-        if ($m) { $entry.decode[$case.id] = $m }
+        # Each file is opened from a folder of its own. Opened in place, the
+        # viewer prefetches its neighbours in parallel, so a RAW measured
+        # among four other RAWs competed with them for the CPU: the same CR2
+        # read 1.2 s alone and 4.3 s in company.
+        $isolated = Join-Path ([IO.Path]::GetTempPath()) ("picviewer-bench-" + [Guid]::NewGuid().ToString("N"))
+        New-Item -ItemType Directory -Path $isolated | Out-Null
+        $target = Join-Path $isolated (Split-Path $case.path -Leaf)
+        Copy-Item $case.path $target
+
+        # Copied once, opened once untimed, then three times, the median kept.
+        # Opening a freshly written file pays for the antivirus reading it,
+        # and not only the first time: a HEIC copied anew for each run
+        # measured 353-476 ms, and a copy that had been opened a while before
+        # 255-318. Copying for every run, as this first did, timed the scanner
+        # and reported a 54% regression in a decoder that had not changed.
+        # ($measured, not $runs: PowerShell names ignore case, and $Runs is
+        # the [int] parameter above.)
+        Measure-Decode $build $target | Out-Null
+        $measured = @(1..3 | ForEach-Object { Measure-Decode $build $target } | Where-Object { $_ })
+        Remove-Item $isolated -Recurse -Force -ErrorAction SilentlyContinue
+        if ($measured.Count) {
+            Write-Host ("  {0,-14} {1}" -f $case.id, (($measured | ForEach-Object { "$($_.ms) ms" }) -join ", "))
+            $entry.decode[$case.id] = ($measured | Sort-Object { $_.ms })[[math]::Floor($measured.Count / 2)]
+        }
     }
     $result.builds[$build.name] = $entry
 }

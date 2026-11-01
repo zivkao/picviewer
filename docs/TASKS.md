@@ -127,7 +127,7 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
       6x6 colour filter rather than 2x2, and LibRaw's default quality runs the
       3-pass Markesteijn algorithm; the 1-pass variant should be roughly three
       times faster at a small cost in fine detail. The embedded preview shows
-      meanwhile, so the screen is never empty. The Python build takes 23 s.
+      meanwhile, so the screen is never empty. The Python build takes 19 s.
       (First recorded here as 7.7 s, measured with four other RAWs being
       prefetched alongside it.)
 

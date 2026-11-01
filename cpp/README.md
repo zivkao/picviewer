@@ -153,22 +153,33 @@ means rebuilding Qt or libheif from source.
 Recorded by `tools/benchmark.ps1`, which writes `tools/baseline.json` so a
 later run can be diffed against this one rather than against a prose table.
 
+Measured 2026-11-02, the median of three:
+
 | Decode | Python | C++ | |
 |---|---|---|---|
-| JPEG, 640x480 | 9 ms | **1 ms** | 9x |
-| PNG, 640x480 | 17 ms | **3 ms** | 6x |
-| TIFF, 640x480 | 16 ms | **2 ms** | 8x |
-| AVIF, 640x480 | 37 ms | **6 ms** | 6x |
-| Real HEIC, 12 MP | 1354 ms | **279 ms** | 4.9x |
-| Canon CR2, 19 MB | 3296 ms | **1297 ms** | 2.5x |
-| Nikon Z 6 NEF, lossless compressed | 4863 ms | **1549 ms** | 3.1x |
-| Sony A7 III ARW, compressed | 4245 ms | **1283 ms** | 3.3x |
-| Fujifilm X-T30 RAF, X-Trans | 23372 ms | **5542 ms** | 4.2x |
-| Installed size | 177 MB | **139 MB** | |
+| JPEG, 640x480 | 6 ms | **2 ms** | 3x |
+| PNG, 640x480 | 14 ms | **4 ms** | 3.5x |
+| TIFF, 640x480 | 13 ms | **3 ms** | 4x |
+| AVIF, 640x480 | 13 ms | **7 ms** | 2x |
+| Real HEIC, 12 MP | 1029 ms | **279 ms** | 3.7x |
+| Canon CR2, 19 MB | 3025 ms | **1293 ms** | 2.3x |
+| Nikon Z 6 NEF, lossless compressed | 4292 ms | **1547 ms** | 2.8x |
+| Sony A7 III ARW, compressed | 3802 ms | **1084 ms** | 3.5x |
+| Fujifilm X-T30 RAF, X-Trans | 18951 ms | **5522 ms** | 3.4x |
+| Olympus E-M10 II ORF | 3014 ms | **1047 ms** | 2.9x |
+| Panasonic GH7 RW2 | 4427 ms | **1422 ms** | 3.1x |
+| Pentax K-r PEF | 2008 ms | **763 ms** | 2.6x |
+| Leica M10-R DNG, 41 MP | 8206 ms | **3077 ms** | 2.7x |
+| Installed size | 177 MB | **140 MB** | |
 
 Each file is decoded alone, copied into a folder of its own, so that the
-viewer's neighbour prefetching does not compete with it. Measured in place
-among four other RAWs, the same CR2 took 4.3 s.
+viewer's neighbour prefetching does not compete with it -- measured in place
+among four other RAWs, the same CR2 took 4.3 s -- and opened once untimed
+before the three timed runs, because the first opens of a freshly written
+file pay for the antivirus reading it. Copying for every run, as the
+benchmark first did, reported the HEIC 54% slower in a decoder that had not
+changed. The small files' ratios are smaller than an earlier table here
+showed; that one was a single run each, at millisecond resolution.
 
 The gap is widest on small files and narrowest on large ones, which is what it
 should be: a 1 ms JPEG is almost entirely per-operation overhead, where an
