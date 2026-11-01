@@ -1,0 +1,112 @@
+# Build the C++ viewer from nothing on a clean Windows machine and run every
+# test layer, on each push and pull request.
+#
+# What this adds over running the suites locally: nothing here was installed
+# by hand. The toolchain comes from MSYS2's repositories at the time of the
+# run, not from the project's own .msys64 snapshot, so this also catches the
+# day an upstream package update breaks the build -- and when it fails for
+# that reason, the versions step says which package moved.
+
+name: C++
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "image_example/**"
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: cpp-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        id: msys2
+        with:
+          msystem: MINGW64
+          update: true
+          cache: true
+          # The same list as cpp/README.md's "recreate it from nothing".
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-qt6-base
+            mingw-w64-x86_64-qt6-tools
+            mingw-w64-x86_64-qt6-imageformats
+            mingw-w64-x86_64-libraw
+            mingw-w64-x86_64-libheif
+            mingw-w64-x86_64-lcms2
+
+      - name: Toolchain versions
+        shell: msys2 {0}
+        run: |
+          pacman -Q mingw-w64-x86_64-{gcc,cmake,ninja,qt6-base,qt6-imageformats,libraw,libheif,lcms2}
+
+      - name: Build
+        id: build
+        shell: msys2 {0}
+        run: |
+          cmake -S cpp -B cpp/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build cpp/build
+
+      # The suites run from PowerShell, not the MSYS2 shell. Launched through
+      # MSYS2's bash a process can lose USERNAME, and the failures suite needs
+      # it to deny itself read access to a fixture.
+      - name: Unit tests
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: pwsh
+        run: |
+          $env:PATH = "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin;$env:PATH"
+          $env:QT_QPA_PLATFORM = "offscreen"
+          cpp\build\tests\unit_tests.exe
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # Three display scales, each its own step so a failure says which. A
+      # display-scaling defect changes nothing at 1x, so 1x alone would pass
+      # with one in.
+      - name: Functional tests at 1x
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: pwsh
+        run: |
+          $env:PATH = "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin;$env:PATH"
+          cpp\build\tests\functional_tests.exe --scale 1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Functional tests at 1.5x
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: pwsh
+        run: |
+          $env:PATH = "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin;$env:PATH"
+          cpp\build\tests\functional_tests.exe --scale 1.5
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Functional tests at 2x
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        shell: pwsh
+        run: |
+          $env:PATH = "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin;$env:PATH"
+          cpp\build\tests\functional_tests.exe --scale 2
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # The application's own log is what explains a failure that only
+      # happens here, so keep it whenever something went wrong.
+      - name: Keep the application log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: picviewer-logs
+          # %LOCALAPPDATA%\PicViewer\logs; see applog.cpp.
+          path: ~/AppData/Local/PicViewer/logs
+          if-no-files-found: ignore
