@@ -7,6 +7,20 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-02 — every mutation, in one run
+
+- `cpp/tools/mutate.sh` run in full: all 73 mutations applied and caught,
+  and the baseline green again afterwards. Which suite caught which -- unit,
+  functional at 1x, functional at 2x -- is the table in `docs/DEVELOPMENT.md`,
+  now copied from the run's output rather than written by hand.
+- **The antivirus is confirmed.** The `uninstall.exe` the installer's first
+  build wrote is in Avira's quarantine as `HEUR/APC.Misc`: a heuristic and
+  cloud-reputation verdict on an unsigned executable nobody had seen before,
+  not a signature. The entry below said the cause was inferred; it is not any
+  more. Nothing changes -- the installer already writes no executable
+  uninstaller -- and signing, which would stop the verdict, needs a purchased
+  certificate.
+
 ## 2026-11-02 — the benchmark, measured honestly
 
 - Rerun after the move to UCRT64 and four new makers. The first run reported

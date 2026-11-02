@@ -65,7 +65,7 @@ Last reviewed: 2026-11-01
       files skip where those untracked files are absent, as on CI
 - [x] 124 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
-- [x] Mutation harness covering 34 reintroduced defects
+- [x] Mutation harness covering 73 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
       display scales on every push
 - [x] `tools/benchmark.ps1` with a committed baseline

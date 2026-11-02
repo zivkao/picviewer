@@ -97,9 +97,10 @@ passed, and said so into a closed stream.
 .msys64\usr\bin\bash -lc "bash cpp/tools/mutate.sh"
 ```
 
-Reintroduces eighteen defects this project has fixed, and sixteen likely
-mistakes in the newer work, and checks the suites go red for each. A green suite says nothing until it can fail, and this has twice
-caught tests that were passing for the wrong reason. The full table is in
+Reintroduces 73 defects -- those this project has fixed, and the likeliest
+mistakes in each feature added since -- and checks the suites go red for each.
+A green suite says nothing until it can fail, and this has twice caught tests
+that were passing for the wrong reason. The full table is in
 [docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
 
 ## Packaging
@@ -122,9 +123,13 @@ separate install from the Python build -- different directory, Start Menu name
 and uninstall key -- so the two sit side by side.
 
 Uninstalling is `uninstall.ps1` in either case. The installer's first build
-wrote an NSIS `uninstall.exe`, and the development machine's antivirus took it
-the moment it ran -- launch refused, file gone, and the Settings > Apps entry
-pointing at it gone too -- leaving an install nothing could remove.
+wrote an NSIS `uninstall.exe`, and Avira on the development machine
+quarantined it the moment it ran, as `HEUR/APC.Misc` -- a heuristic and
+cloud-reputation verdict on an unsigned executable nobody had seen before, not
+a signature -- with the launch refused, the file gone, and the Settings > Apps
+entry pointing at it gone too, leaving an install nothing could remove.
+Signing the installer would be the real fix, and needs a purchased
+certificate.
 `tools/verify_installer.ps1` installs silently, checks every file, shortcut and
 registry entry, runs the recorded uninstall command, checks it all went, and
 installs again.

@@ -111,45 +111,86 @@ Reintroduces every defect this project has fixed and checks the suites go red
 for it. A green suite says nothing until it can fail, and this has twice caught
 tests that passed for the wrong reason.
 
-Last run, 2026-11-01 — all 34 applied and caught. The suite runs three times
-per mutation: unit, functional at 1x, functional at 2x display scaling.
+Last run, 2026-11-02 — all 73 applied and caught, and the baseline green
+again after them. The suite runs three times per mutation: unit, functional at
+1x, functional at 2x display scaling. The rows below are the harness's own
+labels, copied from that run's output.
 
 | Defect put back | Unit | Functional 1x | Functional 2x |
 |---|---|---|---|
-| Qt decoder wins on a container match alone | 25 | 1 | 1 |
+| Qt decoder: container match alone wins | 33 | 1 | 1 |
 | RAW decoder ranks below Qt on TIFF | 2 | | |
-| Sniffing ignores magic bytes | 21 | | |
+| Sniff ignores magic bytes, trusts the suffix | 21 | | |
 | RW2 read as plain TIFF | 2 | | |
-| ICO takes the first frame | 1 | | |
-| Qt allocation limit left at its 256 MiB default | 1 | | |
-| Cache evicts by entry count, not bytes | 2 | | |
+| ICO takes the first frame, not the largest | 1 | | |
+| Qt allocation limit left at its default | 1 | | |
+| Cache evicts by entry count, not bytes | 3 | | |
 | Cache forgets failures immediately | 2 | | |
 | Drops handled on the window, not the canvas | | 4 | 4 |
 | `dragMoveEvent` refuses, so drags stall | | 1 | 1 |
 | Failures raised as modal dialogs again | | 2 | 2 |
 | Fullscreen leaves the chrome on screen | | 1 | 1 |
 | Actions never grey out | | 1 | 1 |
-| Stale decodes allowed on screen | | 1 | 1 |
+| 1:1 ignores display scaling | | | **8** |
+| Fit compares logical size, not physical | | | **1** |
 | Log lines buffered, not flushed | | 1 | 1 |
 | RAW opened by its ANSI path again | 3 | | |
 | HEIF opened by its ANSI path again | 3 | | |
-| 1:1 ignores display scaling | | | **8** |
-| Fit compares logical size, not physical | | | **1** |
-| A turn rotates the view, not the image | | 13 | 13 |
+| Stale decodes allowed on screen | | 1 | 1 |
+| A turn rotates the view, not the image | | 19 | 19 |
 | Turn and flip composed in the wrong order | | 2 | 2 |
-| Clockwise turns counter-clockwise | | 5 | 5 |
-| The next image inherits the turn | | 1 | 1 |
-| The full RAW decode undoes the turn | | 1 | 1 |
-| Fit measures the image unturned | | 2 | 2 |
+| Clockwise turns counter-clockwise | | 6 | 6 |
+| The next image inherits the turn | | 5 | 5 |
+| The full RAW decode undoes the turn | | 2 | 2 |
+| Fit measures the image unturned | | 3 | 3 |
 | Zoomed in, a turn loses the detail | | 1 | 1 |
 | Copy hands over the unturned image | | 1 | 1 |
 | Status bar keeps quiet about a turn | | 8 | 8 |
 | JPEG EXIF looked for under the wrong name | 1 | 2 | 2 |
-| HEIF EXIF read without skipping its offset | 4 | 1 | 1 |
-| Fast shutter speeds shown as decimals | 6 | 2 | 2 |
-| The make repeated in the camera name | 3 | 1 | 1 |
-| The panel keeps the last image's details | | 4 | 4 |
+| HEIF EXIF read without skipping its offset | 5 | 2 | 2 |
+| Fast shutter speeds shown as decimals | 6 | 3 | 3 |
+| The make repeated in the camera name | 3 | 4 | 4 |
+| The panel keeps the last image's details | | 8 | 8 |
 | Fullscreen leaves the panel up | | 1 | 1 |
+| RAW: no half-size stage after a small preview | 1 | | |
+| RAW: the half-size stage passed off as the final decode | 1 | | |
+| Thumbs: clicking one does nothing | | 1 | 1 |
+| Thumbs: the strip does not follow the image | | 1 | 1 |
+| Thumbs: every row decoded, in sight or not | | 1 | 1 |
+| Thumbs: fullscreen leaves the strip up | | 1 | 1 |
+| Thumbs: the disk cache is never read | 2 | 1 | 1 |
+| Thumbs: an edited file keeps its old thumbnail | 1 | | |
+| Thumbs: pruning takes the newest first | 1 | | |
+| Save: file and view turns composed the wrong way round | | 1 | 1 |
+| Save: the view keeps its turn on the saved file | | 4 | 4 |
+| Save: offered for formats that cannot take it | | 1 | 1 |
+| Save: the tag patched one byte off | 1 | 2 | 2 |
+| Save: new EXIF put ahead of JFIF's APP0 | 1 | | |
+| Panel: PNG EXIF never looked for | 1 | 1 | 1 |
+| Panel: WebP EXIF never looked for | 1 | 1 | 1 |
+| Panel: a TIFF handed to libexif whole | 1 | 1 | 1 |
+| Panel: condensing a TIFF drops its GPS | 2 | 1 | 1 |
+| Panel: south and west not negated | 4 | 1 | 1 |
+| Panel: GPS minutes and seconds ignored | 6 | 3 | 3 |
+| Panel: 0,0 taken for a place | 1 | | |
+| Panel: the location is not a link | | 1 | 1 |
+| Animation: never starts | | 4 | 4 |
+| Animation: keeps playing after moving on | | 1 | 1 |
+| Animation: each frame resets zoom and turn | | 1 | 1 |
+| Animation: P does nothing | | 1 | 1 |
+| Animation: pause is live on a still image | | 1 | 1 |
+| Slideshow: never advances | | 1 | 1 |
+| Slideshow: leaving fullscreen leaves it running | | 2 | 2 |
+| Slideshow: the slot starts one with a single image | | 1 | 1 |
+| Slideshow: the action is live with a single image | | 1 | 1 |
+| Slideshow: stopping leaves a fullscreen the user chose | | 1 | 1 |
+| Slideshow: fullscreen forgets the window was maximized | | 1 | 1 |
+| Settings: window layout not saved on close | | 2 | 2 |
+| Settings: closing in fullscreen saves it hidden | | 1 | 1 |
+| Settings: cache size setting ignored | | 1 | 1 |
+| Settings: prefetch radius stuck at two | | 1 | 1 |
+| Settings: hand-edited values not clamped | 1 | | |
+| Settings: a lower cache budget waits for the next insert | 1 | | |
 
 The split is the useful part. Decoding and cache defects fall to the unit
 suite in about a second; window and canvas defects only to the functional
@@ -157,9 +198,11 @@ suite; and the two display-scaling defects *only* to the run at 2x — at a
 ratio of 1 they change nothing, so a suite run only there would pass with both
 of them in. Neither layer, nor either scale, covers what the others do.
 
-The orientation, log and info-panel rows are different in kind: none of them
-shipped. They are the likeliest ways to get each feature wrong, added with
-it, so each of its tests was seen to fail before it was trusted to pass.
+The rows from the orientation work on are different in kind. They were written
+with each feature -- orientation, the info panel, the half-size RAW stage,
+thumbnails, saving, animation, the slideshow, settings -- as the likeliest
+ways to get it wrong, so each of its tests was seen to fail before it was
+trusted to pass.
 "1:1 ignores display scaling" now fails eight tests rather than seven because
 one of the orientation tests checks that a turn at 1:1 stays 1:1 on screen.
 

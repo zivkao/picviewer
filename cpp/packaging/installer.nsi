@@ -10,7 +10,8 @@
 ; Silent use: PicViewerCpp-<version>-setup.exe /S [/DESKTOP]
 ;
 ; There is no uninstall.exe. The first build wrote one, and on the development
-; machine the antivirus took it the moment it was run: the launch was refused,
+; machine Avira quarantined it (HEUR/APC.Misc, a reputation heuristic for an
+; unsigned executable) the moment it was run: the launch was refused,
 ; the file disappeared, and so did the Settings > Apps entry pointing at it,
 ; leaving an install nothing could remove. Uninstalling goes through the same
 ; uninstall.ps1 that install.ps1 leaves, which that machine has run many times.
