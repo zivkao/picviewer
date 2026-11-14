@@ -4,7 +4,7 @@ Status of the C++ viewer. The Python build is feature-frozen; see the root
 README for what it is. [progress.md](../progress.md) is the one-page summary of
 this list, in Traditional Chinese; update both together.
 
-Last reviewed: 2026-11-01
+Last reviewed: 2026-11-15
 
 ---
 
@@ -29,6 +29,12 @@ Last reviewed: 2026-11-01
 - [x] Drag and drop: single file, several files, folders, with hover feedback
 - [x] Menu bar, toolbar and shortcuts over one set of actions
 - [x] Actions grey out when they cannot act
+- [x] Stepping stops at the first and last image rather than wrapping round;
+      Previous, Next, First and Last grey out at the end they cannot pass,
+      and prefetch does not reach round the corner. The slideshow still loops
+- [x] Close (Ctrl+W, Ctrl+F4): back to the empty window; the folder, the
+      decoded images in memory and any queued decodes go with it, and a
+      decode already running is not put on screen when it lands
 - [x] Fullscreen hides the chrome; Escape leaves it rather than quitting,
       and a window maximized before goes back to maximized
 - [x] Slideshow (F5): fullscreen, loops, each image's interval counted from
@@ -63,9 +69,9 @@ Last reviewed: 2026-11-01
 ### Verification
 - [x] 205 unit tests over the pure logic; those reading the real camera
       files skip where those untracked files are absent, as on CI
-- [x] 124 functional tests driving a real window offscreen, run at 1x, 1.5x
+- [x] 144 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
-- [x] Mutation harness covering 73 reintroduced defects
+- [x] Mutation harness covering 81 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
       display scales on every push
 - [x] `tools/benchmark.ps1` with a committed baseline

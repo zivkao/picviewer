@@ -61,7 +61,7 @@ Two layers, deliberately different in kind.
 
 ```
 cpp\build\tests\unit_tests.exe                     205 tests, no display, about a second
-cpp\build\tests\functional_tests.exe               124 tests, a real window, offscreen
+cpp\build\tests\functional_tests.exe               144 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
 
@@ -111,10 +111,13 @@ Reintroduces every defect this project has fixed and checks the suites go red
 for it. A green suite says nothing until it can fail, and this has twice caught
 tests that passed for the wrong reason.
 
-Last run, 2026-11-02 — all 73 applied and caught, and the baseline green
-again after them. The suite runs three times per mutation: unit, functional at
-1x, functional at 2x display scaling. The rows below are the harness's own
-labels, copied from that run's output.
+Last full run, 2026-11-02 — all 73 applied and caught, and the baseline green
+again after them. The eight added on 2026-11-15 with stopping at the ends and
+Close -- "Slideshow: stops at the last image" and the Ends and Close rows --
+were run on their own that day with `ONLY`, together with the two slideshow
+mutations whose anchors moved, and all ten were caught. The suite runs three
+times per mutation: unit, functional at 1x, functional at 2x display scaling.
+The rows below are the harness's own labels, copied from those runs' output.
 
 | Defect put back | Unit | Functional 1x | Functional 2x |
 |---|---|---|---|
@@ -180,6 +183,7 @@ labels, copied from that run's output.
 | Animation: P does nothing | | 1 | 1 |
 | Animation: pause is live on a still image | | 1 | 1 |
 | Slideshow: never advances | | 1 | 1 |
+| Slideshow: stops at the last image | | 1 | 1 |
 | Slideshow: leaving fullscreen leaves it running | | 2 | 2 |
 | Slideshow: the slot starts one with a single image | | 1 | 1 |
 | Slideshow: the action is live with a single image | | 1 | 1 |
@@ -191,6 +195,13 @@ labels, copied from that run's output.
 | Settings: prefetch radius stuck at two | | 1 | 1 |
 | Settings: hand-edited values not clamped | 1 | | |
 | Settings: a lower cache budget waits for the next insert | 1 | | |
+| Ends: stepping wraps round again | | 1 | 1 |
+| Ends: Previous and Next never grey out | | 1 | 1 |
+| Ends: prefetch reaches round the corner | | 1 | 1 |
+| Close: the folder stays open | | 3 | 3 |
+| Close: a decode landing after it is shown | | 1 | 1 |
+| Close: the cache is kept | | 1 | 1 |
+| Close: offered with nothing open | | 1 | 1 |
 
 The split is the useful part. Decoding and cache defects fall to the unit
 suite in about a second; window and canvas defects only to the functional
@@ -200,7 +211,7 @@ of them in. Neither layer, nor either scale, covers what the others do.
 
 The rows from the orientation work on are different in kind. They were written
 with each feature -- orientation, the info panel, the half-size RAW stage,
-thumbnails, saving, animation, the slideshow, settings -- as the likeliest
+thumbnails, saving, animation, the slideshow, settings, the ends, Close -- as the likeliest
 ways to get it wrong, so each of its tests was seen to fail before it was
 trusted to pass.
 "1:1 ignores display scaling" now fails eight tests rather than seven because

@@ -60,6 +60,12 @@ does too, and a test holds it there.
 - Settings (`Ctrl+,`), with the window's size, position and panels remembered.
 - A slideshow (`F5`), and animated GIF and WebP playback (`P` pauses).
 - A thumbnail strip (`T`), cached on disk.
+- Close (`Ctrl+W`): back to the empty window, with the folder, the decoded
+  images held in memory and any decodes still queued gone with it.
+
+**One behaviour changed on purpose.** Stepping through a folder stops at the
+first and last image, where the Python build wraps round; Previous and Next
+grey out there. The slideshow still comes round to the start.
 
 ## Tests
 
@@ -73,7 +79,7 @@ sniffing, decoder ranking, the byte-budgeted cache, format behaviour against
 the sample files, and reading and wording the camera's EXIF record. No
 display, under a second.
 
-**`functional_tests`** -- 124 passing test functions driving a real `MainWindow` offscreen:
+**`functional_tests`** -- 144 passing test functions driving a real `MainWindow` offscreen:
 drag and drop sent to actual widgets, keystrokes through `QTest::keyClick`,
 menu and toolbar state read off the real objects, fullscreen, a fixture of
 deny-read files that reproduces an unreadable-file failure, display scaling
@@ -97,7 +103,7 @@ passed, and said so into a closed stream.
 .msys64\usr\bin\bash -lc "bash cpp/tools/mutate.sh"
 ```
 
-Reintroduces 73 defects -- those this project has fixed, and the likeliest
+Reintroduces 81 defects -- those this project has fixed, and the likeliest
 mistakes in each feature added since -- and checks the suites go red for each.
 A green suite says nothing until it can fail, and this has twice caught tests
 that were passing for the wrong reason. The full table is in

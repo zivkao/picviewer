@@ -189,6 +189,11 @@ void ImageLoader::prefetch(const QStringList &paths)
     }
 }
 
+void ImageLoader::cancelPending()
+{
+    m_pool.clear();
+}
+
 void ImageLoader::shutdown()
 {
     m_pool.clear();

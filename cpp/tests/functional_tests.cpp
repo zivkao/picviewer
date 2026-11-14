@@ -284,8 +284,11 @@ private slots:
         QVERIFY2(failures.isEmpty(), qPrintable("did not decode: " + failures.join(", ")));
     }
 
-    void steppingWrapsAtBothEnds()
+    void steppingStopsAtBothEnds()
     {
+        // Past the last image is not the first one. It wrapped round once,
+        // and holding an arrow key down ran through a folder and started on
+        // it again with nothing to say the end had been reached.
         MainWindow window;
         window.show();
         window.openPath(samplesDir());
@@ -294,10 +297,33 @@ private slots:
 
         window.showIndex(count - 1);
         window.step(1);
-        QCOMPARE(window.index(), 0);
-
-        window.step(-1);
         QCOMPARE(window.index(), count - 1);
+
+        window.showIndex(0);
+        window.step(-1);
+        QCOMPARE(window.index(), 0);
+    }
+
+    void prefetchStaysInsideTheFolder()
+    {
+        // Navigation stops at the ends, so an image round the corner is never
+        // reached next, and decoding it would be work for nothing.
+        MainWindow window;
+        window.show();
+        window.openPath(samplesDir());
+        QVERIFY(waitForImage(window));
+        const QStringList all = window.playlist();
+        const int radius = window.preferences().prefetchRadius;
+        QVERIFY(radius > 0 && all.size() > 2 * radius + 1);
+
+        window.showIndex(0);
+        QCOMPARE(window.prefetchTargets(), all.mid(1, radius));
+
+        window.showIndex(all.size() - 1);
+        QStringList behind;
+        for (int distance = 1; distance <= radius; ++distance)
+            behind << all.at(all.size() - 1 - distance);
+        QCOMPARE(window.prefetchTargets(), behind);
     }
 
     void fitShrinksALargeImageAndLeavesASmallOneAlone()
@@ -434,6 +460,65 @@ private slots:
         QCOMPARE(window.index(), window.playlist().size() - 1);
     }
 
+    void navigationKeysStopAtTheEnds_data()
+    {
+        QTest::addColumn<int>("key");
+        QTest::addColumn<bool>("fromLast");     // else from the first image
+        QTest::newRow("Right") << int(Qt::Key_Right) << true;
+        QTest::newRow("Down") << int(Qt::Key_Down) << true;
+        QTest::newRow("Space") << int(Qt::Key_Space) << true;
+        QTest::newRow("PageDown") << int(Qt::Key_PageDown) << true;
+        QTest::newRow("End") << int(Qt::Key_End) << true;
+        QTest::newRow("Left") << int(Qt::Key_Left) << false;
+        QTest::newRow("Up") << int(Qt::Key_Up) << false;
+        QTest::newRow("Backspace") << int(Qt::Key_Backspace) << false;
+        QTest::newRow("PageUp") << int(Qt::Key_PageUp) << false;
+        QTest::newRow("Home") << int(Qt::Key_Home) << false;
+    }
+
+    void navigationKeysStopAtTheEnds()
+    {
+        QFETCH(int, key);
+        QFETCH(bool, fromLast);
+
+        MainWindow window;
+        window.show();
+        window.openPath(samplesDir());
+        QVERIFY(waitForImage(window));
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+
+        const int end = fromLast ? window.playlist().size() - 1 : 0;
+        window.showIndex(end);
+        QTest::qWait(60);
+        QTest::keyClick(&window, static_cast<Qt::Key>(key));
+        QTest::qWait(60);
+        QCOMPARE(window.index(), end);
+    }
+
+    void closeKeysEmptyTheWindow_data()
+    {
+        QTest::addColumn<QKeySequence>("keys");
+        QTest::newRow("Ctrl+W") << QKeySequence(QStringLiteral("Ctrl+W"));
+        QTest::newRow("Ctrl+F4") << QKeySequence(QStringLiteral("Ctrl+F4"));
+    }
+
+    void closeKeysEmptyTheWindow()
+    {
+        QFETCH(QKeySequence, keys);
+
+        MainWindow window;
+        window.show();
+        window.openPath(samplesDir());
+        QVERIFY(waitForImage(window));
+        QVERIFY(QTest::qWaitForWindowActive(&window));
+
+        QTest::keySequence(&window, keys);
+        QTest::qWait(60);
+        QVERIFY2(window.playlist().isEmpty(), "the folder is still open");
+        QVERIFY(!window.view()->hasImage());
+        QVERIFY2(window.isVisible(), "it closed the window, not the file");
+    }
+
     void zoomKeysChangeTheScale()
     {
         MainWindow window;
@@ -506,7 +591,7 @@ private slots:
 
         // Nothing open: navigation, deletion, zoom and turns have nothing to
         // act on.
-        const QStringList shouldBeOff = {"&Previous", "&Next", "&Delete",
+        const QStringList shouldBeOff = {"&Previous", "&Next", "&Delete", "&Close",
                                          "&Fit to Window", "Show in E&xplorer",
                                          "Rotate &Right", "Rotate &Left",
                                          "Flip &Horizontal", "Flip &Vertical"};
@@ -518,11 +603,41 @@ private slots:
 
         window.openPath(samplesDir());
         QVERIFY(waitForImage(window));
+        window.showIndex(1);    // neither end, where Previous or Next stand down
         for (QAction *action : window.actions()) {
             if (shouldBeOff.contains(action->text()))
                 QVERIFY2(action->isEnabled(),
                          qPrintable(action->text() + " is disabled with a folder open"));
         }
+    }
+
+    void navigationGreysOutAtTheEnds()
+    {
+        // Navigation stops at either end, and the toolbar says so: at the
+        // first image there is nothing to go back to, at the last nothing on.
+        MainWindow window;
+        window.show();
+        window.openPath(samplesDir());
+        QVERIFY(waitForImage(window));
+        const auto enabled = [&window](const char *text) {
+            for (QAction *action : window.actions()) {
+                if (action->text() == QLatin1String(text))
+                    return action->isEnabled();
+            }
+            qFatal("no action named %s", text);
+        };
+
+        window.showIndex(0);
+        QVERIFY2(!enabled("&Previous"), "Previous is live on the first image");
+        QVERIFY2(!enabled("&First"), "First is live on the first image");
+        QVERIFY(enabled("&Next"));
+        QVERIFY(enabled("&Last"));
+
+        window.showIndex(window.playlist().size() - 1);
+        QVERIFY2(!enabled("&Next"), "Next is live on the last image");
+        QVERIFY2(!enabled("&Last"), "Last is live on the last image");
+        QVERIFY(enabled("&Previous"));
+        QVERIFY(enabled("&First"));
     }
 
     void fullscreenHidesTheChromeAndRestoresIt()
@@ -1004,7 +1119,9 @@ private slots:
         QTest::keyClick(&window, Qt::Key_R);
         QVERIFY(!window.view()->orientation().isIdentity());
 
-        window.step(1);
+        // Back, to other.png: it sorts first, and stepping on from the last
+        // image no longer wraps round to it.
+        window.step(-1);
         QVERIFY(waitFor([&] { return window.view()->pixmap().size() == QSize(200, 100); }));
         QVERIFY2(window.view()->orientation().isIdentity(),
                  qPrintable("the next image arrived " + describeOrientation(window.view()->orientation())));
@@ -1392,6 +1509,7 @@ private slots:
         window.openPath(samplesDir());
         QVERIFY(waitForImage(window));
         QVERIFY(window.playlist().size() >= 6);
+        window.showIndex(3);    // room on both sides: prefetch stops at the ends
 
         Preferences p = window.preferences();
         QCOMPARE(window.prefetchTargets().size(), 2 * p.prefetchRadius);
@@ -1883,6 +2001,100 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// Ctrl+W: back to the empty window, with nothing of the old folder left.
+class CloseFileTests : public QObject
+{
+    Q_OBJECT
+
+    QTemporaryDir m_one;
+    QTemporaryDir m_moving;
+
+    static QString fixture(const char *file)
+    {
+        return QStringLiteral(PICVIEWER_FIXTURES_DIR "/") + QLatin1String(file);
+    }
+
+private slots:
+    void initTestCase()
+    {
+        QVERIFY(m_one.isValid() && m_moving.isValid());
+        QVERIFY(QFile::copy(sample("sample.png"), m_one.filePath(QStringLiteral("only.png"))));
+        QVERIFY(QFile::copy(fixture("anim.gif"), m_moving.filePath(QStringLiteral("a_anim.gif"))));
+        QVERIFY(QFile::copy(sample("sample.png"), m_moving.filePath(QStringLiteral("b_still.png"))));
+    }
+
+    void closingEmptiesTheWindow()
+    {
+        MainWindow window;
+        window.show();
+        window.openPath(samplesDir());
+        QVERIFY(waitForImage(window));
+        window.showIndex(2);
+        QVERIFY(waitForImage(window));
+
+        window.closeFile();
+        QVERIFY(window.playlist().isEmpty());
+        QCOMPARE(window.index(), -1);
+        QVERIFY2(!window.view()->hasImage(), "the image is still on screen");
+        QCOMPARE(window.windowTitle(), QStringLiteral("Pic Viewer"));
+        QCOMPARE(window.thumbnailModel()->rowCount(), 0);
+        QCOMPARE(window.infoPanel()->text(), QStringLiteral("No image"));
+
+        // Nothing for the arrow keys to bring back.
+        window.step(1);
+        QCOMPARE(window.index(), -1);
+        QVERIFY(!window.view()->hasImage());
+    }
+
+    void aDecodeLandingAfterCloseIsNotShown()
+    {
+        // Closed while the image is still decoding: when the result arrives
+        // it belongs to nothing on screen. Called straight after opening, so
+        // the result is still queued behind this test whatever its speed.
+        MainWindow window;
+        window.show();
+        QSignalSpy delivered(window.loader(), &ImageLoader::ready);
+        window.openPath(m_one.filePath(QStringLiteral("only.png")));
+        window.closeFile();
+        QVERIFY2(delivered.wait(10000), "the decode never landed, so nothing was tested");
+        QCoreApplication::processEvents();
+        QVERIFY2(!window.view()->hasImage(), "a decode for the closed file was put on screen");
+    }
+
+    void closingReleasesTheCache()
+    {
+        // One file, so nothing nearby is being prefetched into the cache
+        // while it is checked.
+        MainWindow window;
+        window.show();
+        window.openPath(m_one.filePath(QStringLiteral("only.png")));
+        QVERIFY(waitForImage(window));
+        QVERIFY(window.loader()->cache().nbytes() > 0);
+
+        window.closeFile();
+        QCOMPARE(window.loader()->cache().nbytes(), qint64(0));
+    }
+
+    void closingStopsTheSlideshowAndTheAnimation()
+    {
+        MainWindow window;
+        window.show();
+        window.openPath(m_moving.filePath(QStringLiteral("a_anim.gif")));
+        QVERIFY(waitForImage(window));
+        QVERIFY(window.animating());
+        window.toggleSlideshow();
+        QVERIFY(window.slideshowRunning());
+        QVERIFY(window.isFullScreen());
+
+        window.closeFile();
+        QVERIFY2(!window.animating(), "the closed file's frames are still playing");
+        QVERIFY(!window.slideshowRunning());
+        QVERIFY2(!window.isFullScreen(), "the slideshow's fullscreen outlived it");
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 namespace {
 
 int runSuite(QObject *suite, const QString &name, int &passed, int &failed)
@@ -1956,6 +2168,7 @@ int main(int argc, char **argv)
     AnimationTests animation;
     SaveOrientationTests saveOrientation;
     ThumbnailStripTests thumbnailStrip;
+    CloseFileTests closeFile;
 
     const QList<QPair<QObject *, QString>> suites = {
         {&dropRouting, QStringLiteral("drop-routing")},
@@ -1972,6 +2185,7 @@ int main(int argc, char **argv)
         {&animation, QStringLiteral("animation")},
         {&saveOrientation, QStringLiteral("save-orientation")},
         {&thumbnailStrip, QStringLiteral("thumbnail-strip")},
+        {&closeFile, QStringLiteral("close-file")},
     };
 
     int exitCode = 0;

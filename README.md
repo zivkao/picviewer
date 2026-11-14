@@ -30,7 +30,8 @@ argument still resolves against where you ran it.
 | | |
 |---|---|
 | `Ctrl+O` | open |
-| `←` `→` `Space` `PgUp` `PgDn` | previous / next |
+| `Ctrl+W` | close: back to the empty window (C++ build) |
+| `←` `→` `Space` `PgUp` `PgDn` | previous / next; the C++ build stops at either end, the Python one wraps round |
 | `Home` `End` | first / last |
 | wheel, `+` `-` | zoom at the cursor |
 | `0` / `1` / double-click | fit / actual size / toggle |
@@ -230,8 +231,8 @@ Traditional Chinese.
 `cpp/` holds a port to C++ with Qt6, LibRaw, libheif and libexif, built
 against an isolated MSYS2 toolchain in `.msys64/` that is to this what `.venv`
 is to the Python version. It is the build being developed; the Python one is
-frozen. 205 unit and 124 functional tests cover it, on every push in CI as
-well as locally, and 73 reintroduced defects all turn them red. See
+frozen. 205 unit and 144 functional tests cover it, on every push in CI as
+well as locally, and 81 reintroduced defects all turn them red. See
 [cpp/README.md](cpp/README.md).
 
 It installs from a one-file installer, `PicViewerCpp-<version>-setup.exe`, side

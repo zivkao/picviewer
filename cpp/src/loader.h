@@ -30,6 +30,9 @@ public:
     /// Warm the cache for images the user is about to reach.
     void prefetch(const QStringList &paths);
 
+    /// Drop the decodes still queued; any already running finish.
+    void cancelPending();
+
     void shutdown();
 
     ImageCache &cache() { return m_cache; }

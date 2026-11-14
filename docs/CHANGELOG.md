@@ -7,6 +7,34 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-15 — stopping at the ends, and Close
+
+Both asked for after the first days of real use.
+
+- **Stepping stops at the first and last image.** It wrapped round, so
+  holding an arrow key ran through a folder and started on it again with
+  nothing to say the end had passed. Previous, Next, First and Last now grey
+  out at the end they cannot pass, and prefetch no longer decodes the images
+  round the corner, which nothing but a wrap would reach. The slideshow still
+  loops: it has its own step, not the arrow keys'.
+- **Close** (`Ctrl+W`, `Ctrl+F4`) goes back to the empty window. The folder
+  goes too -- with only the image gone, an arrow key would bring the next
+  one straight back -- and so do the decoded images in the cache and any
+  decodes still queued.
+- **A decode landing after the window emptied would have been drawn.** Seen
+  while adding Close, before it shipped: the placeholder never moved the
+  generation on, so a result for the file just closed still matched and
+  would have gone up over the empty window. It moves on now wherever the
+  placeholder is shown -- deleting a folder's last file while its full
+  decode was running, or opening an empty folder, reached the same path.
+  A test closes a file in the instant after opening it, and fails with the
+  line taken out.
+- One orientation test had reached its second image only by the wrap: it
+  stepped on from the last file in its folder. It steps back now.
+- 20 functional tests added, 144 now, green at 1x, 1.5x and 2x. Eight
+  mutations added, 81 in all; they and the two slideshow mutations whose
+  anchors moved were run on their own and all ten caught.
+
 ## 2026-11-02 — every mutation, in one run
 
 - `cpp/tools/mutate.sh` run in full: all 73 mutations applied and caught,

@@ -73,6 +73,9 @@ public:
 public slots:
     void openDialog();
     void openFolderDialog();
+    /// Back to the empty window: no image, no folder, its decodes dropped.
+    void closeFile();
+    /// Move by *delta* images, stopping at either end rather than wrapping.
     void step(int delta);
     void showIndex(int index);
     void toggleFullscreen();
@@ -161,6 +164,7 @@ private:
 
     QAction *m_actOpen = nullptr;
     QAction *m_actOpenFolder = nullptr;
+    QAction *m_actClose = nullptr;
     QAction *m_actReveal = nullptr;
     QAction *m_actCopy = nullptr;
     QAction *m_actDelete = nullptr;

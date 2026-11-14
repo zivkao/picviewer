@@ -412,8 +412,12 @@ mutate "animation: pause is live on a still image" "window.cpp" \
 # -- slideshow -----------------------------------------------------------------
 
 mutate "slideshow: never advances" "window.cpp" \
-    '    connect(m_slideshowTimer, &QTimer::timeout, this, [this] { step(1); });' \
-    '    connect(m_slideshowTimer, &QTimer::timeout, this, [] {});'
+    '            showIndex((m_index + 1) % m_playlist.size());' \
+    '            showIndex(m_index);'
+
+mutate "slideshow: stops at the last image" "window.cpp" \
+    '            showIndex((m_index + 1) % m_playlist.size());' \
+    '            step(1);'
 
 mutate "slideshow: leaving fullscreen leaves it running" "window.cpp" \
     '    if (!entering && m_slideshowRunning) {' \
@@ -424,8 +428,8 @@ mutate "slideshow: the slot starts one with a single image" "window.cpp" \
     '    if (false)'
 
 mutate "slideshow: the action is live with a single image" "window.cpp" \
-    '    for (QAction *action : {m_actPrev, m_actNext, m_actFirst, m_actLast, m_actSlideshow})' \
-    '    for (QAction *action : {m_actPrev, m_actNext, m_actFirst, m_actLast})'
+    '    m_actSlideshow->setEnabled(many);' \
+    '    m_actSlideshow->setEnabled(true);'
 
 mutate "slideshow: stopping leaves a fullscreen the user chose" "window.cpp" \
     '    m_slideshowEnteredFullscreen = !isFullScreen();' \
@@ -460,6 +464,45 @@ mutate "settings: hand-edited values not clamped" "settings.cpp" \
 mutate "settings: a lower cache budget waits for the next insert" "cache.cpp" \
     '    m_budget = budget;' \
     '    m_budget = budget; return;'
+
+# -- the ends of the folder, and closing it -------------------------------------
+
+# What step() was until the arrow keys were made to stop at the ends.
+mutate "ends: stepping wraps round again" "window.cpp" \
+    '    if (target < 0 || target >= m_playlist.size())
+        return;
+    showIndex(target);' \
+    '    if (m_playlist.isEmpty())
+        return;
+    const int count = m_playlist.size();
+    showIndex(((m_index + delta) % count + count) % count);'
+
+mutate "ends: Previous and Next never grey out" "window.cpp" \
+    '    const bool atFirst = m_index <= 0;
+    const bool atLast = m_index >= m_playlist.size() - 1;' \
+    '    const bool atFirst = false;
+    const bool atLast = false;'
+
+mutate "ends: prefetch reaches round the corner" "window.cpp" \
+    '            const int at = m_index + offset;' \
+    '            const int at = ((m_index + offset) % count + count) % count;'
+
+mutate "close: the folder stays open" "window.cpp" \
+    '    m_playlist.clear();' \
+    ''
+
+mutate "close: a decode landing after it is shown" "window.cpp" \
+    '    // Nothing is current now, so nothing still decoding belongs on screen.
+    ++m_generation;' \
+    '    // Nothing is current now, so nothing still decoding belongs on screen.'
+
+mutate "close: the cache is kept" "window.cpp" \
+    '    m_loader->cache().clear();' \
+    ''
+
+mutate "close: offered with nothing open" "window.cpp" \
+    '    m_actClose->setEnabled(!m_playlist.isEmpty());' \
+    '    m_actClose->setEnabled(true);'
 
 echo
 echo "restoring and re-checking baseline"

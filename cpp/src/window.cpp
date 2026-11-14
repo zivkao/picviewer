@@ -94,7 +94,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_slideshowTimer = new QTimer(this);
     m_slideshowTimer->setSingleShot(true);
-    connect(m_slideshowTimer, &QTimer::timeout, this, [this] { step(1); });
+    // A slideshow comes round to the first image again; the arrow keys stop
+    // at the last.
+    connect(m_slideshowTimer, &QTimer::timeout, this, [this] {
+        if (!m_playlist.isEmpty())
+            showIndex((m_index + 1) % m_playlist.size());
+    });
 
     applyPreferences(settings::load());
     // Size, position, and which panels were open. Restored after the chrome
@@ -227,6 +232,8 @@ void MainWindow::buildActions()
                            [this] { openDialog(); }, SP::SP_FileIcon, true);
     m_actOpenFolder = makeAction(tr("Open &Folder..."), keys({"Ctrl+Shift+O"}),
                                  [this] { openFolderDialog(); }, SP::SP_DirOpenIcon, true);
+    m_actClose = makeAction(tr("&Close"), keys({"Ctrl+W", "Ctrl+F4"}),
+                            [this] { closeFile(); }, SP::SP_FileIcon, false);
     m_actReveal = makeAction(tr("Show in E&xplorer"), keys({"Ctrl+E"}),
                              [this] { revealCurrent(); }, SP::SP_FileIcon, false);
     m_actCopy = makeAction(tr("&Copy Image"), keys({"Ctrl+C"}),
@@ -308,6 +315,7 @@ void MainWindow::buildMenus()
     QMenu *file = menuBar()->addMenu(tr("&File"));
     file->addAction(m_actOpen);
     file->addAction(m_actOpenFolder);
+    file->addAction(m_actClose);
     file->addSeparator();
     file->addAction(m_actReveal);
     file->addAction(m_actCopy);
@@ -477,6 +485,23 @@ void MainWindow::openPaths(const QStringList &paths)
     showIndex(0);
 }
 
+void MainWindow::closeFile()
+{
+    if (m_playlist.isEmpty())
+        return;
+    qCInfo(logWindow).noquote() << "close" << currentPath();
+    // The folder goes with the file: with an image gone but its folder kept,
+    // an arrow key would bring the next one straight back.
+    m_playlist.clear();
+    playlistChanged();
+    showPlaceholder();
+    // And the memory goes with them: the cache emptied, and decodes not yet
+    // started dropped. One already running still finishes into the cache,
+    // where it is held to the budget like anything else.
+    m_loader->cancelPending();
+    m_loader->cache().clear();
+}
+
 QStringList MainWindow::scan(const QString &folder) const
 {
     QStringList files;
@@ -495,10 +520,11 @@ QStringList MainWindow::scan(const QString &folder) const
 
 void MainWindow::step(int delta)
 {
-    if (m_playlist.isEmpty())
+    // Stops at either end: past the last image is not the first one.
+    const int target = m_index + delta;
+    if (target < 0 || target >= m_playlist.size())
         return;
-    const int count = m_playlist.size();
-    showIndex(((m_index + delta) % count + count) % count);
+    showIndex(target);
 }
 
 void MainWindow::showIndex(int index)
@@ -551,11 +577,11 @@ QStringList MainWindow::prefetchTargets() const
     // is queued ahead of the ones further out.
     for (int distance = 1; distance <= m_prefs.prefetchRadius; ++distance) {
         for (const int offset : {distance, -distance}) {
-            const QString &candidate = m_playlist.at(((m_index + offset) % count + count) % count);
-            // With few files the wrap-around lands back on the current one,
-            // which would re-queue what was just decoded.
-            if (candidate != m_playlist.at(m_index) && !targets.contains(candidate))
-                targets << candidate;
+            // Nothing past either end: navigation stops there, so an image
+            // round the corner would be decoded for nothing.
+            const int at = m_index + offset;
+            if (at >= 0 && at < count)
+                targets << m_playlist.at(at);
         }
     }
     return targets;
@@ -653,6 +679,8 @@ void MainWindow::updateStatus()
 void MainWindow::showPlaceholder()
 {
     m_index = -1;
+    // Nothing is current now, so nothing still decoding belongs on screen.
+    ++m_generation;
     stopSlideshow();
     stopAnimation();
     m_view->clearImage();
@@ -670,12 +698,19 @@ void MainWindow::updateActionState()
     const bool hasFile = !currentPath().isEmpty();
     const bool many = m_playlist.size() > 1;
     const bool hasImage = m_view->hasImage();
+    const bool atFirst = m_index <= 0;
+    const bool atLast = m_index >= m_playlist.size() - 1;
 
+    m_actClose->setEnabled(!m_playlist.isEmpty());
     m_actDelete->setEnabled(hasFile);
     m_actReveal->setEnabled(hasFile);
     m_actCopy->setEnabled(hasImage);
-    for (QAction *action : {m_actPrev, m_actNext, m_actFirst, m_actLast, m_actSlideshow})
-        action->setEnabled(many);
+    // Navigation stops at the ends, so what would go past one greys out there.
+    m_actPrev->setEnabled(many && !atFirst);
+    m_actFirst->setEnabled(many && !atFirst);
+    m_actNext->setEnabled(many && !atLast);
+    m_actLast->setEnabled(many && !atLast);
+    m_actSlideshow->setEnabled(many);
     m_actPause->setEnabled(m_movie != nullptr);
     // Only a JPEG can take a turn losslessly, and only a turn needs saving.
     m_actSaveOrientation->setEnabled(
