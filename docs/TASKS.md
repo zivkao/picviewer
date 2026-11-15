@@ -114,8 +114,6 @@ rather than assumed, which is the only reason to keep a list like this at all:
   problem in the Python build, which uses argparse and no Qt parser.
 - A one-file playlist re-queueing itself is fixed in both.
 
-The installed *Python* package predates its prefetch fix, so it still does the
-redundant work until it is rebuilt. That is a stale install, not a defect.
 
 ### Gaps in what is verified
 - [ ] **Eight makers, one file each.** Canon, Nikon, Sony, Fujifilm,
