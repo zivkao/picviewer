@@ -15,7 +15,6 @@ target_compile_definitions(unit_tests PRIVATE ${PICVIEWER_TEST_DEFINES}
     # The executable suite reads the built app's icon and version.
     PICVIEWER_EXE="$<TARGET_FILE:picviewer>"
     PICVIEWER_ICON="${CMAKE_CURRENT_SOURCE_DIR}/../icon.ico"
-    PICVIEWER_VERSION="${PROJECT_VERSION}"
     PICVIEWER_LICENSE="${PICVIEWER_LICENSE}")
 add_dependencies(unit_tests picviewer)
 

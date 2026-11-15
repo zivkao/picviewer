@@ -89,7 +89,7 @@ the sample files, reading and wording the camera's EXIF record, and the icon
 and version Windows reads out of the built `picviewer.exe`. No display, under
 a second.
 
-**`functional_tests`** -- 156 passing test functions driving a real `MainWindow` offscreen:
+**`functional_tests`** -- 158 passing test functions driving a real `MainWindow` offscreen:
 drag and drop sent to actual widgets, keystrokes through `QTest::keyClick`,
 menu and toolbar state read off the real objects, fullscreen, a fixture of
 deny-read files that reproduces an unreadable-file failure, display scaling
@@ -113,7 +113,7 @@ passed, and said so into a closed stream.
 .msys64\usr\bin\bash -lc "bash cpp/tools/mutate.sh"
 ```
 
-Reintroduces 95 defects -- those this project has fixed, and the likeliest
+Reintroduces 98 defects -- those this project has fixed, and the likeliest
 mistakes in each feature added since -- and checks the suites go red for each.
 A green suite says nothing until it can fail, and this has twice caught tests
 that were passing for the wrong reason. The full table is in

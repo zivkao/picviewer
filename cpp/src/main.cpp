@@ -12,6 +12,7 @@
 #include "applog.h"
 #include "decoders/decoder.h"
 #include "instance.h"
+#include "version.h"
 #include "window.h"
 
 #ifdef Q_OS_WIN
@@ -24,7 +25,7 @@ Q_LOGGING_CATEGORY(logApp, "picviewer")
 
 namespace {
 
-constexpr auto Version = "0.1.0";
+constexpr auto Version = PICVIEWER_VERSION;
 
 /// Windows groups taskbar buttons by this id and takes the icon from whatever
 /// owns it. Left unset, the app inherits a generic identity and the taskbar

@@ -26,6 +26,7 @@
 #include "settings.h"
 #include "thumbnails.h"
 #include "sniff.h"
+#include "version.h"
 
 using sniff::Container;
 

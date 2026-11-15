@@ -49,6 +49,10 @@ public:
     /// what this launch opened itself; see OpenBatcher.
     void acceptLaunches(SingleInstance *instance, const QStringList &startupPaths);
 
+    /// What Help > About says: the version, the copyright and licence, where
+    /// the third-party licences are, and the log file.
+    QString aboutText() const;
+
     // Exposed for the functional tests, which drive the window directly.
     const QStringList &playlist() const { return m_playlist; }
     int index() const { return m_index; }

@@ -79,6 +79,11 @@ if(NOT PICVIEWER_COPYRIGHT)
 endif()
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PICVIEWER_LICENSE})
 
+# The same two for the program's own use -- --version, the log, Help >
+# About -- so neither is written anywhere else; see src/version.h.in.
+configure_file(src/version.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/version.h @ONLY)
+target_include_directories(picviewer_core PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/generated)
+
 # The icon, version and copyright Windows reads out of the .exe; see
 # picviewer.rc.in.
 configure_file(picviewer.rc.in ${CMAKE_CURRENT_BINARY_DIR}/picviewer.rc @ONLY)

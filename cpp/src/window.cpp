@@ -29,11 +29,12 @@
 #include "jpegorient.h"
 #include "settingsdialog.h"
 #include "thumbnails.h"
+#include "version.h"
 
 Q_LOGGING_CATEGORY(logWindow, "picviewer.window")
 
 namespace {
-const char *Version = "0.1.0";
+const char *Version = PICVIEWER_VERSION;
 }
 
 bool naturalLess(const QString &a, const QString &b)
@@ -978,17 +979,30 @@ void MainWindow::openLogFolder()
     QDesktopServices::openUrl(QUrl::fromLocalFile(applog::directory()));
 }
 
+QString MainWindow::aboutText() const
+{
+    // An installed copy has the notices beside it (cpp/packaging/notices.sh);
+    // a development build does not, and says where they would be.
+    const QString notices = QDir(QCoreApplication::applicationDirPath())
+                                .filePath(QStringLiteral("THIRD-PARTY-NOTICES.txt"));
+    const QString where = QFileInfo::exists(notices)
+                              ? QDir::toNativeSeparators(notices)
+                              : tr("THIRD-PARTY-NOTICES.txt, beside an installed picviewer.exe");
+    return tr("Pic Viewer %1 (C++ / Qt %2)\n"
+              "%3. MIT License.\n\n"
+              "%4 file extensions across decoders: %5\n\n"
+              "The libraries it carries keep their own licences:\n%6\n\n"
+              "Log file:\n%7")
+        .arg(QString::fromLatin1(Version), QString::fromLatin1(qVersion()),
+             QString::fromLatin1(PICVIEWER_COPYRIGHT))
+        .arg(m_extensions.size())
+        .arg(decoders::Registry::instance().decoderNames().join(QStringLiteral(", ")), where,
+             applog::filePath());
+}
+
 void MainWindow::showAbout()
 {
-    QMessageBox::about(
-        this, tr("About Pic Viewer"),
-        tr("Pic Viewer %1 (C++ / Qt %2)\n\n"
-           "%3 file extensions across decoders: %4\n\n"
-           "Log file:\n%5")
-            .arg(QString::fromLatin1(Version), QString::fromLatin1(qVersion()))
-            .arg(m_extensions.size())
-            .arg(decoders::Registry::instance().decoderNames().join(QStringLiteral(", ")),
-                 applog::filePath()));
+    QMessageBox::about(this, tr("About Pic Viewer"), aboutText());
 }
 
 void MainWindow::warn(const QString &message)

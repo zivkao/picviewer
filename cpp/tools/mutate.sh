@@ -572,14 +572,32 @@ mutate "exe: built without its icon" "../CMakeLists.txt" \
     '    resources.qrc
 )'
 
+# The stale values below are ones the project never had and never will, so a
+# version bump cannot make a mutation coincide with the truth: this one wrote
+# 1,0,0,0 until 1.0.0 was due, when it would have passed.
 mutate "exe: version not taken from project()" "../picviewer.rc.in" \
     'FILEVERSION     @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0' \
-    'FILEVERSION     1,0,0,0'
+    'FILEVERSION     0,0,1,0'
 
 # Written by hand, as the installer had it until LICENSE existed.
 mutate "exe: copyright not taken from LICENSE" "../picviewer.rc.in" \
     'VALUE "LegalCopyright",   "@PICVIEWER_COPYRIGHT@"' \
     'VALUE "LegalCopyright",   "ZivKao"'
+
+# -- the version the program states ---------------------------------------------
+# Written three times until 1.0.0: CMake, main.cpp, window.cpp.
+
+mutate "version: --version says one of its own" "main.cpp" \
+    'constexpr auto Version = PICVIEWER_VERSION;' \
+    'constexpr auto Version = "0.0.1";'
+
+mutate "version: About says one of its own" "window.cpp" \
+    'const char *Version = PICVIEWER_VERSION;' \
+    'const char *Version = "0.0.1";'
+
+mutate "version: About writes its own copyright" "window.cpp" \
+    'QString::fromLatin1(PICVIEWER_COPYRIGHT))' \
+    'QStringLiteral("ZivKao"))'
 
 echo
 echo "restoring and re-checking baseline"

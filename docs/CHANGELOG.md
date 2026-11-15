@@ -9,6 +9,22 @@ each entry to the full reasoning in its commit message.
 
 ## Unreleased
 
+### The version written once
+
+- The version was written three times: `project()` in CMakeLists.txt, which
+  the `.exe`'s version block and the installer already followed, and a
+  string each in `main.cpp` (`--version`, the log) and `window.cpp` (Help >
+  About). A bump that found only the first would have shipped a 1.0.0 whose
+  About box said 0.1.0. CMake now writes `version.h` from `project()` and
+  `LICENSE`, and both files read it.
+- Help > About gives the copyright and licence, and where the third-party
+  licences are: the path of the installed `THIRD-PARTY-NOTICES.txt`, or, in
+  a development build that has none, where it would be.
+- Two functional tests -- the real `.exe`'s `--version` output, and the
+  About text -- and three mutations writing a value of their own, all
+  caught. The existing mutation that wrote the `.exe`'s version as 1,0,0,0
+  would have passed once the project reached 1.0.0; it writes 0,0,1,0.
+
 ### What the package carries, and under which licences
 
 - The package now carries `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`,

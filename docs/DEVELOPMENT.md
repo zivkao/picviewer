@@ -61,7 +61,7 @@ Two layers, deliberately different in kind.
 
 ```
 cpp\build\tests\unit_tests.exe                     210 tests, no display, about a second
-cpp\build\tests\functional_tests.exe               156 tests, a real window, offscreen
+cpp\build\tests\functional_tests.exe               158 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
 
@@ -146,7 +146,9 @@ added later that day with the `.exe`'s icon, were run the same way. Those
 edit `cpp/CMakeLists.txt` and `cpp/picviewer.rc.in` rather than a source
 file, so a mutation's rebuild reconfigures first. The eleven Instance rows,
 added with one window per session, were run with `ONLY` too, and all
-caught. The suite runs three
+caught. The Exe row for the copyright and the three Version rows, added on
+2026-11-16, were run with `ONLY` alongside the other two Exe rows, and all
+six caught. The suite runs three
 times per mutation: unit, functional at 1x, functional at 2x display scaling.
 The rows below are the harness's own labels, copied from those runs' output.
 
@@ -236,6 +238,9 @@ The rows below are the harness's own labels, copied from those runs' output.
 | Exe: built without its icon | 3 | | |
 | Exe: version not taken from project() | 1 | | |
 | Exe: copyright not taken from LICENSE | 1 | | |
+| Version: --version says one of its own | | 1 | 1 |
+| Version: About says one of its own | | 1 | 1 |
+| Version: About writes its own copyright | | 1 | 1 |
 | Instance: every launch opens its own window | | 1 | 1 |
 | Instance: options handed over too | | 2 | 1 |
 | Instance: relative path handed over as given | | 1 | 1 |

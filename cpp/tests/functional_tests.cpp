@@ -36,6 +36,7 @@
 #include "jpegorient.h"
 #include "settingsdialog.h"
 #include "thumbnails.h"
+#include "version.h"
 #include "viewer.h"
 #include "window.h"
 
@@ -577,6 +578,20 @@ private slots:
         for (QAction *action : window.menuBar()->actions())
             titles << action->text().remove(QLatin1Char('&'));
         QCOMPARE(titles, QStringList({"File", "Go", "View", "Help"}));
+    }
+
+    void aboutSaysWhatItIsAndUnderWhichLicence()
+    {
+        // Version and copyright come from version.h, which CMake writes from
+        // project() and LICENSE; a value of its own here would go stale.
+        MainWindow window;
+        const QString text = window.aboutText();
+        QVERIFY2(text.startsWith(QStringLiteral("Pic Viewer " PICVIEWER_VERSION " ")),
+                 qPrintable(text));
+        QVERIFY2(text.contains(QStringLiteral(PICVIEWER_COPYRIGHT ". MIT License.")),
+                 qPrintable(text));
+        // A test build has no notices beside it, and says where they would be.
+        QVERIFY2(text.contains(QStringLiteral("THIRD-PARTY-NOTICES.txt")), qPrintable(text));
     }
 
     void theToolbarExists()
@@ -2323,6 +2338,18 @@ private slots:
         QVERIFY2(output.contains("Pic Viewer"), output.constData());
         QTest::qWait(300);
         QCOMPARE(received.size(), 0);
+    }
+
+    void theRealExeSaysTheBuildsVersion()
+    {
+        // The real picviewer.exe, so main.cpp's own use of the version is
+        // what is read, not a copy of it.
+        int code = -1;
+        QByteArray output;
+        QVERIFY(launch(freshKey(), {QStringLiteral("--version")}, &code, &output));
+        QCOMPARE(code, 0);
+        QVERIFY2(output.startsWith("Pic Viewer " PICVIEWER_VERSION " (C++, Qt "),
+                 output.constData());
     }
 };
 
