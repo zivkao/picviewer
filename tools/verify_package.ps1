@@ -55,8 +55,38 @@ foreach ($name in ($results.Keys | Sort-Object)) {
 }
 
 $ok = ($results.Values | Where-Object { $_.ok }).Count
+$bad = $results.Count - $ok
 "`n  $ok of $($results.Count) decoded with no toolchain on PATH"
 foreach ($d in @("qt","heif","raw")) {
     $n = ($results.Values | Where-Object { $_.ok -and $_.via -eq $d }).Count
     "  {0} {1,-5}: {2}" -f $(if ($n -gt 0) { "OK  " } else { "LOST" }), $d, $n
+    if ($n -eq 0) { $bad++ }
 }
+
+# Every library shipped is accounted for in the notices, under its own
+# licence, and the project's own licence is beside it. notices.sh writes both
+# from the package's files; this reads them back from what was installed.
+$dir = Split-Path $exe
+$notices = Join-Path $dir "THIRD-PARTY-NOTICES.txt"
+$listed = @{}
+if (Test-Path $notices) {
+    foreach ($line in (Get-Content $notices)) {
+        if ($line -match '^\s+files:\s+(.+)$') {
+            foreach ($name in ($Matches[1] -split '\s+')) { $listed[$name] = $true }
+        }
+    }
+}
+$dlls = @(Get-ChildItem $dir -Recurse -Filter *.dll |
+          ForEach-Object { $_.FullName.Substring($dir.Length + 1).Replace('\', '/') })
+$unlisted = @($dlls | Where-Object { -not $listed.ContainsKey($_) })
+$licence = Test-Path (Join-Path $dir "LICENSE.txt")
+"  {0} notices: {1} of {2} libraries listed, LICENSE.txt {3}" -f `
+    $(if ($unlisted.Count -eq 0 -and $dlls.Count -gt 0 -and $licence) { "OK  " } else { "BAD " }),
+    ($dlls.Count - $unlisted.Count), $dlls.Count, $(if ($licence) { "present" } else { "MISSING" })
+foreach ($u in $unlisted) { "       not in the notices: $u" }
+if ($unlisted.Count -gt 0 -or $dlls.Count -eq 0 -or -not $licence) { $bad++ }
+
+# verify_installer.ps1 judges this script by its exit code. Until 2026-11-16
+# it always exited 0: a file that failed to decode was printed, and passed.
+if ($bad -gt 0) { exit 1 }
+exit 0

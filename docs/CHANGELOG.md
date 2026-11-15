@@ -9,6 +9,25 @@ each entry to the full reasoning in its commit message.
 
 ## Unreleased
 
+### What the package carries, and under which licences
+
+- The package now carries `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`,
+  written by `cpp/packaging/notices.sh` at the end of `trim.sh` and again
+  before every installer. Nothing in it is kept by hand: each DLL is traced
+  to the MSYS2 package that installed it, and that package's own record
+  supplies its version, licence, project page and licence texts. 46
+  packages account for the 69 DLLs; a DLL no package owns stops the script.
+- What the list shows: most are permissive (MIT, BSD, zlib, ICU, Apache),
+  the main libraries LGPL (Qt, LibRaw, libheif, libde265, GLib, libexif),
+  and three GPL -- the x265 and x264 encoders libheif links, and JBIG-KIT
+  under libtiff. None of that binds a viewer kept for its author's own use;
+  TASKS.md lists what publishing an installer would take first.
+- `verify_package.ps1` reads the installed notices back and wants every DLL
+  listed. Adding that found the script had never failed: it printed
+  `FAILED` and `LOST` and exited 0, and `verify_installer.ps1` judged it by
+  exit code. It now exits 1 on any of them, shown by running it on the
+  install from before the notices, which it fails for 69 unlisted files.
+
 ### Licensed under MIT
 
 - The repository had been public with no licence at all, which reserves

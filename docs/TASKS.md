@@ -159,6 +159,29 @@ rather than assumed, which is the only reason to keep a list like this at all:
 - [ ] Unsigned, so SmartScreen will warn on another machine. Signing needs a
       code-signing certificate, which is bought, not built.
 
+### Only if the installer is ever published
+The viewer is built for its author's own use and no binary is distributed:
+no GitHub Release, no CI artifact but logs. The licences of what the
+package carries bind only someone who distributes it, so none of this is
+needed now. Before publishing an installer, though:
+- [ ] **The three GPL libraries.** x265 (22 MB) and x264 (2 MB) are encoders
+      libheif links but a viewer never calls -- libheif takes 2 functions
+      from one and 10 from the other, all for encoding -- and JBIG-KIT (60 KB)
+      reads a fax compression inside TIFF. Shipped as they are, the whole
+      installer goes out under the GPL, with the source of everything in it.
+      Stub DLLs of the same names and exports, built here, would remove them
+      without rebuilding libheif: 24 MB smaller, nothing GPL, and JBIG-in-TIFF
+      no longer opening.
+- [ ] **Sources of the LGPL libraries** (Qt, LibRaw, libheif, libde265,
+      GLib, libexif and the rest): the MSYS2 source packages of the exact
+      versions, published beside the installer. `THIRD-PARTY-NOTICES.txt`
+      already names each package and version.
+- [ ] **HEVC is patented.** Not a licence matter: libde265 decodes a format
+      whose patents belong to others, as every HEVC decoder does. Free and
+      open-source viewers ship one regardless; selling the viewer would need
+      it dealt with.
+- [ ] Signing, above.
+
 ---
 
 ## Decisions taken, so they are not relitigated

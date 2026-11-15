@@ -118,5 +118,9 @@ try_remove networkinformation
 try_remove libcryptopp.dll
 
 echo
+echo "=== licences, for what is left ==="
+bash /d/Project/Claude_Pic_Viewer/cpp/packaging/notices.sh
+
+echo
 printf '=== final: %s MB in %s files ===\n' \
     "$(du -sm "$DIST" | cut -f1)" "$(find "$DIST" -type f | wc -l)"

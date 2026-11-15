@@ -114,7 +114,7 @@ if ($up.Count -ne 24 -or $once.Count -ne 24 -or $named.Count -ne 24) {
 
 "`n== the installed copy, with no toolchain on PATH"
 & powershell -ExecutionPolicy Bypass -File (Join-Path $Root "tools\verify_package.ps1") |
-    Select-Object -Last 4
+    Where-Object { $_ -match 'decoded with no toolchain|^\s+(OK|LOST|BAD)\s|FAILED|not in the notices' }
 Check "verify_package passed" ($LASTEXITCODE -eq 0)
 
 "`n== uninstall"

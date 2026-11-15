@@ -12,6 +12,10 @@ ROOT=/d/Project/Claude_Pic_Viewer/cpp
 DIST=$ROOT/dist/PicViewer
 [ -f "$DIST/picviewer.exe" ] || { echo "no package at $DIST; run deploy.sh and trim.sh first"; exit 1; }
 
+# Made from the files being shipped, so always afresh: LICENSE.txt and
+# THIRD-PARTY-NOTICES.txt.
+bash "$ROOT/packaging/notices.sh"
+
 VERSION=$(sed -n 's/^project(PicViewer VERSION \([0-9.]*\).*/\1/p' "$ROOT/CMakeLists.txt")
 [ -n "$VERSION" ] || { echo "no version found in CMakeLists.txt"; exit 1; }
 OUT=$ROOT/dist/PicViewerCpp-$VERSION-setup.exe

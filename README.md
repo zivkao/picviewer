@@ -119,4 +119,5 @@ git checkout python-final
 
 MIT; see [LICENSE](LICENSE). That covers this project's own code. The
 libraries an installed copy carries -- Qt, LibRaw, libheif and the codecs
-beneath them -- keep their own licences.
+beneath them -- keep their own licences: `THIRD-PARTY-NOTICES.txt`, beside
+`picviewer.exe`, lists each one with its version, licence and licence text.

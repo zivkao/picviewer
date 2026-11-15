@@ -309,15 +309,29 @@ that were briefly written down here as fact.
 ```
 .msys64\usr\bin\bash -lc "bash cpp/packaging/deploy.sh"
 .msys64\usr\bin\bash -lc "bash cpp/packaging/trim.sh"
-powershell -ExecutionPolicy Bypass -File cpp\packaging\install.ps1 -DesktopShortcut
-powershell -ExecutionPolicy Bypass -File tools\verify_package.ps1
+.msys64\usr\bin\bash -lc "bash cpp/packaging/build_installer.sh"
+powershell -ExecutionPolicy Bypass -File tools\verify_installer.ps1
 ```
 
-`deploy.sh` gathers the runtime, `trim.sh` removes what a viewer cannot need
-while re-verifying after each removal, `install.ps1` installs per-user, and
-`verify_package.ps1` runs the *installed* copy with `PATH` cut back to Windows
-itself. That last step is not optional: it is what catches a library that was
-quietly resolving out of the build toolchain.
+`deploy.sh` gathers the runtime; `trim.sh` removes what a viewer cannot need,
+re-verifying after each removal, and ends by running `notices.sh`;
+`build_installer.sh` writes the one-file installer. `verify_installer.ps1`
+installs it, checks what it registered, and runs `verify_package.ps1`, which
+runs the *installed* copy with `PATH` cut back to Windows itself. That step
+is not optional: it is what catches a library that was quietly resolving out
+of the build toolchain.
+
+**Licences.** `notices.sh` writes `LICENSE.txt` and `THIRD-PARTY-NOTICES.txt`
+into the package. It traces every DLL to the MSYS2 package that installed it
+and takes the version, licence and licence texts from that package's own
+record, so the list cannot fall behind what ships; a DLL no package owns
+stops it. `verify_package.ps1` reads the installed notices back and wants
+every DLL there listed. 46 packages, 69 files, as of 1.0.0: most permissive
+(MIT, BSD, zlib, ICU, Apache), the main libraries LGPL (Qt, LibRaw, libheif,
+libde265, GLib, libexif), and three GPL -- the x265 and x264 encoders libheif
+links, and JBIG-KIT under libtiff. That matters only to someone
+distributing the installer, which this project does not; see TASKS.md,
+"Decisions taken".
 
 ---
 
@@ -464,6 +478,7 @@ of these are the kind of mistake that is easy to make twice.
 | Every packaging run, benchmark and package check emptied the user's log | `trim.sh`, `benchmark.ps1`, `sweep.ps1` and `verify_package.ps1` each cleared the application log before a run so that what they read back was theirs -- the user's own log, their history for any bug report. Caught when the session's command classifier refused a diagnostic script that did the same | each notes the log's length first and reads only what is appended (`tools/logtail.ps1`) |
 | `trim.sh` called a working package broken | It stopped waiting at the first `decoded` line of any file. Once a RAW gained a half-size stage, a neighbour's prefetch finished first and the RAW was killed mid-decode | it waits for the file under test's own line |
 | Three mutations reported SKIP and tested nothing | Their anchors spanned lines, and inside bash double quotes `\n` is a backslash and an n. The harness printed SKIP and carried on as though that were neutral | single-line anchors; SKIP now fails the run like a survivor does |
+| The installer check would have passed a package that could not decode | `verify_installer.ps1` judged `verify_package.ps1` by its exit code, and that script printed `FAILED` and `LOST` lines and exited 0 whatever they said. Every run had in fact decoded everything, so nothing had shown it; found while adding a check of its own to the script | it exits 1 on any failed file, lost decoder or unlisted library; shown on an install from before the notices existed, which it now fails |
 
 The pattern worth noticing: more than half were found by *running* the thing and
 reading its output, not by reading the code. Several passed every test at the

@@ -137,6 +137,14 @@ administrator prompt -- because there is one description of it: the
 installer copies the files and then runs `install.ps1 -Register` from the
 install directory for everything else.
 
+**Licences.** `trim.sh` ends by running `notices.sh`, which writes
+`LICENSE.txt` and `THIRD-PARTY-NOTICES.txt` into the package: every DLL
+traced to the MSYS2 package that installed it, with that package's version,
+licence and licence texts. `build_installer.sh` runs it again first, so an
+installer's list is always made from what it ships, and
+`verify_package.ps1` wants every installed DLL in it. See
+[docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md), "Packaging".
+
 **Registering with Windows.** Windows 10 and later will not let an installer
 make itself the default viewer; only the user can, in Settings > Apps >
 Default apps > Pic Viewer, or with Open with > Always on an image. What the
