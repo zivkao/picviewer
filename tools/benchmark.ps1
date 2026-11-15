@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Measure both builds and compare against the committed baseline.
+    Measure the installed build and compare against the committed baseline.
 
 .DESCRIPTION
     The numbers that justify decisions about this project -- is the C++ port
@@ -35,11 +35,9 @@ $Root = Resolve-Path (Join-Path $ScriptDir "..")
 $BaselinePath = Join-Path $ScriptDir "baseline.json"
 . (Join-Path $ScriptDir "logtail.ps1")
 
+# One build since the Python one was archived (tag python-final). The
+# baseline still holds its last figures, for comparison, until -Update.
 $Builds = @(
-    @{ name = "python"
-       exe  = Join-Path $env:LOCALAPPDATA "Programs\PicViewer\PicViewer.exe"
-       log  = Join-Path $env:LOCALAPPDATA "PicViewer\logs\picviewer.log"
-       proc = "PicViewer" }
     @{ name = "cpp"
        exe  = Join-Path $env:LOCALAPPDATA "Programs\PicViewerCpp\picviewer.exe"
        log  = Join-Path $env:LOCALAPPDATA "PicViewer\logs\picviewer-cpp.log"

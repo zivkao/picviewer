@@ -14,8 +14,10 @@ powershell -ExecutionPolicy Bypass -File tools\benchmark.ps1
 powershell -ExecutionPolicy Bypass -File tools\benchmark.ps1 -Update
 ```
 
-Startup, decode time per format and installed size for both builds, compared
-against `baseline.json` and reported as deltas. `-Update` replaces the
+Startup, decode time per format and installed size for the installed build,
+compared against `baseline.json` and reported as deltas. The baseline still
+holds the archived Python build's last figures beside it, until the next
+`-Update`. `-Update` replaces the
 baseline; commit it with whatever change moved the numbers.
 
 Decode times come from the application's own log, not from wall-clock timing

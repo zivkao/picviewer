@@ -1,10 +1,10 @@
 # Tasks
 
-Status of the C++ viewer. The Python build is feature-frozen; see the root
-README for what it is. [progress.md](../progress.md) is the one-page summary of
+Status of the viewer. The Python build it began as is archived at the tag
+`python-final`. [progress.md](../progress.md) is the one-page summary of
 this list, in Traditional Chinese; update both together.
 
-Last reviewed: 2026-11-15
+Last reviewed: 2026-11-16
 
 ---
 

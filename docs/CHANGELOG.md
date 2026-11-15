@@ -7,6 +7,25 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## Unreleased
+
+### The Python build archived
+
+- The Python build had been frozen since the C++ port overtook it, and was
+  uninstalled from the development machine on 2026-11-15. Its code, tests
+  and packaging are now off `main`; the tag `python-final` is the tree as it
+  last was. The root README describes the C++ build: it had still opened by
+  telling the reader to create a Python venv, and listed as not yet built a
+  thumbnail strip, slideshow, info panel and rotation the C++ build has had
+  for weeks.
+- Two scripts outlived it, because committed files the C++ suites read come
+  from them: `make_synthetic_dng.py` (for `samples/synthetic.dng`) moved to
+  `cpp/tests/fixtures/`, and `assets/make_icon.py` now writes `cpp/icon.ico`
+  rather than the deleted package's copy. Both write their files byte for
+  byte, as do the three fixture scripts already there; DEVELOPMENT.md lists
+  which script writes what. `requirements-dev.txt` is cut down to what they
+  need.
+
 ## 2026-11-15 — one window per session
 
 - **Every double-click opened another window.** Asked about as soon as the

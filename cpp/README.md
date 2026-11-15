@@ -1,6 +1,8 @@
 # Pic Viewer (C++)
 
-A port of the Python viewer to C++ with Qt6, LibRaw and libheif.
+The viewer, in C++ with Qt6, LibRaw and libheif. It began as a port of the
+Python build, which is archived at the tag `python-final`; the comparisons
+with that build below are kept as the record of why the port replaced it.
 
 ## Toolchain
 

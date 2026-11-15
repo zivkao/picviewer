@@ -5,8 +5,8 @@ Nothing in this folder is tracked by git.
 
 Run the viewer against it:
 
-    .venv\Scripts\python.exe -m picviewer testdata
+    cpp\build\picviewer.exe -v testdata
 
 Then check what the decoders did:
 
-    %LOCALAPPDATA%\PicViewer\logs\picviewer.log
+    %LOCALAPPDATA%\PicViewer\logs\picviewer-cpp.log

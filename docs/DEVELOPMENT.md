@@ -3,8 +3,8 @@
 How to work on the C++ viewer, and the reasoning behind the parts that are not
 obvious from the code.
 
-The Python build under `picviewer/` still exists and still works, but active
-development is on `cpp/`.
+The project began as a Python build. It was frozen when the C++ port overtook
+it and archived on 2026-11-16: `git checkout python-final` brings it back.
 
 ---
 
@@ -100,6 +100,32 @@ quadrants, and each test reads which colour landed top-left and top-right off
 the rendered canvas, so a turn the wrong way, or a turn and a flip composed in
 the wrong order, shows up as the wrong colour rather than as a matrix the code
 agrees with.
+
+### Committed test images
+
+Everything the suites read is in the repository, so a CI runner has it, and
+every image generated for them has its script beside it. Each script writes
+the committed file byte for byte, so running one changes nothing unless the
+script itself changed:
+
+| Files | Written by |
+|---|---|
+| `samples/synthetic.dng` | `cpp/tests/fixtures/make_synthetic_dng.py` |
+| `cpp/tests/fixtures/exif_*` | `cpp/tests/fixtures/make_exif.py` |
+| `cpp/tests/fixtures/anim.*` | `cpp/tests/fixtures/make_anim.py` |
+| `cpp/tests/fixtures/large_9000x9000.png` | `cpp/tests/fixtures/make_large.py` |
+| `cpp/icon.ico`, `assets/picviewer.png` | `assets/make_icon.py` |
+
+They need Python with Pillow, pillow-heif and numpy, in `.venv`:
+
+```
+py -3.13 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+```
+
+The rest of `samples/` came out of the Python build's own test suite
+(`test_formats.py` and `test_color.py`, at the tag `python-final`) when the
+project began, and is kept as it is.
 
 ### Proving the tests are worth having
 

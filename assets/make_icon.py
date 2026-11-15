@@ -4,9 +4,11 @@ An aperture: unmistakably photographic, and its blade silhouette still reads at
 16 pixels, which is the size that decides whether an icon works. Blades sweep
 warm to cool, a nod to the colour management underneath.
 
-    python assets/make_icon.py
+    .venv\\Scripts\\python.exe assets/make_icon.py
 
-Writes picviewer.ico (multi-size) and picviewer.png (512px) beside this file.
+Writes cpp/icon.ico (seven sizes, 16 to 256 px), which the build embeds in
+picviewer.exe and its window, and assets/picviewer.png (512 px) for the
+README. The output is byte-for-byte the committed files.
 """
 
 from __future__ import annotations
@@ -116,9 +118,8 @@ def render(size: int, tile: bool = True) -> Image.Image:
     return image.resize((size, size), Image.Resampling.LANCZOS)
 
 
-# The runtime copy lives inside the package so it is found relative to the
-# module and travels with it into a PyInstaller build.
-RUNTIME_ICON = HERE.parent / "picviewer" / "icon.ico"
+# Compiled into the executable through cpp/resources.qrc and picviewer.rc.
+RUNTIME_ICON = HERE.parent / "cpp" / "icon.ico"
 DOC_IMAGE = HERE / "picviewer.png"
 
 

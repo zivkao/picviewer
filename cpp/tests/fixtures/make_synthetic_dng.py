@@ -1,4 +1,10 @@
-"""Write a minimal but valid DNG so the RAW path can be exercised without a camera.
+"""Write samples/synthetic.dng: a minimal but valid DNG, so the RAW path can be
+exercised without a camera.
+
+    .venv\\Scripts\\python.exe cpp/tests/fixtures/make_synthetic_dng.py [outdir]
+
+Writes into samples/ unless given a directory. The output is byte-for-byte
+the committed file, so regenerating it changes nothing unless this changes.
 
 Layout mirrors a real DNG: IFD0 holds an uncompressed RGB preview and points at
 a SubIFD holding the 16-bit RGGB CFA mosaic. That way both the embedded-preview
@@ -11,8 +17,8 @@ from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[2]
-WORK = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / ".testwork"
+ROOT = Path(__file__).resolve().parents[3]
+OUT_DIR = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "samples"
 
 BYTE, ASCII, SHORT, LONG, RATIONAL, SRATIONAL = 1, 2, 3, 4, 5, 10
 TYPE_SIZE = {BYTE: 1, ASCII: 1, SHORT: 2, LONG: 4, RATIONAL: 8, SRATIONAL: 8}
@@ -182,7 +188,7 @@ def build(path: Path):
 
 
 if __name__ == "__main__":
-    out = WORK / "samples" / "synthetic.dng"
+    out = OUT_DIR / "synthetic.dng"
     out.parent.mkdir(parents=True, exist_ok=True)
     build(out)
     print("wrote {} ({:.1f} MB)".format(out, out.stat().st_size / 1e6))
