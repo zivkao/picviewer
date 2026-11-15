@@ -11,6 +11,8 @@
 
 #include <QtTest>
 
+#include <memory>
+
 #include <QClipboard>
 #include <QDockWidget>
 #include <QListView>
@@ -24,11 +26,13 @@
 #include <QMimeData>
 #include <QPainter>
 #include <QProcess>
+#include <QUuid>
 #include <QStatusBar>
 #include <QToolBar>
 
 #include "applog.h"
 #include "infopanel.h"
+#include "instance.h"
 #include "jpegorient.h"
 #include "settingsdialog.h"
 #include "thumbnails.h"
@@ -2095,6 +2099,235 @@ private slots:
 
 // ---------------------------------------------------------------------------
 
+/// One window per session.
+///
+/// Explorer starts the viewer afresh for every image double-clicked, and
+/// until this each one opened another window. Every test takes a key of its
+/// own, so none of them hands files to a viewer the user has open, nor
+/// collides with another run of the suite.
+class SingleInstanceTests : public QObject
+{
+    Q_OBJECT
+
+    static QString freshKey()
+    {
+        return QStringLiteral("test.") + QUuid::createUuid().toString(QUuid::WithoutBraces);
+    }
+
+    static QString exe() { return QStringLiteral(PICVIEWER_EXE); }
+
+    static QString shown(const MainWindow &window) { return window.playlist().value(window.index()); }
+
+    /// A sample by its real path. sample() goes through cpp/tests/../..,
+    /// and a launch started in that folder sees it without the dots.
+    static QString real(const char *name) { return QFileInfo(sample(name)).canonicalFilePath(); }
+
+    /// The real picviewer.exe, launched against *key*. Waited on by spinning
+    /// the event loop, not with waitForFinished: it hands its files over with
+    /// SendMessage, which waits for this thread to pump messages, and a
+    /// blocking wait here would stall it until it gave up.
+    static bool launch(const QString &key, const QStringList &args, int *exitCode,
+                       QByteArray *output = nullptr)
+    {
+        QProcess process;
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert(QStringLiteral("PICVIEWER_INSTANCE_KEY"), key);
+        env.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
+        process.setProcessEnvironment(env);
+        process.setWorkingDirectory(samplesDir());
+        process.setProcessChannelMode(QProcess::MergedChannels);
+        process.start(exe(), args);
+        if (!process.waitForStarted(10000))
+            return false;
+        const bool ended = waitFor([&] { return process.state() == QProcess::NotRunning; }, 15000);
+        if (!ended) {
+            // It opened a window of its own instead of handing over; that is
+            // the failure, and the window must not outlive the test.
+            process.kill();
+            process.waitForFinished(5000);
+            return false;
+        }
+        *exitCode = process.exitCode();
+        if (output)
+            *output = process.readAll();
+        return true;
+    }
+
+private slots:
+    void aSecondLaunchIsNotTheFirst()
+    {
+        const QString key = freshKey();
+        auto first = std::make_unique<SingleInstance>(key);
+        QVERIFY(first->isPrimary());
+        SingleInstance second(key);
+        QVERIFY2(!second.isPrimary(), "two launches in one session both think they are first");
+
+        // Closing hands primacy on: a launch from then on opens its own
+        // window instead of giving its files to one on its way out.
+        first->stop();
+        SingleInstance third(key);
+        QVERIFY2(third.isPrimary(), "a closed first launch still holds the session");
+    }
+
+    void handedFilesOpenInTheWindowAndBringItForward()
+    {
+        const QString key = freshKey();
+        MainWindow window;
+        window.show();
+        SingleInstance first(key);
+        window.acceptLaunches(&first, {});
+        first.listen();
+        window.showMinimized();
+
+        SingleInstance later(key);
+        QVERIFY(later.forward({real("sample.jpg")}));
+        QVERIFY2(waitFor([&] { return shown(window) == real("sample.jpg"); }),
+                 "the handed file never opened");
+        // One file brings its folder, as a double-click on it always has.
+        QVERIFY(window.playlist().size() > 1);
+        QVERIFY2(!window.isMinimized(), "the window stayed minimised behind the new file");
+    }
+
+    void aLaunchWithNoFileOnlyBringsItForward()
+    {
+        const QString key = freshKey();
+        MainWindow window;
+        window.show();
+        window.openPath(real("sample.png"));
+        QVERIFY(waitForImage(window));
+        const QStringList before = window.playlist();
+        SingleInstance first(key);
+        window.acceptLaunches(&first, {});
+        first.listen();
+        window.showMinimized();
+
+        SingleInstance later(key);
+        QVERIFY(later.forward({}));
+        QVERIFY2(waitFor([&] { return !window.isMinimized(); }), "not brought forward");
+        QCOMPARE(window.playlist(), before);
+        QCOMPARE(shown(window), real("sample.png"));
+    }
+
+    void severalAtOnceOpenAsOneSelection()
+    {
+        // Enter on a selection starts one launch per file, all at once.
+        // Opened one by one, whichever arrived last would have won.
+        const QString key = freshKey();
+        MainWindow window;
+        window.show();
+        SingleInstance first(key);
+        window.acceptLaunches(&first, {});
+        first.listen();
+
+        SingleInstance later(key);
+        QVERIFY(later.forward({real("sample.tif")}));
+        QVERIFY(later.forward({real("sample.bmp")}));
+        QVERIFY(later.forward({real("sample.gif")}));
+        const QStringList expected{real("sample.bmp"), real("sample.gif"), real("sample.tif")};
+        QVERIFY2(waitFor([&] { return window.playlist() == expected; }),
+                 qPrintable(QStringLiteral("playlist is %1").arg(window.playlist().join(QLatin1String(", ")))));
+        QCOMPARE(window.index(), 0);
+    }
+
+    void theFirstLaunchsOwnFileJoinsASelectionOpenedWithIt()
+    {
+        // The launch that became first opened its own file; the rest of the
+        // selection arrives moments later and must not push it out.
+        const QString key = freshKey();
+        MainWindow window;
+        window.show();
+        const QStringList own{real("sample.webp")};
+        window.openPaths(own);
+        SingleInstance first(key);
+        window.acceptLaunches(&first, own);
+        first.listen();
+
+        SingleInstance later(key);
+        QVERIFY(later.forward({real("sample.ico")}));
+        const QStringList expected{real("sample.ico"), real("sample.webp")};
+        QVERIFY2(waitFor([&] { return window.playlist() == expected; }),
+                 qPrintable(QStringLiteral("playlist is %1").arg(window.playlist().join(QLatin1String(", ")))));
+    }
+
+    void aBatchLaterOnLeavesTheFirstFileOut()
+    {
+        // Timing is the batcher's own; short here so the test is quick.
+        OpenBatcher batcher({QStringLiteral("own")}, 30, 300);
+        QSignalSpy ready(&batcher, &OpenBatcher::ready);
+        QTest::qWait(400);
+        batcher.add({QStringLiteral("later")});
+        QVERIFY(ready.wait(2000));
+        QCOMPARE(ready.at(0).at(0).toStringList(), QStringList{QStringLiteral("later")});
+    }
+
+    void aBatchSoonAfterIncludesTheFirstFileOnce()
+    {
+        OpenBatcher batcher({QStringLiteral("own")}, 30, 5000);
+        QSignalSpy ready(&batcher, &OpenBatcher::ready);
+        batcher.add({QStringLiteral("a")});
+        batcher.add({QStringLiteral("b")});
+        QVERIFY(ready.wait(2000));
+        QCOMPARE(ready.size(), 1);
+        QCOMPARE(ready.at(0).at(0).toStringList(),
+                 (QStringList{QStringLiteral("own"), QStringLiteral("a"), QStringLiteral("b")}));
+        // Only the first batch: the next is the user opening something else.
+        batcher.add({QStringLiteral("c")});
+        QVERIFY(ready.wait(2000));
+        QCOMPARE(ready.at(1).at(0).toStringList(), QStringList{QStringLiteral("c")});
+    }
+
+    void aMaximisedWindowComesBackMaximised()
+    {
+        MainWindow window;
+        window.showMaximized();
+        window.setWindowState(window.windowState() | Qt::WindowMinimized);
+        QVERIFY(window.isMinimized());
+        window.bringToFront();
+        QVERIFY(!window.isMinimized());
+        QVERIFY2(window.isMaximized(), "brought forward at its normal size, not maximised");
+    }
+
+    void theRealExeHandsItsFileOverAndLeaves()
+    {
+        // main() itself: a later launch, given a path relative to where it
+        // was started, hands over the absolute path and exits.
+        const QString key = freshKey();
+        SingleInstance first(key);
+        first.listen();
+        QSignalSpy received(&first, &SingleInstance::received);
+
+        int code = -1;
+        QVERIFY2(launch(key, {QStringLiteral("sample.png")}, &code),
+                 "the later launch stayed open instead of handing over");
+        QCOMPARE(code, 0);
+        QVERIFY(waitFor([&] { return received.size() == 1; }));
+        const QStringList handed = received.at(0).at(0).toStringList();
+        QCOMPARE(handed.size(), 1);
+        QCOMPARE(QFileInfo(handed.first()).canonicalFilePath(), real("sample.png"));
+        QVERIFY2(QFileInfo(handed.first()).isAbsolute(), qPrintable(handed.first()));
+    }
+
+    void aLaunchWithAnOptionIsItsOwn()
+    {
+        // --version, or -v for a verbose log, is asked of this launch, not
+        // of the window already open.
+        const QString key = freshKey();
+        SingleInstance first(key);
+        first.listen();
+        QSignalSpy received(&first, &SingleInstance::received);
+
+        int code = -1;
+        QByteArray output;
+        QVERIFY(launch(key, {QStringLiteral("--version")}, &code, &output));
+        QCOMPARE(code, 0);
+        QVERIFY2(output.contains("Pic Viewer"), output.constData());
+        QTest::qWait(300);
+        QCOMPARE(received.size(), 0);
+    }
+};
+
+// ---------------------------------------------------------------------------
+
 namespace {
 
 int runSuite(QObject *suite, const QString &name, int &passed, int &failed)
@@ -2169,6 +2402,7 @@ int main(int argc, char **argv)
     SaveOrientationTests saveOrientation;
     ThumbnailStripTests thumbnailStrip;
     CloseFileTests closeFile;
+    SingleInstanceTests singleInstance;
 
     const QList<QPair<QObject *, QString>> suites = {
         {&dropRouting, QStringLiteral("drop-routing")},
@@ -2186,6 +2420,7 @@ int main(int argc, char **argv)
         {&saveOrientation, QStringLiteral("save-orientation")},
         {&thumbnailStrip, QStringLiteral("thumbnail-strip")},
         {&closeFile, QStringLiteral("close-file")},
+        {&singleInstance, QStringLiteral("single-instance")},
     };
 
     int exitCode = 0;

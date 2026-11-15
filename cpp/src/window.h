@@ -21,6 +21,7 @@ class InfoPanel;
 class QDockWidget;
 class QListView;
 class QMovie;
+class SingleInstance;
 class ThumbnailModel;
 
 /// Sorts IMG_2.jpg before IMG_10.jpg, the way a file manager would.
@@ -38,6 +39,15 @@ public:
 
     /// Dropped items: one path behaves as openPath, many become the playlist.
     void openPaths(const QStringList &paths);
+
+    /// Over whatever is in front: restored if minimised, with its maximised
+    /// or full-screen state kept. For files handed over by a later launch.
+    void bringToFront();
+
+    /// Take files from later launches through *instance*: gathered for a
+    /// moment, opened, and the window brought forward. *startupPaths* are
+    /// what this launch opened itself; see OpenBatcher.
+    void acceptLaunches(SingleInstance *instance, const QStringList &startupPaths);
 
     // Exposed for the functional tests, which drive the window directly.
     const QStringList &playlist() const { return m_playlist; }

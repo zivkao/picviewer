@@ -504,6 +504,62 @@ mutate "close: offered with nothing open" "window.cpp" \
     '    m_actClose->setEnabled(!m_playlist.isEmpty());' \
     '    m_actClose->setEnabled(true);'
 
+# -- one window per session ------------------------------------------------------
+
+# How it shipped until 2026-11-15: every double-click opened another window.
+mutate "instance: every launch opens its own window" "main.cpp" \
+    '    if (!instance.isPrimary() && handover) {' \
+    '    if (false && handover) {'
+
+mutate "instance: options handed over too" "main.cpp" \
+    "        if (arg.startsWith(QLatin1Char('-')))
+            plain = false;" \
+    '        if (false)
+            plain = false;'
+
+mutate "instance: relative path handed over as given" "main.cpp" \
+    '            paths << QFileInfo(arg).absoluteFilePath();' \
+    '            paths << arg;'
+
+mutate "instance: handed paths dropped" "instance.cpp" \
+    '[self, paths] { emit self->received(paths); }' \
+    '[self, paths] { emit self->received({}); }'
+
+mutate "instance: closing keeps the session" "instance.cpp" \
+    '        CloseHandle(static_cast<HANDLE>(m_mutex));
+        m_mutex = nullptr;' \
+    '        m_mutex = nullptr;'
+
+mutate "instance: arrivals opened one by one" "instance.cpp" \
+    '    m_pending += paths;
+    m_quiet.start();' \
+    '    m_pending += paths;
+    flush();'
+
+mutate "instance: the first launch's file left out" "instance.cpp" \
+    '        batch = m_startup + batch;' \
+    '        batch = QStringList() + batch;'
+
+mutate "instance: the first file joins every early batch" "instance.cpp" \
+    '    if (!batch.isEmpty())
+        m_startupUsed = true;' \
+    '    if (false)
+        m_startupUsed = true;'
+
+mutate "instance: the first file joins batches forever" "instance.cpp" \
+    'm_age.elapsed() < m_startupWindowMs' \
+    'm_age.elapsed() >= 0'
+
+mutate "instance: a minimised window stays minimised" "window.cpp" \
+    '    if (isMinimized())
+        setWindowState(windowState() & ~Qt::WindowMinimized);' \
+    '    if (false)
+        setWindowState(windowState() & ~Qt::WindowMinimized);'
+
+mutate "instance: a maximised window comes back normal" "window.cpp" \
+    '        setWindowState(windowState() & ~Qt::WindowMinimized);' \
+    '        setWindowState(Qt::WindowNoState);'
+
 # -- what Windows reads out of the .exe -----------------------------------------
 # These two edit build files rather than sources; the paths are relative to
 # src/ like the rest.

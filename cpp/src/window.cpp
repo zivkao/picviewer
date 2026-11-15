@@ -25,6 +25,7 @@
 #include "decoders/registry.h"
 #include "color.h"
 #include "infopanel.h"
+#include "instance.h"
 #include "jpegorient.h"
 #include "settingsdialog.h"
 #include "thumbnails.h"
@@ -483,6 +484,30 @@ void MainWindow::openPaths(const QStringList &paths)
     m_playlist = files;
     playlistChanged();
     showIndex(0);
+}
+
+void MainWindow::bringToFront()
+{
+    // Minimised from maximised, the window carries both flags; clearing only
+    // the one brings it back maximised, as the taskbar button would.
+    if (isMinimized())
+        setWindowState(windowState() & ~Qt::WindowMinimized);
+    show();
+    raise();
+    activateWindow();
+}
+
+void MainWindow::acceptLaunches(SingleInstance *instance, const QStringList &startupPaths)
+{
+    // 150 ms gathers a selection opened at once, whose launches arrive
+    // within moments of each other; 2 s covers the first of them starting.
+    auto *batcher = new OpenBatcher(startupPaths, 150, 2000, this);
+    connect(instance, &SingleInstance::received, batcher, &OpenBatcher::add);
+    connect(batcher, &OpenBatcher::ready, this, [this](const QStringList &paths) {
+        qCInfo(logWindow) << "handed" << paths.size() << "path(s) by a later launch";
+        openPaths(paths);
+        bringToFront();
+    });
 }
 
 void MainWindow::closeFile()

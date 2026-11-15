@@ -20,7 +20,10 @@ add_dependencies(unit_tests picviewer)
 
 add_executable(functional_tests functional_tests.cpp)
 target_link_libraries(functional_tests PRIVATE picviewer_core Qt6::Test)
-target_compile_definitions(functional_tests PRIVATE ${PICVIEWER_TEST_DEFINES})
+target_compile_definitions(functional_tests PRIVATE ${PICVIEWER_TEST_DEFINES}
+    # The single-instance suite launches the real app to hand a file over.
+    PICVIEWER_EXE="$<TARGET_FILE:picviewer>")
+add_dependencies(functional_tests picviewer)
 
 add_test(NAME unit COMMAND unit_tests)
 add_test(NAME functional COMMAND functional_tests)

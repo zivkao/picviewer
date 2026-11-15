@@ -2,17 +2,21 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QFileInfo>
 #include <QIcon>
 #include <QLoggingCategory>
 
 #include <cstdio>
+#include <optional>
 
 #include "applog.h"
 #include "decoders/decoder.h"
+#include "instance.h"
 #include "window.h"
 
 #ifdef Q_OS_WIN
 #  include <windows.h>
+#  include <shellapi.h>
 #  include <shobjidl.h>
 #endif
 
@@ -32,11 +36,55 @@ void claimTaskbarIdentity()
 #endif
 }
 
+/// The paths this launch was given, made absolute -- or nothing if it was
+/// given any option. --version, or -v for a verbose log, makes a launch of
+/// its own rather than one to hand over to the window already open.
+///
+/// Read straight from the command line: this runs before there is a
+/// QApplication, so that a launch handing over its files costs no more than
+/// starting a process.
+std::optional<QStringList> plainLaunchPaths()
+{
+#ifdef Q_OS_WIN
+    int count = 0;
+    wchar_t **args = CommandLineToArgvW(GetCommandLineW(), &count);
+    if (!args)
+        return std::nullopt;
+    QStringList paths;
+    bool plain = true;
+    for (int i = 1; i < count && plain; ++i) {
+        const QString arg = QString::fromWCharArray(args[i]);
+        if (arg.startsWith(QLatin1Char('-')))
+            plain = false;
+        else
+            paths << QFileInfo(arg).absoluteFilePath();
+    }
+    LocalFree(args);
+    if (!plain)
+        return std::nullopt;
+    return paths;
+#else
+    return std::nullopt;
+#endif
+}
+
 } // namespace
 
 int main(int argc, char **argv)
 {
     claimTaskbarIdentity();
+
+    // One window per session: a later launch hands its files to the first
+    // and leaves. If the first does not answer, this one opens a window of
+    // its own rather than lose the file it was asked to show.
+    SingleInstance instance(SingleInstance::defaultKey());
+    const std::optional<QStringList> handover = plainLaunchPaths();
+    bool unanswered = false;
+    if (!instance.isPrimary() && handover) {
+        if (instance.forward(*handover))
+            return 0;
+        unanswered = true;
+    }
 
     QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Pic Viewer"));
@@ -72,6 +120,8 @@ int main(int argc, char **argv)
     qCInfo(logApp).noquote() << "--- Pic Viewer" << Version << "(C++) starting, pid"
                              << QCoreApplication::applicationPid() << "---";
     applog::logEnvironment();
+    if (unanswered)
+        qCWarning(logApp) << "another launch holds the window but did not answer; opening our own";
 
     // Queued signals carry decoded images from the worker pool to the GUI
     // thread, and an unregistered type makes that connection fail silently.
@@ -82,9 +132,17 @@ int main(int argc, char **argv)
     MainWindow window;
     window.show();
 
-    const QStringList positional = parser.positionalArguments();
-    if (!positional.isEmpty())
-        window.openPath(positional.first());
+    QStringList positional;
+    for (const QString &path : parser.positionalArguments())
+        positional << QFileInfo(path).absoluteFilePath();
+    window.openPaths(positional);
+
+    window.acceptLaunches(&instance, positional);
+    if (instance.isPrimary())
+        instance.listen();
+    // Closing: a launch from now on opens its own window instead of handing
+    // its files to this one on its way out.
+    QObject::connect(&app, &QGuiApplication::lastWindowClosed, &instance, &SingleInstance::stop);
 
     const int code = app.exec();
     qCInfo(logApp) << "--- exiting with code" << code << "---";

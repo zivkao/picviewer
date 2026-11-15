@@ -58,6 +58,9 @@ Last reviewed: 2026-11-15
 - [x] Settings (Ctrl+,): memory cache, how many images to decode ahead,
       slideshow interval; window size, position and open panels remembered.
       An INI file beside the logs, clamped on load since anyone can edit it
+- [x] One window per session: a later launch hands its files to the first
+      and exits, and the first comes forward, restored if minimised. A
+      selection opened at once is gathered into one playlist
 
 ### Diagnostics
 - [x] Rotating file log, written even with no console
@@ -69,9 +72,9 @@ Last reviewed: 2026-11-15
 ### Verification
 - [x] 209 unit tests over the pure logic; those reading the real camera
       files skip where those untracked files are absent, as on CI
-- [x] 144 functional tests driving a real window offscreen, run at 1x, 1.5x
+- [x] 156 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
-- [x] Mutation harness covering 83 reintroduced defects
+- [x] Mutation harness covering 94 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
       display scales on every push
 - [x] `tools/benchmark.ps1` with a committed baseline

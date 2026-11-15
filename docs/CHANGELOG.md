@@ -7,6 +7,38 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-15 — one window per session
+
+- **Every double-click opened another window.** Asked about as soon as the
+  viewer could be the default: Explorer starts a program afresh for every
+  file opened, and nothing told a second launch that a first was running.
+  Now the first launch holds a named mutex (`Local\`, so per session) and a
+  hidden message window; a later one hands its files over with
+  `WM_COPYDATA` and exits, and the first opens them and comes to the front,
+  restored if minimised and maximised if it was. The handover happens
+  before the later launch builds a `QApplication`, so it costs no more than
+  starting a process, and it uses nothing the package does not already
+  carry -- `QLocalServer` would have brought Qt's networking module back
+  into a build `trim.sh` took it out of.
+- The later launch passes on its right to take the foreground
+  (`AllowSetForegroundWindow`). It has that right because the user just
+  double-clicked; the first launch, in the background, does not, and
+  without it its window would only flash on the taskbar.
+- **A selection opened at once** starts one launch per file, all at once.
+  Taken one at a time, whichever arrived last would win; they are gathered
+  for 150 ms and opened as one playlist, the first launch's own file
+  included when they come within two seconds of it starting.
+- A launch with an option -- `-v` for a verbose log, `--version` -- is its
+  own, and a later launch whose first never answers (5 s) opens its own
+  window rather than lose the file. Closing the window gives up the mutex
+  at once, so a launch during shutdown is not handed to a window on its
+  way out.
+- 12 functional tests, 156 now, among them the real `picviewer.exe`
+  launched with a relative path, which must hand over the absolute path
+  and exit. Every test takes its own key (`PICVIEWER_INSTANCE_KEY`), so
+  none hands files to a viewer the user has open. 11 mutations added, 94 in
+  all.
+
 ## 2026-11-15 — registered the way Windows offers it, and named "Pic Viewer"
 
 Asked whether the install had been checked against Windows itself. It had

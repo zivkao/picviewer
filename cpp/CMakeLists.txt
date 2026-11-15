@@ -36,6 +36,7 @@ add_library(picviewer_core STATIC
     src/thumbnails.cpp
     src/viewer.cpp
     src/window.cpp
+    src/instance.cpp
     src/decoders/registry.cpp
     src/decoders/qt_decoder.cpp
     src/decoders/heif_decoder.cpp

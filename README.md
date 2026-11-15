@@ -231,8 +231,8 @@ Traditional Chinese.
 `cpp/` holds a port to C++ with Qt6, LibRaw, libheif and libexif, built
 against an isolated MSYS2 toolchain in `.msys64/` that is to this what `.venv`
 is to the Python version. It is the build being developed; the Python one is
-frozen. 209 unit and 144 functional tests cover it, on every push in CI as
-well as locally, and 83 reintroduced defects all turn them red. See
+frozen. 209 unit and 156 functional tests cover it, on every push in CI as
+well as locally, and 94 reintroduced defects all turn them red. See
 [cpp/README.md](cpp/README.md).
 
 It installs from a one-file installer, `PicViewerCpp-<version>-setup.exe`, as

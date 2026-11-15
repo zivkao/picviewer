@@ -62,6 +62,13 @@ does too, and a test holds it there.
 - A thumbnail strip (`T`), cached on disk.
 - Close (`Ctrl+W`): back to the empty window, with the folder, the decoded
   images held in memory and any decodes still queued gone with it.
+- One window per session. Explorer starts the viewer afresh for every image
+  double-clicked; a later launch hands its files to the window already open
+  -- through a named mutex and `WM_COPYDATA`, before it builds a
+  `QApplication` -- and exits, and that window opens them and comes forward.
+  A selection opened at once arrives as one launch per file within moments,
+  and is gathered into one playlist. A launch with an option (`-v`,
+  `--version`) is its own.
 
 **One behaviour changed on purpose.** Stepping through a folder stops at the
 first and last image, where the Python build wraps round; Previous and Next
@@ -80,7 +87,7 @@ the sample files, reading and wording the camera's EXIF record, and the icon
 and version Windows reads out of the built `picviewer.exe`. No display, under
 a second.
 
-**`functional_tests`** -- 144 passing test functions driving a real `MainWindow` offscreen:
+**`functional_tests`** -- 156 passing test functions driving a real `MainWindow` offscreen:
 drag and drop sent to actual widgets, keystrokes through `QTest::keyClick`,
 menu and toolbar state read off the real objects, fullscreen, a fixture of
 deny-read files that reproduces an unreadable-file failure, display scaling
@@ -104,7 +111,7 @@ passed, and said so into a closed stream.
 .msys64\usr\bin\bash -lc "bash cpp/tools/mutate.sh"
 ```
 
-Reintroduces 83 defects -- those this project has fixed, and the likeliest
+Reintroduces 94 defects -- those this project has fixed, and the likeliest
 mistakes in each feature added since -- and checks the suites go red for each.
 A green suite says nothing until it can fail, and this has twice caught tests
 that were passing for the wrong reason. The full table is in

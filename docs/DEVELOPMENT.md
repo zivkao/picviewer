@@ -61,7 +61,7 @@ Two layers, deliberately different in kind.
 
 ```
 cpp\build\tests\unit_tests.exe                     209 tests, no display, about a second
-cpp\build\tests\functional_tests.exe               144 tests, a real window, offscreen
+cpp\build\tests\functional_tests.exe               156 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
 
@@ -118,7 +118,9 @@ were run on their own that day with `ONLY`, together with the two slideshow
 mutations whose anchors moved, and all ten were caught. The two Exe rows,
 added later that day with the `.exe`'s icon, were run the same way. Those
 edit `cpp/CMakeLists.txt` and `cpp/picviewer.rc.in` rather than a source
-file, so a mutation's rebuild reconfigures first. The suite runs three
+file, so a mutation's rebuild reconfigures first. The eleven Instance rows,
+added with one window per session, were run with `ONLY` too, and all
+caught. The suite runs three
 times per mutation: unit, functional at 1x, functional at 2x display scaling.
 The rows below are the harness's own labels, copied from those runs' output.
 
@@ -207,6 +209,17 @@ The rows below are the harness's own labels, copied from those runs' output.
 | Close: offered with nothing open | | 1 | 1 |
 | Exe: built without its icon | 2 | | |
 | Exe: version not taken from project() | 1 | | |
+| Instance: every launch opens its own window | | 1 | 1 |
+| Instance: options handed over too | | 2 | 1 |
+| Instance: relative path handed over as given | | 1 | 1 |
+| Instance: handed paths dropped | | 4 | 4 |
+| Instance: closing keeps the session | | 1 | 1 |
+| Instance: arrivals opened one by one | | 3 | 3 |
+| Instance: the first launch's file left out | | 2 | 2 |
+| Instance: the first file joins every early batch | | 1 | 1 |
+| Instance: the first file joins batches forever | | 1 | 1 |
+| Instance: a minimised window stays minimised | | 4 | 3 |
+| Instance: a maximised window comes back normal | | 1 | 1 |
 
 The split is the useful part. Decoding and cache defects fall to the unit
 suite in about a second; window and canvas defects only to the functional
@@ -217,7 +230,7 @@ of them in. Neither layer, nor either scale, covers what the others do.
 The rows from the orientation work on are different in kind. They were written
 with each feature -- orientation, the info panel, the half-size RAW stage,
 thumbnails, saving, animation, the slideshow, settings, the ends, Close, the
-`.exe`'s icon -- as the likeliest
+`.exe`'s icon, one window per session -- as the likeliest
 ways to get it wrong, so each of its tests was seen to fail before it was
 trusted to pass.
 "1:1 ignores display scaling" now fails eight tests rather than seven because
