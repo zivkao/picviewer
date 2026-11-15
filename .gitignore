@@ -9,12 +9,6 @@ cpp/dist/
 __pycache__/
 *.pyc
 
-# What the Python build left on a machine that ran it. The build itself is
-# archived at the tag python-final.
-/build/
-/dist/
-/.testwork/
-
 # Real-world files dropped in by hand. Kept out of a public repository
 # on purpose: these are the user's own photographs, and a CR2 is 19 MB.
 testdata/*
