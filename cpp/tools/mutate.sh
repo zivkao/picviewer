@@ -504,6 +504,22 @@ mutate "close: offered with nothing open" "window.cpp" \
     '    m_actClose->setEnabled(!m_playlist.isEmpty());' \
     '    m_actClose->setEnabled(true);'
 
+# -- what Windows reads out of the .exe -----------------------------------------
+# These two edit build files rather than sources; the paths are relative to
+# src/ like the rest.
+
+# How it shipped until 2026-11-15: the window had its icon, the .exe did not.
+mutate "exe: built without its icon" "../CMakeLists.txt" \
+    '    resources.qrc
+    ${CMAKE_CURRENT_BINARY_DIR}/picviewer.rc
+)' \
+    '    resources.qrc
+)'
+
+mutate "exe: version not taken from project()" "../picviewer.rc.in" \
+    'FILEVERSION     @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0' \
+    'FILEVERSION     1,0,0,0'
+
 echo
 echo "restoring and re-checking baseline"
 # All three results, read the same way as at the start. Reading two names from
@@ -513,7 +529,7 @@ read -r unit func func2 <<< "$(run_suites)"
 printf '  unit: %s\n  functional: %s\n  functional at 2x: %s\n' \
     "$(tail -1 /tmp/unit.log)" "$(tail -1 /tmp/func.log)" "$(tail -1 /tmp/func2.log)"
 if [ "$unit" != "0" ] || [ "$func" != "0" ] || [ "$func2" != "0" ]; then
-    echo "  BASELINE BROKEN -- a mutation was not restored; check git diff cpp/src"
+    echo "  BASELINE BROKEN -- a mutation was not restored; check git diff cpp"
     exit 2
 fi
 echo "  baseline green again"

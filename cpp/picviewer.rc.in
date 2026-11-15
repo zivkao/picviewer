@@ -1,0 +1,39 @@
+// Windows resources for picviewer.exe, configured by CMake.
+//
+// The window icon is set at run time from resources.qrc, but Explorer, the
+// desktop and Start menu shortcuts, Settings > Apps and "Open with" read the
+// icon out of the .exe itself, and before this file the .exe had none: they
+// all showed Windows' generic application icon. The version block is what
+// the file's Properties > Details and Task Manager show.
+
+#include <winver.h>
+
+1 ICON "@CMAKE_CURRENT_SOURCE_DIR@/icon.ico"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+PRODUCTVERSION  @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+FILEFLAGS       0
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        // en-US, Unicode
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "FileDescription",  "Pic Viewer"
+            VALUE "FileVersion",      "@PROJECT_VERSION@"
+            VALUE "InternalName",     "picviewer"
+            VALUE "OriginalFilename", "picviewer.exe"
+            VALUE "ProductName",      "Pic Viewer"
+            VALUE "ProductVersion",   "@PROJECT_VERSION@"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END

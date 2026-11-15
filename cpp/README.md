@@ -74,10 +74,11 @@ cpp\env.cmd test                          unit
 cpp\build\tests\functional_tests.exe      end to end
 ```
 
-**`unit_tests`** -- 205 passing test functions over the pure logic: container
+**`unit_tests`** -- 209 passing test functions over the pure logic: container
 sniffing, decoder ranking, the byte-budgeted cache, format behaviour against
-the sample files, and reading and wording the camera's EXIF record. No
-display, under a second.
+the sample files, reading and wording the camera's EXIF record, and the icon
+and version Windows reads out of the built `picviewer.exe`. No display, under
+a second.
 
 **`functional_tests`** -- 144 passing test functions driving a real `MainWindow` offscreen:
 drag and drop sent to actual widgets, keystrokes through `QTest::keyClick`,
@@ -103,7 +104,7 @@ passed, and said so into a closed stream.
 .msys64\usr\bin\bash -lc "bash cpp/tools/mutate.sh"
 ```
 
-Reintroduces 81 defects -- those this project has fixed, and the likeliest
+Reintroduces 83 defects -- those this project has fixed, and the likeliest
 mistakes in each feature added since -- and checks the suites go red for each.
 A green suite says nothing until it can fail, and this has twice caught tests
 that were passing for the wrong reason. The full table is in
@@ -136,6 +137,14 @@ a signature -- with the launch refused, the file gone, and the Settings > Apps
 entry pointing at it gone too, leaving an install nothing could remove.
 Signing the installer would be the real fix, and needs a purchased
 certificate.
+
+`picviewer.rc.in` gives the `.exe` its icon and version block. The window
+icon is set at run time from the Qt resources, so the running app always
+looked right, but until 2026-11-15 the file itself carried no icon: the
+desktop and Start Menu shortcuts, Settings > Apps and "Open with" all showed
+Windows' generic one, side by side with the Python build's aperture. The
+`executable` unit suite reads both back out of the built file.
+
 `tools/verify_installer.ps1` installs silently, checks every file, shortcut and
 registry entry, runs the recorded uninstall command, checks it all went, and
 installs again.

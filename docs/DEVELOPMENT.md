@@ -60,7 +60,7 @@ before a long afternoon of CMake errors.
 Two layers, deliberately different in kind.
 
 ```
-cpp\build\tests\unit_tests.exe                     205 tests, no display, about a second
+cpp\build\tests\unit_tests.exe                     209 tests, no display, about a second
 cpp\build\tests\functional_tests.exe               144 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
@@ -115,7 +115,10 @@ Last full run, 2026-11-02 — all 73 applied and caught, and the baseline green
 again after them. The eight added on 2026-11-15 with stopping at the ends and
 Close -- "Slideshow: stops at the last image" and the Ends and Close rows --
 were run on their own that day with `ONLY`, together with the two slideshow
-mutations whose anchors moved, and all ten were caught. The suite runs three
+mutations whose anchors moved, and all ten were caught. The two Exe rows,
+added later that day with the `.exe`'s icon, were run the same way. Those
+edit `cpp/CMakeLists.txt` and `cpp/picviewer.rc.in` rather than a source
+file, so a mutation's rebuild reconfigures first. The suite runs three
 times per mutation: unit, functional at 1x, functional at 2x display scaling.
 The rows below are the harness's own labels, copied from those runs' output.
 
@@ -202,6 +205,8 @@ The rows below are the harness's own labels, copied from those runs' output.
 | Close: a decode landing after it is shown | | 1 | 1 |
 | Close: the cache is kept | | 1 | 1 |
 | Close: offered with nothing open | | 1 | 1 |
+| Exe: built without its icon | 2 | | |
+| Exe: version not taken from project() | 1 | | |
 
 The split is the useful part. Decoding and cache defects fall to the unit
 suite in about a second; window and canvas defects only to the functional
@@ -211,7 +216,8 @@ of them in. Neither layer, nor either scale, covers what the others do.
 
 The rows from the orientation work on are different in kind. They were written
 with each feature -- orientation, the info panel, the half-size RAW stage,
-thumbnails, saving, animation, the slideshow, settings, the ends, Close -- as the likeliest
+thumbnails, saving, animation, the slideshow, settings, the ends, Close, the
+`.exe`'s icon -- as the likeliest
 ways to get it wrong, so each of its tests was seen to fail before it was
 trusted to pass.
 "1:1 ignores display scaling" now fails eight tests rather than seven because

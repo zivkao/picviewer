@@ -16,6 +16,7 @@
 #include <cstdio>
 
 #include "cache.h"
+#include "exe_resources.h"
 #include "decoders/qt_decoder.h"
 #include "decoders/raw_decoder.h"
 #include "decoders/registry.h"
@@ -1574,6 +1575,45 @@ private slots:
 };
 
 // ---------------------------------------------------------------------------
+// What Windows reads out of picviewer.exe. The window icon comes from the Qt
+// resources at run time, so the app itself always looked right; but the .exe
+// carried no icon, and the shortcuts, the Start menu, Settings > Apps and
+// "Open with" all showed Windows' generic one. Nothing that runs the app can
+// see that, so it is checked on the file.
+// ---------------------------------------------------------------------------
+
+class ExecutableTests : public QObject
+{
+    Q_OBJECT
+
+private slots:
+    void theExeCarriesTheAppIcon()
+    {
+        const ExeResources exe = readExeResources(QStringLiteral(PICVIEWER_EXE));
+        QVERIFY2(exe.error.isEmpty(), qPrintable(exe.error));
+        QVERIFY2(exe.iconGroups > 0, "picviewer.exe has no icon; Explorer shows the generic one");
+
+        const QList<int> expected = iconFileSizes(QStringLiteral(PICVIEWER_ICON));
+        QVERIFY2(!expected.isEmpty(), "could not read icon.ico");
+        // Every frame, the 256 one included: Explorer's large icons and the
+        // Start menu tile use it, and without it they scale up the 48.
+        QCOMPARE(exe.iconSizes, expected);
+        QVERIFY(exe.iconSizes.contains(256));
+    }
+
+    void theExeSaysWhatItIsAndWhichVersion()
+    {
+        const ExeResources exe = readExeResources(QStringLiteral(PICVIEWER_EXE));
+        QVERIFY2(exe.error.isEmpty(), qPrintable(exe.error));
+        QCOMPARE(exe.fileDescription, QStringLiteral("Pic Viewer"));
+        // Both forms follow project() in CMakeLists.txt, so a version bump
+        // there cannot leave the file saying the old one.
+        QCOMPARE(exe.fixedVersion, QStringLiteral(PICVIEWER_VERSION));
+        QCOMPARE(exe.fileVersion, QStringLiteral(PICVIEWER_VERSION));
+    }
+};
+
+// ---------------------------------------------------------------------------
 
 namespace {
 
@@ -1632,6 +1672,7 @@ int main(int argc, char **argv)
     SettingsTests settingsTests;
     UnicodePathTests unicodePathTests;
     PhotoInfoTests photoInfoTests;
+    ExecutableTests executableTests;
 
     const QList<QPair<QObject *, QString>> suites = {
         {&sniffTests, QStringLiteral("sniff")},
@@ -1644,6 +1685,7 @@ int main(int argc, char **argv)
         {&settingsTests, QStringLiteral("settings")},
         {&unicodePathTests, QStringLiteral("unicode-paths")},
         {&photoInfoTests, QStringLiteral("photo-info")},
+        {&executableTests, QStringLiteral("executable")},
     };
 
     int failures = 0;

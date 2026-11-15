@@ -7,6 +7,22 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-15 — the .exe's own icon
+
+- **The C++ build's shortcuts showed Windows' generic icon.** Noticed on the
+  desktop, beside the Python build's shortcut with its aperture. The window
+  icon is set at run time from the Qt resources, so the running app always
+  looked right and nothing that drove it could have seen this; but the
+  `.exe` had no icon resource, and the desktop and Start Menu shortcuts,
+  Settings > Apps and "Open with" all read theirs from the file.
+  `cpp/picviewer.rc.in` now gives it the same `icon.ico`, all seven frames,
+  and a version block taken from `project()`, so Properties > Details and
+  Task Manager say "Pic Viewer 0.1.0" rather than nothing.
+- A new `executable` unit suite reads the icon and version back out of the
+  built file with the Win32 resource API. 209 unit tests. Two mutations
+  added, 83 in all: the `.rc` left out of the build, which is how it
+  shipped, and a version not taken from `project()`; both caught.
+
 ## 2026-11-15 — stopping at the ends, and Close
 
 Both asked for after the first days of real use.

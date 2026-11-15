@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(PicViewer VERSION 0.1.0 LANGUAGES CXX)
+project(PicViewer VERSION 0.1.0 LANGUAGES CXX RC)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -69,9 +69,13 @@ target_compile_options(picviewer_core PRIVATE
     ${LIBEXIF_CFLAGS_OTHER}
 )
 
+# The icon and version Windows reads out of the .exe; see picviewer.rc.in.
+configure_file(picviewer.rc.in ${CMAKE_CURRENT_BINARY_DIR}/picviewer.rc @ONLY)
+
 add_executable(picviewer WIN32
     src/main.cpp
     resources.qrc
+    ${CMAKE_CURRENT_BINARY_DIR}/picviewer.rc
 )
 
 target_link_libraries(picviewer PRIVATE picviewer_core)

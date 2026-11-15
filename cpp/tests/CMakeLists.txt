@@ -9,9 +9,14 @@ set(PICVIEWER_TEST_DEFINES
     # 309 MiB image on every pass.
     PICVIEWER_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 
-add_executable(unit_tests unit_tests.cpp)
-target_link_libraries(unit_tests PRIVATE picviewer_core Qt6::Test)
-target_compile_definitions(unit_tests PRIVATE ${PICVIEWER_TEST_DEFINES})
+add_executable(unit_tests unit_tests.cpp exe_resources.cpp)
+target_link_libraries(unit_tests PRIVATE picviewer_core Qt6::Test version)
+target_compile_definitions(unit_tests PRIVATE ${PICVIEWER_TEST_DEFINES}
+    # The executable suite reads the built app's icon and version.
+    PICVIEWER_EXE="$<TARGET_FILE:picviewer>"
+    PICVIEWER_ICON="${CMAKE_CURRENT_SOURCE_DIR}/../icon.ico"
+    PICVIEWER_VERSION="${PROJECT_VERSION}")
+add_dependencies(unit_tests picviewer)
 
 add_executable(functional_tests functional_tests.cpp)
 target_link_libraries(functional_tests PRIVATE picviewer_core Qt6::Test)

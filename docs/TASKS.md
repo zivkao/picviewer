@@ -67,11 +67,11 @@ Last reviewed: 2026-11-15
 - [x] Cache eviction logged, so memory pressure leaves a trace
 
 ### Verification
-- [x] 205 unit tests over the pure logic; those reading the real camera
+- [x] 209 unit tests over the pure logic; those reading the real camera
       files skip where those untracked files are absent, as on CI
 - [x] 144 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
-- [x] Mutation harness covering 81 reintroduced defects
+- [x] Mutation harness covering 83 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
       display scales on every push
 - [x] `tools/benchmark.ps1` with a committed baseline
@@ -90,6 +90,8 @@ Last reviewed: 2026-11-15
       real phone HEIC; `everyRealRawDecodes` reads each one present
 - [x] Toolchain on UCRT64, MSYS2's current environment, with MINGW64
       removed from `.msys64` so the two cannot mix
+- [x] The `.exe` carries the app icon and a version block (`picviewer.rc.in`);
+      shortcuts and Settings > Apps showed Windows' generic icon before
 
 ---
 
