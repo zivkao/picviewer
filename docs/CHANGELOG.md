@@ -22,6 +22,15 @@ each entry to the full reasoning in its commit message.
   built file with the Win32 resource API. 209 unit tests. Two mutations
   added, 83 in all: the `.rc` left out of the build, which is how it
   shipped, and a version not taken from `project()`; both caught.
+- **The Python build uninstalled from the development machine**, at the
+  owner's request; its source stays. Not with its own uninstaller: the two
+  builds' "Open with" keys, `Applications\PicViewer.exe` and
+  `Applications\picviewer.exe`, are one key because the registry ignores
+  case, and it pointed at the C++ build, which installed last. The Python
+  uninstaller would have deleted it and taken "Open with" from the C++ build.
+  Its shortcuts, its Settings > Apps entry and its folder were removed by
+  hand instead, and that key kept. The Python build is frozen, so its
+  uninstaller is left as it is; this is recorded in `cpp/README.md`.
 
 ## 2026-11-15 — stopping at the ends, and Close
 

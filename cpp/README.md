@@ -127,7 +127,11 @@ installs straight from `cpp/dist/PicViewer`. Both produce the same install --
 administrator prompt -- with the same "Open with" registration and the same
 uninstall entry, so either can replace or remove the other's. Deliberately a
 separate install from the Python build -- different directory, Start Menu name
-and uninstall key -- so the two sit side by side.
+and uninstall key -- so the two sit side by side. All but one thing: the
+"Open with" key is `Applications\<exe name>`, registry keys ignore case, and
+`PicViewer.exe` and `picviewer.exe` are the same key. Whichever installed last
+owns it, and uninstalling either removes it for both. On the development
+machine the Python build was removed by hand on 2026-11-15 to keep it.
 
 Uninstalling is `uninstall.ps1` in either case. The installer's first build
 wrote an NSIS `uninstall.exe`, and Avira on the development machine

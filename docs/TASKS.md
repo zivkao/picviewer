@@ -163,7 +163,11 @@ redundant work until it is rebuilt. That is a stale install, not a defect.
   double-click an image.
 - **Both builds installed side by side.** Separate directories, Start Menu
   entries and uninstall keys, so they can be compared rather than one
-  replacing the other.
+  replacing the other. Not the "Open with" key, though: registry keys ignore
+  case, so `Applications\PicViewer.exe` and `Applications\picviewer.exe` are
+  one key, and either uninstaller removes it for both. The Python build was
+  uninstalled from the development machine on 2026-11-15, by hand for that
+  reason.
 - **Functional tests assert rather than print.** The Python versions printed
   and left a runner to grep; almost everything turned out to be pinnable.
 - **Personal photographs stay untracked.** `image_example/` holds real camera
