@@ -27,6 +27,7 @@ BEGIN
             VALUE "FileDescription",  "Pic Viewer"
             VALUE "FileVersion",      "@PROJECT_VERSION@"
             VALUE "InternalName",     "picviewer"
+            VALUE "LegalCopyright",   "@PICVIEWER_COPYRIGHT@"
             VALUE "OriginalFilename", "picviewer.exe"
             VALUE "ProductName",      "Pic Viewer"
             VALUE "ProductVersion",   "@PROJECT_VERSION@"

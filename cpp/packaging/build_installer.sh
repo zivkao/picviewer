@@ -15,10 +15,14 @@ DIST=$ROOT/dist/PicViewer
 VERSION=$(sed -n 's/^project(PicViewer VERSION \([0-9.]*\).*/\1/p' "$ROOT/CMakeLists.txt")
 [ -n "$VERSION" ] || { echo "no version found in CMakeLists.txt"; exit 1; }
 OUT=$ROOT/dist/PicViewerCpp-$VERSION-setup.exe
+# From the licence, as the .exe's own version block has it (CMakeLists.txt).
+COPYRIGHT=$(grep -m1 '^Copyright ' "$ROOT/../LICENSE" | tr -d '\r')
+[ -n "$COPYRIGHT" ] || { echo "no Copyright line in LICENSE"; exit 1; }
 
 # makensis is a native Windows program: it is given Windows paths.
 makensis -V2 \
     -DVERSION="$VERSION" \
+    -DCOPYRIGHT="$COPYRIGHT" \
     -DDIST="$(cygpath -w "$DIST")" \
     -DICON="$(cygpath -w "$ROOT/icon.ico")" \
     -DOUTFILE="$(cygpath -w "$OUT")" \

@@ -31,6 +31,9 @@ SetCompressor /SOLID lzma
 !ifndef VERSION
   !error "VERSION is defined by build_installer.sh"
 !endif
+!ifndef COPYRIGHT
+  !error "COPYRIGHT is defined by build_installer.sh, from LICENSE"
+!endif
 
 !define APPNAME "Pic Viewer"
 !define EXE "picviewer.exe"
@@ -47,7 +50,7 @@ VIAddVersionKey "ProductName" "${APPNAME}"
 VIAddVersionKey "FileDescription" "${APPNAME} installer"
 VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "ProductVersion" "${VERSION}"
-VIAddVersionKey "LegalCopyright" "ZivKao"
+VIAddVersionKey "LegalCopyright" "${COPYRIGHT}"
 
 !define MUI_ICON "${ICON}"
 !define MUI_FINISHPAGE_RUN "${FIXED_DIR}\${EXE}"

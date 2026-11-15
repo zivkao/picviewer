@@ -70,11 +70,11 @@ Last reviewed: 2026-11-16
 - [x] Cache eviction logged, so memory pressure leaves a trace
 
 ### Verification
-- [x] 209 unit tests over the pure logic; those reading the real camera
+- [x] 210 unit tests over the pure logic; those reading the real camera
       files skip where those untracked files are absent, as on CI
 - [x] 156 functional tests driving a real window offscreen, run at 1x, 1.5x
       and 2x display scaling
-- [x] Mutation harness covering 94 reintroduced defects
+- [x] Mutation harness covering 95 reintroduced defects
 - [x] CI: GitHub Actions builds from nothing and runs both layers at three
       display scales on every push
 - [x] `tools/benchmark.ps1` with a committed baseline
@@ -179,3 +179,14 @@ rather than assumed, which is the only reason to keep a list like this at all:
   and left a runner to grep; almost everything turned out to be pinnable.
 - **Personal photographs stay untracked.** `image_example/` holds real camera
   files and the repository is public.
+- **MIT for this project's own code, 2026-11-16.** The repository was public
+  with no licence, which reserves every right: anyone could read it and
+  nobody could use it. MIT is the shortest licence that permits use, keeps
+  the copyright with its author and disclaims warranty, and it is compatible
+  with every licence among the libraries the package carries, GPL included.
+  `LICENSE` is the one place the copyright line is written; the `.exe` and
+  the installer read it from there.
+- **The Python build archived, 2026-11-16.** Frozen since the port overtook
+  it; its tree is the tag `python-final`. Two of its scripts stayed, because
+  committed files come from them -- see DEVELOPMENT.md, "Committed test
+  images".

@@ -103,6 +103,7 @@ ExeResources readExeResources(const QString &exePath)
     }
     out.fileVersion = queryString(block, L"\\StringFileInfo\\040904B0\\FileVersion");
     out.fileDescription = queryString(block, L"\\StringFileInfo\\040904B0\\FileDescription");
+    out.legalCopyright = queryString(block, L"\\StringFileInfo\\040904B0\\LegalCopyright");
     return out;
 }
 

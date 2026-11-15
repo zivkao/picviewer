@@ -1611,6 +1611,23 @@ private slots:
         QCOMPARE(exe.fixedVersion, QStringLiteral(PICVIEWER_VERSION));
         QCOMPARE(exe.fileVersion, QStringLiteral(PICVIEWER_VERSION));
     }
+
+    void theExeNamesItsCopyrightAsTheLicenceDoes()
+    {
+        // Properties > Details shows it. Read from LICENSE at test time, not
+        // from what the build was told, so a stale or hand-edited copy shows.
+        QFile licence(QStringLiteral(PICVIEWER_LICENSE));
+        QVERIFY2(licence.open(QIODevice::ReadOnly | QIODevice::Text),
+                 qPrintable(licence.errorString()));
+        QString line;
+        while (!licence.atEnd() && !line.startsWith(QLatin1String("Copyright ")))
+            line = QString::fromUtf8(licence.readLine()).trimmed();
+        QVERIFY2(line.startsWith(QLatin1String("Copyright ")), "LICENSE has no Copyright line");
+
+        const ExeResources exe = readExeResources(QStringLiteral(PICVIEWER_EXE));
+        QVERIFY2(exe.error.isEmpty(), qPrintable(exe.error));
+        QCOMPARE(exe.legalCopyright, line);
+    }
 };
 
 // ---------------------------------------------------------------------------

@@ -561,8 +561,8 @@ mutate "instance: a maximised window comes back normal" "window.cpp" \
     '        setWindowState(Qt::WindowNoState);'
 
 # -- what Windows reads out of the .exe -----------------------------------------
-# These two edit build files rather than sources; the paths are relative to
-# src/ like the rest.
+# These edit build files rather than sources; the paths are relative to src/
+# like the rest.
 
 # How it shipped until 2026-11-15: the window had its icon, the .exe did not.
 mutate "exe: built without its icon" "../CMakeLists.txt" \
@@ -575,6 +575,11 @@ mutate "exe: built without its icon" "../CMakeLists.txt" \
 mutate "exe: version not taken from project()" "../picviewer.rc.in" \
     'FILEVERSION     @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0' \
     'FILEVERSION     1,0,0,0'
+
+# Written by hand, as the installer had it until LICENSE existed.
+mutate "exe: copyright not taken from LICENSE" "../picviewer.rc.in" \
+    'VALUE "LegalCopyright",   "@PICVIEWER_COPYRIGHT@"' \
+    'VALUE "LegalCopyright",   "ZivKao"'
 
 echo
 echo "restoring and re-checking baseline"

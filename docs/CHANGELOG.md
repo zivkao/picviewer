@@ -9,6 +9,18 @@ each entry to the full reasoning in its commit message.
 
 ## Unreleased
 
+### Licensed under MIT
+
+- The repository had been public with no licence at all, which reserves
+  every right: readable, and usable by nobody. `LICENSE` is now MIT, with
+  the copyright line written there and nowhere else. CMake reads it into
+  the `.exe`'s version block (`LegalCopyright`, shown in Properties >
+  Details), and `build_installer.sh` into the installer's, which had said
+  "ZivKao" by hand.
+- A unit test reads `LICENSE` at test time and compares it with what the
+  built `.exe` carries, so a stale build or a hand-written value shows;
+  a mutation writing it by hand again is caught.
+
 ### The Python build archived
 
 - The Python build had been frozen since the C++ port overtook it, and was

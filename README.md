@@ -114,3 +114,9 @@ smaller installed -- and it was frozen, then archived on 2026-11-16. The tag
 ```
 git checkout python-final
 ```
+
+## License
+
+MIT; see [LICENSE](LICENSE). That covers this project's own code. The
+libraries an installed copy carries -- Qt, LibRaw, libheif and the codecs
+beneath them -- keep their own licences.

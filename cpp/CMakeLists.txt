@@ -70,7 +70,17 @@ target_compile_options(picviewer_core PRIVATE
     ${LIBEXIF_CFLAGS_OTHER}
 )
 
-# The icon and version Windows reads out of the .exe; see picviewer.rc.in.
+# The copyright line, read out of the licence rather than written a second
+# time, so the two cannot come to disagree. Editing LICENSE reconfigures.
+set(PICVIEWER_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/../LICENSE)
+file(STRINGS ${PICVIEWER_LICENSE} PICVIEWER_COPYRIGHT REGEX "^Copyright " LIMIT_COUNT 1)
+if(NOT PICVIEWER_COPYRIGHT)
+    message(FATAL_ERROR "no \"Copyright ...\" line in ${PICVIEWER_LICENSE}")
+endif()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PICVIEWER_LICENSE})
+
+# The icon, version and copyright Windows reads out of the .exe; see
+# picviewer.rc.in.
 configure_file(picviewer.rc.in ${CMAKE_CURRENT_BINARY_DIR}/picviewer.rc @ONLY)
 
 add_executable(picviewer WIN32

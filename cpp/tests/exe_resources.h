@@ -16,6 +16,7 @@ struct ExeResources {
     QString fixedVersion;           ///< "major.minor.patch" from VS_FIXEDFILEINFO.
     QString fileVersion;            ///< The FileVersion string.
     QString fileDescription;        ///< What Task Manager names the process.
+    QString legalCopyright;         ///< The LegalCopyright string.
 };
 
 ExeResources readExeResources(const QString &exePath);

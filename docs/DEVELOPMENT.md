@@ -60,7 +60,7 @@ before a long afternoon of CMake errors.
 Two layers, deliberately different in kind.
 
 ```
-cpp\build\tests\unit_tests.exe                     209 tests, no display, about a second
+cpp\build\tests\unit_tests.exe                     210 tests, no display, about a second
 cpp\build\tests\functional_tests.exe               156 tests, a real window, offscreen
 cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 200%
 ```
@@ -233,8 +233,9 @@ The rows below are the harness's own labels, copied from those runs' output.
 | Close: a decode landing after it is shown | | 1 | 1 |
 | Close: the cache is kept | | 1 | 1 |
 | Close: offered with nothing open | | 1 | 1 |
-| Exe: built without its icon | 2 | | |
+| Exe: built without its icon | 3 | | |
 | Exe: version not taken from project() | 1 | | |
+| Exe: copyright not taken from LICENSE | 1 | | |
 | Instance: every launch opens its own window | | 1 | 1 |
 | Instance: options handed over too | | 2 | 1 |
 | Instance: relative path handed over as given | | 1 | 1 |
