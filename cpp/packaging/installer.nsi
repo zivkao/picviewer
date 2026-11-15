@@ -1,11 +1,13 @@
-; One-file installer for the C++ Pic Viewer.
+; One-file installer for Pic Viewer.
 ;
 ;   .msys64\usr\bin\bash -lc "bash cpp/packaging/build_installer.sh"
 ;
-; The same install as install.ps1, as a single .exe: the same directory,
-; Start Menu name, "Open with" registration and uninstall key, so either can
-; replace or remove what the other put there. Per-user throughout -- nothing
-; under HKLM or Program Files -- so it needs no administrator prompt.
+; The same install as install.ps1, as a single .exe. This copies the files;
+; everything else -- shortcuts, the registration with Windows, the uninstall
+; entry -- is install.ps1's, run from the install directory with -Register,
+; so there is one description of an install and the two cannot drift apart.
+; Per-user throughout -- nothing under HKLM or Program Files -- so it needs
+; no administrator prompt.
 ;
 ; Silent use: PicViewerCpp-<version>-setup.exe /S [/DESKTOP]
 ;
@@ -24,15 +26,14 @@ SetCompressor /SOLID lzma
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
 !include "LogicLib.nsh"
+!include "Sections.nsh"
 
 !ifndef VERSION
   !error "VERSION is defined by build_installer.sh"
 !endif
 
-!define APPNAME "Pic Viewer (C++)"
+!define APPNAME "Pic Viewer"
 !define EXE "picviewer.exe"
-!define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\PicViewerCpp"
-!define APP_KEY "Software\Classes\Applications\${EXE}"
 
 Name "${APPNAME}"
 OutFile "${OUTFILE}"
@@ -58,10 +59,6 @@ VIAddVersionKey "LegalCopyright" "ZivKao"
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "TradChinese"
 
-!macro SupportedType EXT
-  WriteRegStr HKCU "${APP_KEY}\SupportedTypes" "${EXT}" ""
-!macroend
-
 Section "${APPNAME}" SecApp
   SectionIn RO
 
@@ -77,56 +74,25 @@ Section "${APPNAME}" SecApp
   File /r "${DIST}\*.*"
   ; install.ps1 doubles as the uninstaller, as it does for its own installs.
   File "/oname=uninstall.ps1" "${UNINSTALLER}"
-
-  CreateShortcut "$SMPROGRAMS\${APPNAME}.lnk" "${FIXED_DIR}\${EXE}" "" "${FIXED_DIR}\${EXE}" 0
-
-  ; "Open with" only: Windows 10 and later do not let an installer make
-  ; itself the default for a file type.
-  WriteRegStr HKCU "${APP_KEY}" "FriendlyAppName" "${APPNAME}"
-  WriteRegStr HKCU "${APP_KEY}\shell\open\command" "" '"${FIXED_DIR}\${EXE}" "%1"'
-  !insertmacro SupportedType ".jpg"
-  !insertmacro SupportedType ".jpeg"
-  !insertmacro SupportedType ".png"
-  !insertmacro SupportedType ".gif"
-  !insertmacro SupportedType ".bmp"
-  !insertmacro SupportedType ".tif"
-  !insertmacro SupportedType ".tiff"
-  !insertmacro SupportedType ".webp"
-  !insertmacro SupportedType ".heic"
-  !insertmacro SupportedType ".heif"
-  !insertmacro SupportedType ".avif"
-  !insertmacro SupportedType ".ico"
-  !insertmacro SupportedType ".tga"
-  !insertmacro SupportedType ".ppm"
-  !insertmacro SupportedType ".cr2"
-  !insertmacro SupportedType ".cr3"
-  !insertmacro SupportedType ".nef"
-  !insertmacro SupportedType ".arw"
-  !insertmacro SupportedType ".dng"
-  !insertmacro SupportedType ".orf"
-  !insertmacro SupportedType ".rw2"
-  !insertmacro SupportedType ".raf"
-  !insertmacro SupportedType ".pef"
-  !insertmacro SupportedType ".srw"
-
-  ${GetSize} "${FIXED_DIR}" "/S=0K" $0 $1 $2
-  WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayName" "${APPNAME}"
-  WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayVersion" "${VERSION}"
-  WriteRegStr HKCU "${UNINSTALL_KEY}" "Publisher" "ZivKao"
-  WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayIcon" "${FIXED_DIR}\${EXE}"
-  WriteRegStr HKCU "${UNINSTALL_KEY}" "InstallLocation" "${FIXED_DIR}"
-  WriteRegStr HKCU "${UNINSTALL_KEY}" "UninstallString" 'powershell -ExecutionPolicy Bypass -File "${FIXED_DIR}\uninstall.ps1" -Uninstall'
-  WriteRegStr HKCU "${UNINSTALL_KEY}" "QuietUninstallString" 'powershell -ExecutionPolicy Bypass -File "${FIXED_DIR}\uninstall.ps1" -Uninstall'
-  WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoModify" 1
-  WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoRepair" 1
-  WriteRegDWORD HKCU "${UNINSTALL_KEY}" "EstimatedSize" $0
-
-  ; Tell Explorer the "Open with" list changed.
-  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
 
+; Ticked by /DESKTOP, or on the components page; -Register reads the choice.
 Section /o "Desktop shortcut" SecDesktop
-  CreateShortcut "$DESKTOP\${APPNAME}.lnk" "${FIXED_DIR}\${EXE}" "" "${FIXED_DIR}\${EXE}" 0
+SectionEnd
+
+; Hidden, and last, so it runs after the files are in place.
+Section "-Register"
+  StrCpy $1 ""
+  ${If} ${SectionIsSelected} ${SecDesktop}
+    StrCpy $1 "-DesktopShortcut"
+  ${EndIf}
+  nsExec::ExecToLog `powershell -NoProfile -ExecutionPolicy Bypass -File "${FIXED_DIR}\uninstall.ps1" -Register $1`
+  Pop $0
+  ${If} $0 != 0
+    MessageBox MB_ICONSTOP "${APPNAME} was copied but could not be registered with Windows (exit code $0)." /SD IDOK
+    SetErrorLevel 2
+    Abort
+  ${EndIf}
 SectionEnd
 
 Function .onInit

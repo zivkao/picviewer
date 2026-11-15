@@ -124,14 +124,44 @@ one-file installer (NSIS, LZMA): double-click, or `/S` for silent and
 `powershell -ExecutionPolicy Bypass -File cpp\packaging\install.ps1 -DesktopShortcut`
 installs straight from `cpp/dist/PicViewer`. Both produce the same install --
 141 MB in 70 files, per-user into `%LOCALAPPDATA%\Programs\PicViewerCpp`, no
-administrator prompt -- with the same "Open with" registration and the same
-uninstall entry, so either can replace or remove the other's. Deliberately a
-separate install from the Python build -- different directory, Start Menu name
-and uninstall key -- so the two sit side by side. All but one thing: the
-"Open with" key is `Applications\<exe name>`, registry keys ignore case, and
-`PicViewer.exe` and `picviewer.exe` are the same key. Whichever installed last
-owns it, and uninstalling either removes it for both. On the development
-machine the Python build was removed by hand on 2026-11-15 to keep it.
+administrator prompt -- because there is one description of it: the
+installer copies the files and then runs `install.ps1 -Register` from the
+install directory for everything else.
+
+**Registering with Windows.** Windows 10 and later will not let an installer
+make itself the default viewer; only the user can, in Settings > Apps >
+Default apps > Pic Viewer, or with Open with > Always on an image. What the
+install does is make that one click. Everything is under HKCU:
+
+| Key | What it is for |
+|---|---|
+| `Software\Classes\PicViewerCpp.Image` | The ProgID: command, icon, name |
+| `Software\Classes\<ext>\OpenWithProgids` | One value per format, 24 of them: puts it first under Open with |
+| `Software\Classes\Applications\picviewer.exe` | Name and command for the exe itself |
+| `Software\PicViewerCpp\Capabilities`, `Software\RegisteredApplications` | Its page in Settings > Default apps |
+| `Software\Microsoft\Windows\CurrentVersion\Uninstall\PicViewerCpp` | Settings > Apps |
+
+Until 2026-11-15 only the Applications key was written. Every check on the
+keys passed, and the shell listed the viewer only behind "Choose another
+app", beside Notepad and Word, and not at all in Settings > Default apps.
+`assoc_probe` (`cpp/tools/assoc_probe.cpp`) now asks the shell what it
+offers, and `tools/verify_installer.ps1` wants it offered first, once, and
+under its own name, for all 24.
+
+**Uninstalling** removes all of the above, the shortcuts, the install
+directory, and Explorer's cached display name for the exe. It keeps
+`%LOCALAPPDATA%\PicViewer` -- settings, logs, the thumbnail cache -- so a
+reinstall picks up where it left off, and says so; delete that folder to
+remove those too.
+
+**The name.** Installed as "Pic Viewer (C++)" while the Python build sat
+beside it, and as "Pic Viewer" since that build was removed from the
+development machine on 2026-11-15; an install over the old name replaces
+its shortcuts. The two no longer install side by side cleanly: they share
+the Start Menu name, and `Applications\PicViewer.exe` and
+`Applications\picviewer.exe` were always one key, since registry keys ignore
+case. That is why the Python build was removed by hand rather than with its
+own uninstaller, which would have taken that key from this one.
 
 Uninstalling is `uninstall.ps1` in either case. The installer's first build
 wrote an NSIS `uninstall.exe`, and Avira on the development machine
@@ -150,8 +180,8 @@ Windows' generic one, side by side with the Python build's aperture. The
 `executable` unit suite reads both back out of the built file.
 
 `tools/verify_installer.ps1` installs silently, checks every file, shortcut and
-registry entry, runs the recorded uninstall command, checks it all went, and
-installs again.
+registry entry and what the shell makes of them, runs the recorded uninstall
+command, checks it all went, and installs again.
 
 `deploy.sh` walks the dependency tree rather than listing libraries by hand,
 and seeds that walk with the *plugins* as well as the executable. Plugins are

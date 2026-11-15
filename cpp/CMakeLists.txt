@@ -81,6 +81,11 @@ add_executable(picviewer WIN32
 target_link_libraries(picviewer PRIVATE picviewer_core)
 target_compile_options(picviewer PRIVATE -Wall -Wextra -Wpedantic)
 
+# Asks the shell what "Open with" offers; tools/verify_installer.ps1 runs it.
+add_executable(assoc_probe tools/assoc_probe.cpp)
+target_link_libraries(assoc_probe PRIVATE ole32 shell32 uuid)
+target_compile_options(assoc_probe PRIVATE -Wall -Wextra -Wpedantic)
+
 # ---------------------------------------------------------------------------
 # Tests. The same split as the Python version: assertion-based unit tests over
 # the pure logic, and end-to-end suites that drive the real thing.

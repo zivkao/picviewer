@@ -80,10 +80,16 @@ Last reviewed: 2026-11-15
 ### Packaging
 - [x] `deploy.sh` walks the dependency tree including plugins
 - [x] `trim.sh` removes only what verifies clean afterwards
-- [x] Per-user installer, side by side with the Python build, clean uninstall
+- [x] Per-user installer, clean uninstall; settings, logs and thumbnails
+      kept in `%LOCALAPPDATA%\PicViewer`, and the uninstaller says so
+- [x] Registered the way Windows offers it: first under Open with for all 24
+      formats, and a page in Settings > Default apps; `assoc_probe` asks the
+      shell, since the keys alone once passed while it was buried
+- [x] Installed as "Pic Viewer", no longer "(C++)"; the old shortcuts are
+      replaced
 - [x] One-file installer, `PicViewerCpp-<version>-setup.exe`, 35 MB (NSIS);
-      the same install and uninstall entry as `install.ps1`, checked end to
-      end by `tools/verify_installer.ps1`
+      it copies the files and runs `install.ps1 -Register` for the rest, so
+      the two cannot drift; checked end to end by `tools/verify_installer.ps1`
 - [x] Verified on real RAW from eight makers -- Canon CR2, Nikon NEF
       (lossless compressed), Sony ARW (compressed), Fujifilm RAF (X-Trans),
       Olympus ORF, Panasonic RW2 (a 2024 GH7), Pentax PEF, Leica DNG -- and a
@@ -159,13 +165,13 @@ rather than assumed, which is the only reason to keep a list like this at all:
 - **One folder, not one file.** A single-file build unpacks itself to a temp
   directory on every launch, which is seconds of delay each time you
   double-click an image.
-- **Both builds installed side by side.** Separate directories, Start Menu
-  entries and uninstall keys, so they can be compared rather than one
-  replacing the other. Not the "Open with" key, though: registry keys ignore
-  case, so `Applications\PicViewer.exe` and `Applications\picviewer.exe` are
-  one key, and either uninstaller removes it for both. The Python build was
+- **Both builds installed side by side, until 2026-11-15.** Separate
+  directories, Start Menu entries and uninstall keys, so they could be
+  compared. Not the "Open with" key, though: registry keys ignore case, so
+  `Applications\PicViewer.exe` and `Applications\picviewer.exe` were one key,
+  and either uninstaller removed it for both. The Python build was
   uninstalled from the development machine on 2026-11-15, by hand for that
-  reason.
+  reason, and the C++ build took the plain name "Pic Viewer".
 - **Functional tests assert rather than print.** The Python versions printed
   and left a runner to grep; almost everything turned out to be pinnable.
 - **Personal photographs stay untracked.** `image_example/` holds real camera

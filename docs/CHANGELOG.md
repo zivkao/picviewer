@@ -7,6 +7,42 @@ each entry to the full reasoning in its commit message.
 
 ---
 
+## 2026-11-15 — registered the way Windows offers it, and named "Pic Viewer"
+
+Asked whether the install had been checked against Windows itself. It had
+not, quite.
+
+- **Open with buried it, and Settings > Default apps did not list it.** The
+  installer wrote `Applications\picviewer.exe` with its 24 `SupportedTypes`,
+  and every check on those keys passed. Asked directly
+  (`SHAssocEnumHandlers`), the shell listed the viewer in the first Open with
+  list for none of the 24 formats, only in the full one behind "Choose
+  another app", beside Notepad and Word. Now registered as Microsoft
+  documents it: a ProgID, `PicViewerCpp.Image`, under each extension's
+  `OpenWithProgids`, and `Capabilities` named in `RegisteredApplications`
+  for a page in Settings > Default apps. Still all under HKCU. Windows
+  still lets only the user make it the default; this makes that one place
+  rather than 24 right-clicks.
+- **`cpp/tools/assoc_probe.cpp`** asks the shell what it offers for each
+  extension, and `tools/verify_installer.ps1` runs it: after an install it
+  wants the viewer offered first, once, and under its own name, for all 24;
+  after the uninstall, nowhere. Run against the old install it reported
+  recommended=0 for every format.
+- **One description of an install.** The NSIS installer wrote its own
+  registry entries, a second copy of `install.ps1`'s. It now copies the
+  files and runs `uninstall.ps1 -Register` from the install directory, and
+  the version recorded under Settings > Apps is read from the exe rather
+  than written in two places.
+- **The uninstaller said "Nothing of Pic Viewer (C++) is left"** and left
+  `%LOCALAPPDATA%\PicViewer` -- settings, logs, the thumbnail cache --
+  deliberately. It says what it kept and where now. It also clears
+  Explorer's cached display name for the exe, and refuses before removing
+  anything if the viewer is running, rather than after the shortcuts.
+- **Named "Pic Viewer"**, without "(C++)", now that the Python build is gone
+  from this machine. Explorer had cached the old name by path, so the
+  install clears that cache entry; shortcuts by the old name are removed,
+  and a desktop one is replaced under the new name.
+
 ## 2026-11-15 — the .exe's own icon
 
 - **The C++ build's shortcuts showed Windows' generic icon.** Noticed on the

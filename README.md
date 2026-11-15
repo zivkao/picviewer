@@ -235,8 +235,9 @@ frozen. 209 unit and 144 functional tests cover it, on every push in CI as
 well as locally, and 83 reintroduced defects all turn them red. See
 [cpp/README.md](cpp/README.md).
 
-It installs from a one-file installer, `PicViewerCpp-<version>-setup.exe`, side
-by side with the Python build. It is 140 MB against 177 MB and decodes faster
+It installs from a one-file installer, `PicViewerCpp-<version>-setup.exe`, as
+"Pic Viewer", registered so that Settings > Default apps can make it the
+default in one place. It is 140 MB against 177 MB and decodes faster
 throughout -- 3.7x on a phone HEIC, 2.3x on a Canon CR2, 3.4x on a Fujifilm
 X-Trans RAF. Startup is the same in both; see `tools/benchmark.ps1`.
 
