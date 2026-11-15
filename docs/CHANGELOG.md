@@ -5,9 +5,18 @@ What was done, when, and what it turned up. Newest first.
 `TASKS.md` says what is left; this says what has been done. Commit hashes link
 each entry to the full reasoning in its commit message.
 
+From 1.0.0 entries collect under `## Unreleased` and a release renames the
+heading; see DEVELOPMENT.md, "Versions and releases". Before it they are by
+date.
+
 ---
 
-## Unreleased
+## 1.0.0 — 2026-11-16
+
+The first numbered release: the viewer as it has been in daily use since
+2026-11-15, now with a licence, a record of the libraries it carries, its
+version written once, and a release process -- which this release is the
+first to follow. Everything below, by date, is how it got here.
 
 ### A release process
 

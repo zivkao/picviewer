@@ -137,8 +137,11 @@ Reintroduces every defect this project has fixed and checks the suites go red
 for it. A green suite says nothing until it can fail, and this has twice caught
 tests that passed for the wrong reason.
 
-Last full run, 2026-11-02 — all 73 applied and caught, and the baseline green
-again after them. The eight added on 2026-11-15 with stopping at the ends and
+Last full run, 2026-11-16, for 1.0.0 — all 98 applied and caught, and the
+baseline green again after them. It took two hours: about 1.9 minutes a
+mutation, falling to under one with the antivirus paused, since every
+rebuild makes new executables it scans on their first run. The run before,
+2026-11-02, covered the 73 there were then. The eight added on 2026-11-15 with stopping at the ends and
 Close -- "Slideshow: stops at the last image" and the Ends and Close rows --
 were run on their own that day with `ONLY`, together with the two slideshow
 mutations whose anchors moved, and all ten were caught. The two Exe rows,

@@ -149,7 +149,7 @@ rather than assumed, which is the only reason to keep a list like this at all:
 ### Features
 
 ### Packaging
-- [ ] 141 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never
+- [ ] 142 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never
       calls. They cannot simply be deleted — libheif imports them at load time
       and will not load without them — so this needs libheif rebuilt without
       them. Decided against on 2026-11-02: a library to rebuild by hand on

@@ -132,7 +132,7 @@ one-file installer (NSIS, LZMA): double-click, or `/S` for silent and
 `/DESKTOP` for a desktop shortcut. Without it,
 `powershell -ExecutionPolicy Bypass -File cpp\packaging\install.ps1 -DesktopShortcut`
 installs straight from `cpp/dist/PicViewer`. Both produce the same install --
-141 MB in 70 files, per-user into `%LOCALAPPDATA%\Programs\PicViewerCpp`, no
+142 MB in 72 files, per-user into `%LOCALAPPDATA%\Programs\PicViewerCpp`, no
 administrator prompt -- because there is one description of it: the
 installer copies the files and then runs `install.ps1 -Register` from the
 install directory for everything else.
