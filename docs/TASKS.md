@@ -209,6 +209,10 @@ needed now. Before publishing an installer, though:
   with every licence among the libraries the package carries, GPL included.
   `LICENSE` is the one place the copyright line is written; the `.exe` and
   the installer read it from there.
+- **Semantic Versioning, from 1.0.0 on 2026-11-16.** MAJOR for a change of
+  architecture or one that does not carry on from the last version, MINOR
+  for a feature, PATCH for a fix or a library update. The release steps are
+  in DEVELOPMENT.md, "Versions and releases".
 - **The Python build archived, 2026-11-16.** Frozen since the port overtook
   it; its tree is the tag `python-final`. Two of its scripts stayed, because
   committed files come from them -- see DEVELOPMENT.md, "Committed test

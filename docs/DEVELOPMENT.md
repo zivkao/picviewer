@@ -1,7 +1,7 @@
 # Development
 
-How to work on the C++ viewer, and the reasoning behind the parts that are not
-obvious from the code.
+How to work on the C++ viewer and release it, and the reasoning behind the
+parts that are not obvious from the code.
 
 The project began as a Python build. It was frozen when the C++ port overtook
 it and archived on 2026-11-16: `git checkout python-final` brings it back.
@@ -336,7 +336,66 @@ every DLL there listed. 46 packages, 69 files, as of 1.0.0: most permissive
 libde265, GLib, libexif), and three GPL -- the x265 and x264 encoders libheif
 links, and JBIG-KIT under libtiff. That matters only to someone
 distributing the installer, which this project does not; see TASKS.md,
-"Decisions taken".
+"Only if the installer is ever published".
+
+---
+
+## Versions and releases
+
+**Numbering** is [Semantic Versioning](https://semver.org): MAJOR.MINOR.PATCH.
+
+| Raise | For | For example |
+|---|---|---|
+| MAJOR | A change of architecture, or one that does not carry on from the version before | a new decoding architecture; settings, cache or install location moved |
+| MINOR | A new feature | turns saved into the file; a new format |
+| PATCH | A fix, or an MSYS2 library update that changes no behaviour | a RAW that would not open |
+
+Raising one sets everything to its right to 0. 1.0.0, on 2026-11-16, is the
+first numbered release; what came before it is in the changelog by date.
+
+**The version is written once**, in `project(PicViewer VERSION x.y.z ...)` at
+the top of `cpp/CMakeLists.txt`. `version.h` (`--version`, the log, Help >
+About), the `.exe`'s version block, the installer's and its file name all
+follow it, and the suites check that the `.exe`, `--version` and About agree
+with it. The copyright line is likewise written once, in `LICENSE`.
+
+**The changelog** collects entries under `## Unreleased` as work lands. A
+release renames that heading `## x.y.z — date`, with a sentence on what the
+release is, and the next entry opens a new `## Unreleased` above it.
+
+**Releasing.** In this order; a step that fails stops the release until it
+is fixed, and the fix is a commit of its own.
+
+1. Everything for the release committed, the working tree clean.
+2. Raise the version in `project()`. Rename `## Unreleased` in
+   `docs/CHANGELOG.md`.
+3. Build. Unit suite; functional suite at 1x, 1.5x and 2x.
+4. The full mutation run, `bash cpp/tools/mutate.sh`: every mutation
+   applied and caught, and the baseline green after. Record its date and
+   count under "Proving the tests are worth having".
+5. Package: `deploy.sh`, `trim.sh`, `build_installer.sh`.
+6. `tools/verify_installer.ps1`: every check. It leaves the new version
+   installed.
+7. `progress.md` and `docs/TASKS.md` brought up to date: the version, the
+   counts, "Last reviewed".
+8. Commit `Release x.y.z`, and tag that commit:
+   `git tag -a vx.y.z -m "Pic Viewer x.y.z"`.
+9. Push both: `git push origin main vx.y.z`. CI runs on the commit and must
+   pass.
+10. Keep `cpp/dist/PicViewerCpp-x.y.z-setup.exe`. It is that version as
+    built: rebuilding the tag later gets whatever MSYS2 has by then. The
+    `THIRD-PARTY-NOTICES.txt` inside it records which libraries, at which
+    versions, it carried.
+
+**Updating the toolchain** (`pacman -Syu` in `.msys64`) is a PATCH release
+of its own: rebuild, run everything above, and compare the new
+`THIRD-PARTY-NOTICES.txt` with the last release's to see which libraries
+moved.
+
+**No GitHub Release, no installer published.** The viewer is built for its
+author's own use. Publishing binaries brings in the obligations of the
+licences the package carries; TASKS.md, "Only if the installer is ever
+published", lists what that would take first.
 
 ---
 

@@ -97,8 +97,9 @@ what a bug report should carry.
 
 - [cpp/README.md](cpp/README.md) -- the toolchain, the tests, packaging and
   what the installer registers.
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) -- how to build, test, measure
-  and package; the design decisions; every defect found so far and its cause.
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) -- how to build, test, measure,
+  package and release; the design decisions; every defect found so far and
+  its cause.
 - [docs/TASKS.md](docs/TASKS.md) -- what is done, what is outstanding, and the
   decisions taken.
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) -- what was done and when.

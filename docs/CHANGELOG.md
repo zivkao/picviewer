@@ -9,6 +9,14 @@ each entry to the full reasoning in its commit message.
 
 ## Unreleased
 
+### A release process
+
+- Versions follow Semantic Versioning from 1.0.0. DEVELOPMENT.md,
+  "Versions and releases", says what raises which part, where the version
+  is written (once), how this changelog is kept, and the steps of a
+  release in order -- the full mutation run and the installer check among
+  them, then an annotated tag `vx.y.z` -- and why no binary is published.
+
 ### The version written once
 
 - The version was written three times: `project()` in CMakeLists.txt, which
