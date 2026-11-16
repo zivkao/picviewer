@@ -13,6 +13,19 @@ date.
 
 ## Unreleased
 
+### One step to update the installed copy
+
+- `tools/update.ps1` pulls, builds, runs the unit and functional suites at
+  three scales, packages, installs silently and checks the installed copy,
+  stopping at the first failure; the build and tests come before the
+  install, so a broken build never replaces a working one. Asked for in
+  place of updating online, which would have meant publishing installers --
+  and with them the licence obligations TASKS.md lists -- network code in a
+  viewer that has none, and signing to make a download safe to run.
+- It will not close a running viewer unless told to, keeps a desktop
+  shortcut if there is one, and refuses a checkout with uncommitted changes
+  unless `-NoPull` asks for them to be built as they are.
+
 ### The mutation harness wants each suite to have run
 
 - `mutate.sh` took a suite's exit code as its failure count, so a test

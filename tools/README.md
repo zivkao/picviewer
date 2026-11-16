@@ -45,6 +45,25 @@ None of these empties the application's log to read its own lines back: the
 log is the user's. They note its length first and read what is appended, via
 `logtail.ps1`.
 
+## Updating the installed copy
+
+```
+powershell -ExecutionPolicy Bypass -File tools\update.ps1
+powershell -ExecutionPolicy Bypass -File tools\update.ps1 -NoPull
+```
+
+Pull (fast-forward only), build, unit and functional suites at 1x, 1.5x and
+2x, package, installer, silent install, then `verify_package.ps1` on what was
+installed. Each step must pass before the next, and every build or test
+step comes before the install. A suite is judged by its summary line as well
+as its exit code, for the reason `mutate.sh` learned. It keeps a desktop
+shortcut if there is one, and will not close a running viewer unless told
+to with `-CloseViewer`.
+
+Not a release: no mutation run, no uninstall round trip, no version bump,
+no tag -- docs/DEVELOPMENT.md, "Versions and releases", is that. Nothing
+goes over the network but `git pull`.
+
 ## Checking a package
 
 ```

@@ -30,6 +30,18 @@ settings, logs and thumbnail cache stay in `%LOCALAPPDATA%\PicViewer`.
 Double-clicking an image while the viewer is open opens it in the same
 window.
 
+To update an installed copy to the latest code, in one step:
+
+```
+powershell -ExecutionPolicy Bypass -File tools\update.ps1
+```
+
+It pulls, builds, runs the tests, packages, installs and checks the result,
+and stops at the first step that fails -- before installing, if a build or a
+test fails, so a broken build never replaces a working one. About half an
+hour. It refuses while Pic Viewer is open (`-CloseViewer` closes it) or
+the checkout has uncommitted changes (`-NoPull` builds them as they are).
+
 ## Keys
 
 | | |
