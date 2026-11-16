@@ -11,6 +11,21 @@ date.
 
 ---
 
+## Unreleased
+
+### The mutation harness wants each suite to have run
+
+- `mutate.sh` took a suite's exit code as its failure count, so a test
+  binary that never ran -- quarantined or refused by an antivirus, which
+  makes bash exit 126 or 127 -- would have read as a mutation caught. Each
+  suite must now end on its summary line (`N passed, M failed across K
+  suites`); without it the mutation is UNFINISHED, shows the last lines of
+  each log, and counts with the survivors. A suite that crashed part-way is
+  UNFINISHED too: that may be the mutation, but it is not known.
+- The first version of the fix read every suite as passing -- a `local` on
+  a line of its own resets `$?` -- and the three version mutations
+  SURVIVED. Fixed, and run again.
+
 ## 1.0.0 — 2026-11-16
 
 The first numbered release: the viewer as it has been in daily use since

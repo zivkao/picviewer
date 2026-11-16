@@ -26,6 +26,7 @@ export QT_QPA_PLATFORM=offscreen
 SRC=/d/Project/Claude_Pic_Viewer/cpp/src
 BUILD=/d/Project/Claude_Pic_Viewer/cpp/build
 BUILD_FAILED=255
+UNFINISHED=unfinished
 
 build_both() {
     # Windows can hold a lock on a freshly-run test exe, which fails the link
@@ -37,8 +38,24 @@ build_both() {
     return 0
 }
 
-# Echoes: <unit> <functional> <functional at 2x> failure counts, or the
-# sentinel three times.
+# A suite's failure count, or $UNFINISHED if it never printed the summary it
+# ends on ("210 passed, 0 failed across 11 suites"). The exit code alone
+# cannot tell "three tests failed" from "the binary never ran": an antivirus
+# that quarantines a freshly linked test exe, or refuses to start it, gives
+# bash 126 or 127, and those read as tests that failed -- a mutation
+# reported caught with nothing run. A suite that crashed part-way is
+# unfinished too: that may well be the mutation, but it is not known, so it
+# goes to a person rather than into the caught column.
+suite_result() {   # suite_result <exit code> <log>
+    if grep -q -E '^[0-9]+ passed, [0-9]+ failed across [0-9]+ suites' "$2"; then
+        echo "$1"
+    else
+        echo "$UNFINISHED"
+    fi
+}
+
+# Echoes: <unit> <functional> <functional at 2x>, each a failure count or
+# $UNFINISHED, or the build sentinel three times.
 #
 # The functional suite runs twice, the second time as though on a display
 # scaled to 200%. At a ratio of 1 a defect in display-scaling handling is a
@@ -48,12 +65,18 @@ run_suites() {
         echo "$BUILD_FAILED $BUILD_FAILED $BUILD_FAILED"
         return
     fi
+    # Each exit code is taken in the same statement as the `local`: a `local`
+    # of its own resets $? to 0, and the first version of this read every
+    # suite as passing -- three mutations SURVIVED until it was fixed.
     "$BUILD/tests/unit_tests.exe" > /tmp/unit.log 2>&1
     local unit=$?
+    unit=$(suite_result "$unit" /tmp/unit.log)
     "$BUILD/tests/functional_tests.exe" > /tmp/func.log 2>&1
     local func=$?
+    func=$(suite_result "$func" /tmp/func.log)
     "$BUILD/tests/functional_tests.exe" --scale 2 > /tmp/func2.log 2>&1
     local func2=$?
+    func2=$(suite_result "$func2" /tmp/func2.log)
     echo "$unit $func $func2"
 }
 
@@ -112,6 +135,16 @@ p.write_text(s.replace(os.environ['FROM'], os.environ['TO'], 1), encoding='utf-8
         # caught" with one of them INVALID.
         printf '%-46s INVALID (build failed), nothing tested\n' "$label"
         tail -4 /tmp/build.log | sed 's/^/      | /'
+        problems=$((problems + 1))
+        return
+    fi
+
+    if [ "$unit" = "$UNFINISHED" ] || [ "$func" = "$UNFINISHED" ] || [ "$func2" = "$UNFINISHED" ]; then
+        printf '%-46s UNFINISHED (unit %s, functional %s, at 2x %s), nothing known\n' \
+            "$label" "$unit" "$func" "$func2"
+        for log in /tmp/unit.log /tmp/func.log /tmp/func2.log; do
+            tail -2 "$log" | sed "s#^#      | $(basename "$log"): #"
+        done
         problems=$((problems + 1))
         return
     fi
