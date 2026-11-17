@@ -13,6 +13,19 @@ date.
 
 ## Unreleased
 
+### Documents corrected and tidied, 2026-11-17
+
+- A macOS port is in TASKS.md and progress.md, with what it would take:
+  chiefly opening from Finder, which hands a running viewer a
+  `QFileOpenEvent` rather than starting a second one. Not started.
+- `testdata/` is gone. It held only its README, nothing read it, and it
+  duplicated `image_example/`, which the tests, the benchmark, `trim.sh` and
+  the package check all read; that README now says so.
+- Corrected: cpp/README gave the install as 139 MB (142 MB as of 1.0.0);
+  tools/README announced two cautions and listed three. The mutation record
+  in DEVELOPMENT.md is the full run's alone, without the history of partial
+  runs before it, and its CI paragraph sits after both kinds of test it runs.
+
 ### One step to update the installed copy
 
 - `tools/update.ps1` pulls, builds, runs the unit and functional suites at

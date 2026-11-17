@@ -15,16 +15,16 @@ powershell -ExecutionPolicy Bypass -File tools\benchmark.ps1 -Update
 ```
 
 Startup, decode time per format and installed size for the installed build,
-compared against `baseline.json` and reported as deltas. The baseline still
-holds the archived Python build's last figures beside it, until the next
-`-Update`. `-Update` replaces the
-baseline; commit it with whatever change moved the numbers.
+compared against `baseline.json` and reported as deltas. `-Update` replaces
+the baseline, and with it the archived Python build's last figures, which it
+still holds beside the C++ ones; commit it with whatever change moved the
+numbers.
 
 Decode times come from the application's own log, not from wall-clock timing
 around the process, so they exclude startup and are the figure that actually
 moves when a decoder changes.
 
-Two cautions that the numbers themselves will not tell you:
+Three cautions that the numbers themselves will not tell you:
 
 - **Startup is cache-sensitive.** The same build measures 700 ms or 1400 ms
   depending on what Windows has paged in. An earlier comparison in this

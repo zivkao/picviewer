@@ -115,6 +115,8 @@ what a bug report should carry.
 - [docs/TASKS.md](docs/TASKS.md) -- what is done, what is outstanding, and the
   decisions taken.
 - [docs/CHANGELOG.md](docs/CHANGELOG.md) -- what was done and when.
+- [tools/README.md](tools/README.md) -- the scripts that update, measure and
+  check an installed copy.
 - [progress.md](progress.md) -- a one-page summary, in Traditional Chinese.
 
 ## The Python build

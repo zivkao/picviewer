@@ -79,9 +79,13 @@ grey out there. The slideshow still comes round to the start.
 ## Tests
 
 ```
-cpp\env.cmd test                          unit
-cpp\build\tests\functional_tests.exe      end to end
+cpp\env.cmd test                                  unit
+cpp\build\tests\functional_tests.exe              end to end
+cpp\build\tests\functional_tests.exe --scale 2    the same, at 200% display scaling
 ```
+
+Run the functional suite at 1, 1.5 and 2, as CI does: display scaling
+defects do not show at 1.
 
 **`unit_tests`** -- 210 passing test functions over the pure logic: container
 sniffing, decoder ranking, the byte-budgeted cache, format behaviour against
@@ -214,7 +218,7 @@ decodes -- and removing any one of them stops **all** decoding, because
 `libheif` imports them at load time and fails to load without them. Only the
 networking pieces came out.
 
-So the size is 139 MB against the Python build's 177 MB: a fifth smaller, not
+So the install is 142 MB as of 1.0.0, against the Python build's 177 MB: a fifth smaller, not
 the several-fold saving the bare executable's 0.5 MB suggests. ICU's data table
 (32 MB) and those encoders (42 MB) are over half of it, and shrinking either
 means rebuilding Qt or libheif from source.
@@ -270,8 +274,8 @@ the same 101 MP photograph occupies 407 MB here against 305 MB there.
 ## Verified on real files
 
 The first camera RAW and phone HEIC this project has ever seen, decoded by the
-*installed* copy with the toolchain taken off `PATH` entirely -- 17 of 17 files,
-every decoder exercised:
+*installed* copy with the toolchain taken off `PATH` entirely -- 17 of 17 files
+then, every decoder exercised; `tools/verify_package.ps1` decodes 24 now:
 
 ```
 dispatch IMG_0893.CR2: 20187412 bytes, sniffed tiff, candidates raw(100) qt(60)
@@ -306,9 +310,5 @@ build-system problem, the toolchain report, and the mutation harness. See
 
 The runtime log is not this record: it rotates at 1 MB and describes one
 session's operations, not what was measured or decided. That belongs in the
-baseline, the commit messages and these files.
-
-## Not done
-
-Real RAW from eight makers decodes -- Canon, Nikon, Sony, Fujifilm, Olympus,
-Panasonic, Pentax, Leica -- but one file each, and no Canon CR3.
+baseline, the commit messages and these files. What is still to do is in
+[docs/TASKS.md](../docs/TASKS.md), "Outstanding".

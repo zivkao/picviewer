@@ -4,7 +4,7 @@ Status of the viewer. The Python build it began as is archived at the tag
 `python-final`. [progress.md](../progress.md) is the one-page summary of
 this list, in Traditional Chinese; update both together.
 
-Last reviewed: 2026-11-16
+Last reviewed: 2026-11-17
 
 ---
 
@@ -108,20 +108,10 @@ Last reviewed: 2026-11-16
 
 ### Defects
 
-None known in the C++ source.
-
-Fixed 2026-11-01, the same day it was found: **paths outside the ANSI code
-page.** HEIC failed for any non-ASCII character in the path -- a Traditional
-Chinese file name, or a plain one inside a folder called 照片 -- and RAW, for
-names outside Big5, silently showed the 200x150 thumbnail from the file's
-first TIFF directory. See `CHANGELOG.md`.
-
-Two were listed here on first writing and both were already fixed — checked
-rather than assumed, which is the only reason to keep a list like this at all:
-
-- `-v` colliding with `--version` is fixed in `main.cpp`, and was never a
-  problem in the Python build, which uses argparse and no Qt parser.
-- A one-file playlist re-queueing itself is fixed in both.
+None known. Every defect found so far, with its cause and what now guards
+it, is in DEVELOPMENT.md, "Defects, and what each one taught"; CHANGELOG.md
+says when each was fixed. A defect listed here is checked against the code
+before it is worked on: two once listed had in fact been fixed already.
 
 
 ### Gaps in what is verified
@@ -142,11 +132,50 @@ rather than assumed, which is the only reason to keep a list like this at all:
       6x6 colour filter rather than 2x2, and LibRaw's default quality runs the
       3-pass Markesteijn algorithm; the 1-pass variant should be roughly three
       times faster at a small cost in fine detail. The embedded preview shows
-      meanwhile, so the screen is never empty. The Python build takes 19 s.
-      (First recorded here as 7.7 s, measured with four other RAWs being
-      prefetched alongside it.)
+      meanwhile, so the screen is never empty.
 
-### Features
+### Other platforms
+- [ ] **macOS.** Not started. It would be 1.1.0, a feature: the Windows
+      build carries on unchanged. Qt, LibRaw, libheif, libexif and lcms2 are
+      all in Homebrew, and the decoders, cache, canvas, panels and settings
+      are portable already. What is not:
+      - **Opening from Finder.** Finder does not start a second process for
+        an image double-clicked while the viewer runs; it sends the running
+        one a `QFileOpenEvent`, and the first launch gets one too. The named
+        mutex and `WM_COPYDATA` in `instance.cpp` are Windows-only, and with
+        nothing handling that event a double-click in Finder opens nothing.
+        This is the one that matters.
+      - `applog.cpp` includes `windows.h` and installs its crash handler
+        with `SetUnhandledExceptionFilter`, unguarded, so it does not
+        compile elsewhere. A signal handler instead.
+      - `raw_decoder.cpp` opens through LibRaw's `wchar_t` overload, which
+        exists only on Windows. On macOS the UTF-8 path is the right one.
+      - Show in Explorer runs `explorer`; Finder's equivalent is `open -R`.
+        The wording too: Explorer, Recycle Bin, and About's "beside an
+        installed picviewer.exe".
+      - Settings, logs and thumbnails would land in
+        `~/Library/Preferences/PicViewer`, which works, where macOS keeps
+        logs in `~/Library/Logs` and caches in `~/Library/Caches`. A choice
+        to make, not a defect.
+      - **Build.** `project()` names the RC language and `picviewer.rc.in`
+        is Windows' resource format. macOS wants an app bundle, an
+        `Info.plist` declaring the 24 formats so Finder lists it under Open
+        With, and an `.icns` icon.
+      - **Packaging and tools.** None of `deploy.sh`, `trim.sh`,
+        `notices.sh` (which reads pacman's records), the NSIS installer or
+        the PowerShell scripts carries over: `macdeployqt`, a `.dmg`, and
+        notices built from Homebrew's records instead.
+      - **Tests.** Some were written against Windows -- the `.exe`'s
+        resources, at least; which others need changing shows only by
+        running them there. CI gains a macOS job beside the Windows one.
+      - **Signing.** For its author's own use, the ad-hoc signature Apple
+        Silicon builds get anyway, and right-click > Open the first time.
+        For anyone else, a paid Apple Developer account and notarisation.
+
+      Before starting: it needs a real Mac. CI can show it builds and the
+      suites pass; Finder, Open With and a Retina display can be checked
+      only on one. And Preview already opens HEIC and most camera RAW, so
+      the case for the port is what Pic Viewer does that Preview does not.
 
 ### Packaging
 - [ ] 142 MB, of which 42 MB is AV1 and HEVC **encoders** that a viewer never

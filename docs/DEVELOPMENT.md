@@ -68,16 +68,6 @@ cpp\build\tests\functional_tests.exe --scale 2     the same, as on a display at 
 **Unit tests** cover pure logic: container sniffing, decoder ranking, the
 byte-budgeted cache, and format behaviour against the sample files.
 
-**CI.** `.github/workflows/cpp.yml` runs the unit suite and the functional
-suite at 1x, 1.5x and 2x on every push and pull request, on a clean Windows
-runner that installs the toolchain from MSYS2 at the time of the run. That is
-deliberately not the `.msys64` snapshot: a failure there with a green local
-run means either the change depends on something only this machine has, or an
-upstream package moved, and the job prints the package versions so the two
-can be told apart. The application log is uploaded as an artifact when
-anything fails. Its first run found a test that had only ever passed because
-of leftovers on the development machine; see the defect table.
-
 **Functional tests** drive a real `MainWindow` with real events — drag and drop
 sent to actual widgets, keystrokes through `QTest::keyClick`, menus and toolbar
 state read off the real objects. The Python versions of these printed
@@ -100,6 +90,16 @@ quadrants, and each test reads which colour landed top-left and top-right off
 the rendered canvas, so a turn the wrong way, or a turn and a flip composed in
 the wrong order, shows up as the wrong colour rather than as a matrix the code
 agrees with.
+
+**CI.** `.github/workflows/cpp.yml` runs the unit suite and the functional
+suite at 1x, 1.5x and 2x on every push and pull request, on a clean Windows
+runner that installs the toolchain from MSYS2 at the time of the run. That is
+deliberately not the `.msys64` snapshot: a failure there with a green local
+run means either the change depends on something only this machine has, or an
+upstream package moved, and the job prints the package versions so the two
+can be told apart. The application log is uploaded as an artifact when
+anything fails. Its first run found a test that had only ever passed because
+of leftovers on the development machine; see the defect table.
 
 ### Committed test images
 
@@ -137,23 +137,17 @@ Reintroduces every defect this project has fixed and checks the suites go red
 for it. A green suite says nothing until it can fail, and this has twice caught
 tests that passed for the wrong reason.
 
-Last full run, 2026-11-16, for 1.0.0 — all 98 applied and caught, and the
-baseline green again after them. It took two hours: about 1.9 minutes a
+Last full run, 2026-11-16, for 1.0.0: all 98 applied and caught, and the
+baseline green again after them. It took two hours, about 1.9 minutes a
 mutation, falling to under one with the antivirus paused, since every
-rebuild makes new executables it scans on their first run. The run before,
-2026-11-02, covered the 73 there were then. The eight added on 2026-11-15 with stopping at the ends and
-Close -- "Slideshow: stops at the last image" and the Ends and Close rows --
-were run on their own that day with `ONLY`, together with the two slideshow
-mutations whose anchors moved, and all ten were caught. The two Exe rows,
-added later that day with the `.exe`'s icon, were run the same way. Those
-edit `cpp/CMakeLists.txt` and `cpp/picviewer.rc.in` rather than a source
-file, so a mutation's rebuild reconfigures first. The eleven Instance rows,
-added with one window per session, were run with `ONLY` too, and all
-caught. The Exe row for the copyright and the three Version rows, added on
-2026-11-16, were run with `ONLY` alongside the other two Exe rows, and all
-six caught. The suite runs three
-times per mutation: unit, functional at 1x, functional at 2x display scaling.
-The rows below are the harness's own labels, copied from those runs' output.
+rebuild makes new executables it scans on their first run.
+
+Each mutation is built and run three times: unit, functional at 1x,
+functional at 2x display scaling. A suite counts only if it ends on its
+summary line, so a binary that never ran is UNFINISHED, not caught. The Exe
+rows edit `cpp/CMakeLists.txt` or `cpp/picviewer.rc.in` rather than a source
+file, so their rebuild reconfigures first. The rows below are the harness's
+own labels, copied from its output.
 
 | Defect put back | Unit | Functional 1x | Functional 2x |
 |---|---|---|---|
@@ -532,7 +526,7 @@ of these are the kind of mistake that is easy to make twice.
 | Test suites printed nothing while passing | `QTest` tears down its stdout logger when a `qExec` returns; with several suites in one binary every result went into a closed stream | each suite writes its own report file |
 | Three mutations reported "did not compile" and proved nothing | The MSYS2 python is a native Windows build and cannot resolve `/d/...` paths, so the edits never happened | `cygpath` in `mutate.sh` |
 | A build failure and two failing tests were indistinguishable | `qExec` returns the number of failures, so exit code 2 meant both | sentinel 255 in `mutate.sh` |
-| Verbose logging buried the application's own output | `-v` set the root logger to debug, and Pillow logs a line per plugin it imports | only the project's own categories follow `-v` |
+| Verbose logging buried the application's own output (Python build) | `-v` set the root logger to debug, and Pillow logs a line per plugin it imports | only the project's own categories follow `-v` |
 | A regression test quietly became a skip | It depended on a file in the untracked `image_example/` that was later removed | a committed fixture, `cpp/tests/fixtures/large_9000x9000.png` — 249 KiB on disk, 309 MiB decoded |
 | The allocation-limit fix could be undone without any test noticing | The replacement check asserted the *constant* was large enough, not that the call used it. A mutation hard-coding `setAllocationLimit(256)` survived | `anImagePastQtsDefaultLimitStillDecodes`, which decodes the fixture |
 | The stale-result test passed with the generation check deleted | It navigated quickly and waited, and the last sample in the folder happens to be the slowest to decode — so it landed last whether or not stale results were discarded. The test was passing by luck of file order | `aResultFromAnEarlierGenerationIsDiscarded`, which delivers an old-generation result directly |
